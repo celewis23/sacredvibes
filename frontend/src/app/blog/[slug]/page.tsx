@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { blogApi } from '@/lib/api'
 
 export const revalidate = 300
@@ -15,8 +15,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   try {
     const res = await blogApi.getPost(slug, brand.slug)
@@ -39,8 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BlogPostPage({ params }: Props) {
   const { slug } = await params
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   let post
   try {

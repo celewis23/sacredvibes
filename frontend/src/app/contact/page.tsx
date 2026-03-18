@@ -1,12 +1,11 @@
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import ContactForm from '@/components/forms/ContactForm'
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
   return {
     title: `Contact — ${brand.name}`,
     description: `Reach out to ${brand.name}. We'd love to hear from you.`,
@@ -15,8 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ContactPage() {
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   return (
     <main className="section">

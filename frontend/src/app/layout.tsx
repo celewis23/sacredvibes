@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Cormorant_Garamond, Lato } from 'next/font/google'
 import { Toaster } from 'sonner'
+import SiteFooter from '@/components/layout/SiteFooter'
+import SiteHeader from '@/components/layout/SiteHeader'
+import { getCurrentBrand } from '@/lib/brand/current'
 import Providers from './providers'
 import './globals.css'
 
@@ -35,12 +39,19 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') ?? ''
+  const isAdminRoute = pathname.startsWith('/admin')
+  const brand = getCurrentBrand(headersList)
+
   return (
     <html lang="en" className={`${cormorant.variable} ${lato.variable}`}>
       <body className="font-body text-sacred-900 bg-sacred-50 antialiased">
         <Providers>
+          {!isAdminRoute && <SiteHeader brand={brand} />}
           {children}
+          {!isAdminRoute && <SiteFooter brand={brand} />}
           <Toaster position="top-right" richColors closeButton />
         </Providers>
       </body>

@@ -16,6 +16,14 @@ export interface NavLink {
   children?: NavLink[]
 }
 
+const LOCAL_DEV_PORT = '3000'
+const LOCAL_HOSTS: Record<string, string> = {
+  'sacredvibesyoga.local': 'sacredvibesyoga.com',
+  'hands.sacredvibesyoga.local': 'hands.sacredvibesyoga.com',
+  'sound.sacredvibesyoga.local': 'sound.sacredvibesyoga.com',
+  'admin.sacredvibesyoga.local': 'admin.sacredvibesyoga.com',
+}
+
 // Well-known GUIDs must match SeedData.cs WellKnownIds
 const BRAND_IDS: Record<BrandSlug, string> = {
   'sacred-vibes-yoga': '11111111-1111-1111-1111-111111111111',
@@ -90,14 +98,17 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
 
 export function resolveBrandFromHost(host: string): BrandContext {
   const normalized = host.replace(/:\d+$/, '').toLowerCase()
+  const canonicalHost = LOCAL_HOSTS[normalized] ?? normalized
 
-  if (BRAND_CONFIGS[normalized]) return BRAND_CONFIGS[normalized]
-
-  if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
-    return BRAND_CONFIGS['sacredvibesyoga.com']
+  if (BRAND_CONFIGS[canonicalHost]) {
+    return withLocalDevLinks(BRAND_CONFIGS[canonicalHost], normalized)
   }
 
-  return BRAND_CONFIGS['sacredvibesyoga.com']
+  if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
+    return withLocalDevLinks(BRAND_CONFIGS['sacredvibesyoga.com'], normalized)
+  }
+
+  return withLocalDevLinks(BRAND_CONFIGS['sacredvibesyoga.com'], normalized)
 }
 
 export function getBrandConfigBySlug(slug: BrandSlug): BrandContext {
@@ -115,4 +126,28 @@ export function formatPrice(price: number | undefined, priceType: string, curren
   if (priceType === 'Donation') return 'Donation-based'
   if (priceType === 'SlidingScale') return 'Sliding scale'
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price ?? 0)
+}
+
+function withLocalDevLinks(brand: BrandContext, normalizedHost: string): BrandContext {
+  if (!isLocalDevHost(normalizedHost)) return brand
+
+  const navLinks = brand.navLinks.map((link) => {
+    if (link.href === 'https://hands.sacredvibesyoga.com') {
+      return { ...link, href: `http://hands.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
+    }
+
+    if (link.href === 'https://sound.sacredvibesyoga.com') {
+      return { ...link, href: `http://sound.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
+    }
+
+    return link
+  })
+
+  return { ...brand, navLinks }
+}
+
+function isLocalDevHost(host: string): boolean {
+  return host.includes('localhost')
+    || host.includes('127.0.0.1')
+    || host.endsWith('.local')
 }

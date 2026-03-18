@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { apiClient } from '@/lib/api/client'
 import GalleryGrid from '@/components/gallery/GalleryGrid'
 import type { ApiResponse, Gallery, GalleryItem, Asset } from '@/types'
@@ -28,8 +28,7 @@ async function getGalleryItems(galleryId: string): Promise<Asset[]> {
 
 export default async function GalleryPage() {
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   const galleries = await getGalleries(brand.id)
   const activeGalleries = galleries.filter(g => g.isActive)

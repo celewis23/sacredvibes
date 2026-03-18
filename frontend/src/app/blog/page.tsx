@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import Image from 'next/image'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { blogApi } from '@/lib/api'
 import type { BlogPostSummary } from '@/types'
 
@@ -20,8 +20,7 @@ export default async function BlogPage({
 }) {
   const sp = await searchParams
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   const page = parseInt(sp.page ?? '1', 10)
   const category = sp.category

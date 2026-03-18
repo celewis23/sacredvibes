@@ -5,6 +5,10 @@ const BRAND_HOST_MAP: Record<string, string> = {
   'hands.sacredvibesyoga.com': 'sacred-hands',
   'sound.sacredvibesyoga.com': 'sacred-sound',
   'admin.sacredvibesyoga.com': 'admin',
+  'sacredvibesyoga.local':       'sacred-vibes-yoga',
+  'hands.sacredvibesyoga.local': 'sacred-hands',
+  'sound.sacredvibesyoga.local': 'sacred-sound',
+  'admin.sacredvibesyoga.local': 'admin',
 }
 
 export function middleware(request: NextRequest) {
@@ -37,10 +41,21 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Pass brand context via header to server components
-  const response = NextResponse.next()
+  // Pass brand context through request and response headers so server components
+  // can honor localhost query-param overrides during development.
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-brand', brand)
+  requestHeaders.set('x-hostname', hostname)
+  requestHeaders.set('x-pathname', pathname)
+
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
   response.headers.set('x-brand', brand)
   response.headers.set('x-hostname', hostname)
+  response.headers.set('x-pathname', pathname)
   return response
 }
 

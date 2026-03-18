@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
 import type { ServiceOffering } from '@/types'
 
@@ -26,8 +26,7 @@ function formatPrice(s: ServiceOffering): string {
 
 export default async function ServicesPage() {
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   let services: ServiceOffering[] = []
   try {

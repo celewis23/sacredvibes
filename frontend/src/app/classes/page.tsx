@@ -1,7 +1,7 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { resolveBrandFromHost } from '@/lib/brand/resolution'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
 import type { ServiceOffering, EventOffering } from '@/types'
 
@@ -27,8 +27,7 @@ function formatPrice(s: ServiceOffering | EventOffering): string {
 
 export default async function ClassesPage() {
   const headersList = await headers()
-  const host = headersList.get('host') ?? ''
-  const brand = resolveBrandFromHost(host)
+  const brand = getCurrentBrand(headersList)
 
   const [servicesRes, eventsRes] = await Promise.allSettled([
     servicesApi.getServices({ brandId: brand.id }),
