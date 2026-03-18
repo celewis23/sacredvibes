@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sacredvibes-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sacredvibes
+      POSTGRES_USER: sacredvibes
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sacredvibes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sacredvibes-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=sacredvibes;Username=sacredvibes;Password=${POSTGRES_PASSWORD:-changeme_dev}
+      - Jwt__Secret=${JWT_SECRET}
+      - Jwt__Issuer=SacredVibesApi
+      - Jwt__Audience=SacredVibesAdmin
+      - Storage__BasePath=/app/uploads
+      - Storage__BaseUrl=${API_BASE_URL:-http://localhost:5000}/uploads
+      - Square__Environment=${SQUARE_ENVIRONMENT:-sandbox}
+      - Square__ApplicationId=${SQUARE_APP_ID:-}
+      - Square__AccessToken=${SQUARE_ACCESS_TOKEN:-}
+      - Square__LocationId=${SQUARE_LOCATION_ID:-}
+      - Square__WebhookSignatureKey=${SQUARE_WEBHOOK_KEY:-}
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-}
+      - Cors__Origins__0=http://localhost:3000
+      - Cors__Origins__1=${FRONTEND_URL:-https://sacredvibesyoga.com}
+    ports:
+      - "5000:8080"
+    volumes:
+      - uploads_data:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${API_BASE_URL:-http://localhost:5000}
+    container_name: sacredvibes-frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      - NEXT_PUBLIC_API_URL=${API_BASE_URL:-http://localhost:5000}
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  uploads_data:

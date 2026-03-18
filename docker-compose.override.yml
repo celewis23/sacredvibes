@@ -1,0 +1,28 @@
+version: '3.9'
+
+# Development overrides — hot reload, no build required
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  api:
+    build: ~
+    image: ~
+    volumes:
+      - ./backend:/app/src
+      - uploads_data:/app/uploads
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    command: dotnet watch run --project src/SacredVibes.Api/SacredVibes.Api.csproj
+
+  frontend:
+    build: ~
+    image: ~
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
+    environment:
+      - NODE_ENV=development
