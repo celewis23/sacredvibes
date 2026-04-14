@@ -98,14 +98,20 @@ export default function CorporateWellnessPage() {
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section data-header="dark" className="relative overflow-hidden section-dark pt-32 pb-28">
-        <div className="orb w-[620px] h-[620px] bg-yoga-700"
-             style={{ top: '-120px', right: '-140px', opacity: 0.09 }} />
-        <div className="orb w-[420px] h-[420px] bg-sage-700"
-             style={{ bottom: '-90px', left: '-80px', opacity: 0.08 }} />
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/corporate-wellness.jpg')", opacity: 0.22 }}
+        />
+        <div className="orb w-[700px] h-[700px] bg-yoga-700"
+             style={{ top: '-150px', right: '-150px', opacity: 0.1 }} />
+        <div className="orb w-[500px] h-[500px] bg-sage-700"
+             style={{ bottom: '-100px', left: '-100px', opacity: 0.07 }} />
 
         <div className="container-sacred relative z-10">
           <div className="max-w-3xl mx-auto text-center">
-            <LotusMark className="w-16 mx-auto mb-8" />
+            <div className="w-16 h-16 rounded-full bg-yoga-700/30 border border-yoga-500/30 flex items-center justify-center text-3xl mx-auto mb-8 animate-float">
+              <LotusMark className="w-10" />
+            </div>
             <p className="eyebrow text-yoga-400 mb-5">Corporate Wellness</p>
             <h1 className="font-heading text-display-lg md:text-display-xl text-white leading-tight mb-6 text-balance">
               Elevate Your Team's<br/>Energy & Wellbeing
@@ -119,22 +125,6 @@ export default function CorporateWellnessPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/contact" className="btn-gold">Request a Proposal</Link>
               <Link href="/contact" className="btn-ghost-light">Book a Discovery Call</Link>
-            </div>
-          </div>
-
-          <div className="mt-16 max-w-5xl mx-auto">
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-luxury">
-              <img
-                src="/images/corporate-wellness.jpg"
-                alt="Sacred Vibes facilitating a corporate wellness experience with a team"
-                className="w-full h-[360px] md:h-[460px] object-cover object-center"
-              />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6 md:p-8">
-                <p className="eyebrow text-yoga-300 mb-2">In Practice</p>
-                <p className="font-heading text-2xl text-white leading-snug max-w-2xl">
-                  Real-world corporate wellness experiences built to help teams reset, reconnect, and re-energize
-                </p>
-              </div>
             </div>
           </div>
 
