@@ -21,6 +21,7 @@ const subBrandSchemes = {
 export default function SiteHeader({ brand }: SiteHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [onDark, setOnDark] = useState(false)
+  const [canHover, setCanHover] = useState(false)
   const scheme = subBrandSchemes[brand.colorScheme]
   const pathname = usePathname()
   const rafRef = useRef<number | null>(null)
@@ -29,6 +30,15 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
     // Reset open state on navigation
     setIsOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(hover: hover)')
+    const updateHoverCapability = () => setCanHover(mediaQuery.matches)
+
+    updateHoverCapability()
+    mediaQuery.addEventListener('change', updateHoverCapability)
+    return () => mediaQuery.removeEventListener('change', updateHoverCapability)
+  }, [])
 
   useEffect(() => {
     const HEADER_MID_Y = 48 // vertical centre of the 96px header
@@ -100,7 +110,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-0.5">
             {brand.navLinks.map((link) => (
-              <div key={link.href} className="relative group">
+              <div key={link.href} className={clsx('relative', link.children && canHover && 'group')}>
                 <Link
                   href={link.href}
                   className={clsx(
@@ -111,14 +121,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                   )}
                 >
                   {link.label}
-                  {link.children && (
+                  {link.children && canHover && (
                     <svg className="w-3 h-3 opacity-50" viewBox="0 0 12 12" fill="currentColor">
                       <path d="M6 8L2 4h8z"/>
                     </svg>
                   )}
                 </Link>
 
-                {link.children && (
+                {link.children && canHover && (
                   <div className={clsx(
                     'absolute top-full left-0 mt-2 w-56 rounded-2xl border shadow-luxury',
                     'opacity-0 invisible translate-y-1',

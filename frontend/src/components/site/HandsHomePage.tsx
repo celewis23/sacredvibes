@@ -36,6 +36,7 @@ export default async function HandsHomePage({ brand }: Props) {
         primaryCta={{ label: 'Book a Session', href: toBrandPath(brand, '/booking') }}
         secondaryCta={{ label: 'Our Services', href: toBrandPath(brand, '/services') }}
         colorScheme="hands"
+        imageUrl="/images/sacred-hands.jpg"
       />
 
       {/* Services */}
