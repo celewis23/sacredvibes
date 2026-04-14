@@ -8,6 +8,7 @@ import type { BrandContext } from '@/lib/brand/resolution'
 
 interface SiteHeaderProps {
   brand: BrandContext
+  heroMode?: boolean
 }
 
 const subBrandSchemes = {
@@ -16,8 +17,8 @@ const subBrandSchemes = {
   sound: { ctaGradient: 'from-sound-700 to-sound-500', text: 'text-sacred-800', hoverText: 'hover:text-sound-600', activeBg: 'hover:bg-sound-50' },
 }
 
-export default function SiteHeader({ brand }: SiteHeaderProps) {
-  const [isOpen, setIsOpen]   = useState(false)
+export default function SiteHeader({ brand, heroMode = false }: SiteHeaderProps) {
+  const [isOpen, setIsOpen]     = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const scheme = subBrandSchemes[brand.colorScheme]
 
@@ -27,12 +28,15 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
+  // On non-hero pages, treat as always-scrolled so the header is always opaque with dark text
+  const isOpaque = !heroMode || scrolled
+
   const isYoga = brand.slug === 'sacred-vibes-yoga'
 
   return (
     <header className={clsx(
       'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
-      scrolled
+      isOpaque
         ? 'bg-white/96 backdrop-blur-2xl shadow-soft border-b border-sacred-100/80'
         : 'bg-transparent'
     )}>
@@ -51,13 +55,13 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             <div className="hidden sm:block">
               <p className={clsx(
                 'font-heading font-semibold text-lg leading-tight tracking-wide transition-colors duration-300',
-                scrolled ? 'text-sacred-900' : 'text-white'
+                isOpaque ? 'text-sacred-900' : 'text-white'
               )}>
                 Sacred Vibes
               </p>
               <p className={clsx(
                 'text-[9px] tracking-[0.22em] uppercase font-body font-medium transition-colors duration-300',
-                scrolled ? 'text-yoga-600' : 'text-yoga-300'
+                isOpaque ? 'text-yoga-600' : 'text-yoga-300'
               )}>
                 Healing &amp; Wellness
               </p>
@@ -72,7 +76,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                   href={link.href}
                   className={clsx(
                     'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
-                    scrolled
+                    isOpaque
                       ? `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
                       : 'text-white/85 hover:text-white hover:bg-white/10'
                   )}
@@ -114,7 +118,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 href="/contact"
                 className={clsx(
                   'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
-                  scrolled
+                  isOpaque
                     ? 'border-sacred-300 text-sacred-700 hover:border-yoga-400 hover:text-yoga-700'
                     : 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
                 )}
@@ -139,7 +143,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             onClick={() => setIsOpen(!isOpen)}
             className={clsx(
               'lg:hidden p-2.5 rounded-xl transition-colors',
-              scrolled ? 'text-sacred-700 hover:bg-sacred-100' : 'text-white hover:bg-white/10'
+              isOpaque ? 'text-sacred-700 hover:bg-sacred-100' : 'text-white hover:bg-white/10'
             )}
             aria-label="Toggle menu"
           >

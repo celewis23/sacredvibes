@@ -45,12 +45,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const pathname = headersList.get('x-pathname') ?? ''
   const isAdminRoute = pathname.startsWith('/admin')
   const brand = getCurrentBrand(headersList)
+  // Only the homepage has a full-screen dark hero — all other pages need an opaque header
+  const heroMode = pathname === '/'
 
   return (
     <html lang="en" className={`${cormorant.variable} ${lato.variable}`}>
-      <body className="font-body text-sacred-900 bg-sacred-50 antialiased">
+      <body className="font-body text-sacred-900 bg-white antialiased">
         <Providers>
-          {!isAdminRoute && <SiteHeader brand={brand} />}
+          {!isAdminRoute && <SiteHeader brand={brand} heroMode={heroMode} />}
           {children}
           {!isAdminRoute && <SiteFooter brand={brand} />}
           <Toaster position="top-right" richColors closeButton />
