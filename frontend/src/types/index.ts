@@ -7,7 +7,6 @@ export interface Brand {
   name: string
   slug: BrandSlug
   type: 'Parent' | 'SubBrand'
-  subdomain: string
   description?: string
   tagline?: string
   logoPath?: string

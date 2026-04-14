@@ -2,12 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server'
 
 const BRAND_HOST_MAP: Record<string, string> = {
   'sacredvibesyoga.com':       'sacred-vibes-yoga',
-  'hands.sacredvibesyoga.com': 'sacred-hands',
-  'sound.sacredvibesyoga.com': 'sacred-sound',
   'admin.sacredvibesyoga.com': 'admin',
   'sacredvibesyoga.local':     'sacred-vibes-yoga',
-  'hands.sacredvibesyoga.local': 'sacred-hands',
-  'sound.sacredvibesyoga.local': 'sacred-sound',
   'admin.sacredvibesyoga.local': 'admin',
 }
 
@@ -17,27 +13,11 @@ const BRAND_PATH_PREFIXES: Record<string, string> = {
   '/sound': 'sacred-sound',
 }
 
-const LEGACY_SUBDOMAIN_BASE_PATHS: Record<string, string> = {
-  'hands.sacredvibesyoga.com': '/hands',
-  'sound.sacredvibesyoga.com': '/sound',
-  'hands.sacredvibesyoga.local': '/hands',
-  'sound.sacredvibesyoga.local': '/sound',
-}
-
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const hostname = host.replace(/:\d+$/, '').toLowerCase()
   const pathname = request.nextUrl.pathname
   const search = request.nextUrl.search
-
-  const legacyBasePath = LEGACY_SUBDOMAIN_BASE_PATHS[hostname]
-  if (legacyBasePath) {
-    const redirectUrl = request.nextUrl.clone()
-    redirectUrl.hostname = hostname.endsWith('.local') ? 'sacredvibesyoga.local' : 'sacredvibesyoga.com'
-    redirectUrl.pathname = pathname === '/' ? legacyBasePath : `${legacyBasePath}${pathname}`
-    redirectUrl.search = search
-    return NextResponse.redirect(redirectUrl, 308)
-  }
 
   // 1. Path-prefix brand detection (takes priority over host)
   let brand: string | undefined
@@ -56,10 +36,9 @@ export function middleware(request: NextRequest) {
     brand = BRAND_HOST_MAP[hostname]
   }
 
-  // 3. Dev overrides / fallback
+  // 3. Dev override / fallback
   if (!brand) {
     brand = request.nextUrl.searchParams.get('brand')
-      ?? request.headers.get('x-brand')
       ?? 'sacred-vibes-yoga'
   }
 

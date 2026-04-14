@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { dashboardApi } from '@/lib/api'
+import { getBrandBasePath } from '@/lib/brand/resolution'
 import type { Brand } from '@/types'
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
@@ -21,6 +22,7 @@ function Section({ title, description, children }: { title: string; description?
 function BrandCard({ brand }: { brand: Brand }) {
   let theme: Record<string, string> = {}
   let seo: Record<string, string> = {}
+  const routePrefix = getBrandBasePath(brand.slug) || '/'
   try { theme = JSON.parse(brand.themeSettingsJson) } catch { /* ignore */ }
   try { seo = JSON.parse(brand.seoSettingsJson) } catch { /* ignore */ }
 
@@ -33,7 +35,7 @@ function BrandCard({ brand }: { brand: Brand }) {
         />
         <div>
           <h4 className="font-medium text-gray-900">{brand.name}</h4>
-          <p className="text-xs text-gray-500">{brand.subdomain}.sacredvibesyoga.com</p>
+          <p className="text-xs text-gray-500">Route: {routePrefix}</p>
         </div>
         <div className="ml-auto">
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${brand.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>

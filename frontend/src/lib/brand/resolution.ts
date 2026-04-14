@@ -4,7 +4,6 @@ export interface BrandContext {
   id: string
   slug: BrandSlug
   name: string
-  subdomain: string
   isAdmin: boolean
   colorScheme: 'yoga' | 'hands' | 'sound'
   navLinks: NavLink[]
@@ -39,7 +38,6 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     id: BRAND_IDS['sacred-vibes-yoga'],
     slug: 'sacred-vibes-yoga',
     name: 'Sacred Vibes Healing & Wellness',
-    subdomain: 'sacredvibesyoga.com',
     isAdmin: false,
     colorScheme: 'yoga',
     navLinks: [
@@ -65,7 +63,6 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     id: BRAND_IDS['sacred-hands'],
     slug: 'sacred-hands',
     name: 'Sacred Hands',
-    subdomain: 'sacredvibesyoga.com',
     isAdmin: false,
     colorScheme: 'hands',
     navLinks: [
@@ -82,7 +79,6 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     id: BRAND_IDS['sacred-sound'],
     slug: 'sacred-sound',
     name: 'Sacred Sound',
-    subdomain: 'sacredvibesyoga.com',
     isAdmin: false,
     colorScheme: 'sound',
     navLinks: [
