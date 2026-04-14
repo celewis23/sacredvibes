@@ -22,6 +22,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [onDark, setOnDark] = useState(false)
   const [canHover, setCanHover] = useState(false)
+  const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null)
+  const [openMobileMenu, setOpenMobileMenu] = useState<string | null>(null)
   const scheme = subBrandSchemes[brand.colorScheme]
   const pathname = usePathname()
   const rafRef = useRef<number | null>(null)
@@ -29,6 +31,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   useEffect(() => {
     // Reset open state on navigation
     setIsOpen(false)
+    setOpenDesktopMenu(null)
+    setOpenMobileMenu(null)
   }, [pathname])
 
   useEffect(() => {
@@ -110,40 +114,65 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-0.5">
             {brand.navLinks.map((link) => (
-              <div key={link.href} className={clsx('relative', link.children && canHover && 'group')}>
-                <Link
-                  href={link.href}
-                  className={clsx(
-                    'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
-                    onDark
-                      ? 'text-white/85 hover:text-white hover:bg-white/10'
-                      : `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
-                  )}
-                >
-                  {link.label}
-                  {link.children && canHover && (
-                    <svg className="w-3 h-3 opacity-50" viewBox="0 0 12 12" fill="currentColor">
+              <div
+                key={link.href}
+                className="relative pb-2 -mb-2"
+                onMouseEnter={() => {
+                  if (link.children && canHover) setOpenDesktopMenu(link.href)
+                }}
+                onMouseLeave={() => {
+                  if (link.children && canHover) setOpenDesktopMenu((current) => current === link.href ? null : current)
+                }}
+              >
+                {link.children ? (
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={openDesktopMenu === link.href}
+                    onClick={() => setOpenDesktopMenu((current) => current === link.href ? null : link.href)}
+                    className={clsx(
+                      'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
+                      onDark
+                        ? 'text-white/85 hover:text-white hover:bg-white/10'
+                        : `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
+                    )}
+                  >
+                    {link.label}
+                    <svg className={clsx('w-3 h-3 opacity-50 transition-transform', openDesktopMenu === link.href && 'rotate-180')} viewBox="0 0 12 12" fill="currentColor">
                       <path d="M6 8L2 4h8z"/>
                     </svg>
-                  )}
-                </Link>
+                  </button>
+                ) : (
+                  <Link
+                    href={link.href}
+                    className={clsx(
+                      'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
+                      onDark
+                        ? 'text-white/85 hover:text-white hover:bg-white/10'
+                        : `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                )}
 
-                {link.children && canHover && (
-                  <div className={clsx(
-                    'absolute top-full left-0 mt-2 w-56 rounded-2xl border shadow-luxury',
-                    'opacity-0 invisible translate-y-1',
-                    'group-hover:opacity-100 group-hover:visible group-hover:translate-y-0',
-                    'transition-all duration-300 bg-white border-sacred-100/80 overflow-hidden'
-                  )}>
-                    {link.children.map((child) => (
-                      <Link
-                        key={child.href}
-                        href={child.href}
-                        className="block px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
+                {link.children && openDesktopMenu === link.href && (
+                  <div className="absolute top-full left-0 w-56 pt-2">
+                    <div className={clsx(
+                      'rounded-2xl border shadow-luxury',
+                      'bg-white border-sacred-100/80 overflow-hidden opacity-100 visible translate-y-0'
+                    )}>
+                      {link.children.map((child) => (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          onClick={() => setOpenDesktopMenu(null)}
+                          className="block px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -197,26 +226,47 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
           <nav className="max-w-7xl mx-auto px-4 py-6 flex flex-col gap-1">
             {brand.navLinks.map((link) => (
               <div key={link.href}>
-                <Link
-                  href={link.href}
-                  onClick={() => setIsOpen(false)}
-                  className={clsx(
-                    'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
-                    `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
-                  )}
-                >
-                  {link.label}
-                </Link>
-                {link.children?.map((child) => (
+                {link.children ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setOpenMobileMenu((current) => current === link.href ? null : link.href)}
+                      className={clsx(
+                        'w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
+                        `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                      )}
+                    >
+                      <span>{link.label}</span>
+                      <svg className={clsx('w-3 h-3 opacity-50 transition-transform', openMobileMenu === link.href && 'rotate-180')} viewBox="0 0 12 12" fill="currentColor">
+                        <path d="M6 8L2 4h8z"/>
+                      </svg>
+                    </button>
+                    {openMobileMenu === link.href && link.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        onClick={() => {
+                          setOpenMobileMenu(null)
+                          setIsOpen(false)
+                        }}
+                        className="block px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
+                      >
+                        {child.label}
+                      </Link>
+                    ))}
+                  </>
+                ) : (
                   <Link
-                    key={child.href}
-                    href={child.href}
+                    href={link.href}
                     onClick={() => setIsOpen(false)}
-                    className="block px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
+                    className={clsx(
+                      'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
+                      `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                    )}
                   >
-                    {child.label}
+                    {link.label}
                   </Link>
-                ))}
+                )}
               </div>
             ))}
             <div className="pt-4 mt-2 border-t border-sacred-100 flex flex-col gap-3">

@@ -54,34 +54,51 @@ export default async function EventsPage() {
         <div className="orb w-[400px] h-[400px] bg-sage-200"
              style={{ bottom: '-80px', left: '-80px', opacity: 0.3 }} />
         <div className="container-sacred relative z-10">
-          <p className="eyebrow text-yoga-600 mb-5">Sacred Gatherings</p>
-          <h1 className="font-heading text-display-lg md:text-display-xl text-sacred-900 leading-tight mb-5 text-balance max-w-3xl">
-            Events &amp; Retreats
-          </h1>
-          <span className="gold-line w-14 block mb-6" />
-          <p className="text-sacred-500 text-lg font-body font-light leading-relaxed max-w-xl tracking-wide mb-10">
-            Immersive experiences rooted in Richmond, traveling the world. Join us in person, online, or on retreat.
-          </p>
-          {/* Filter pills — static display, could be enhanced with client-side filtering */}
-          <div className="flex flex-wrap gap-3">
-            {[
-              { label: 'All Events', count: events.length },
-              { label: 'In-Person',  count: inPerson.length },
-              { label: 'Virtual',    count: virtual.length },
-              { label: 'Retreats',   count: retreats.length },
-            ].map(({ label, count }) => (
-              <span
-                key={label}
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-body font-medium border border-yoga-200 text-yoga-700 bg-white/80"
-              >
-                {label}
-                {count > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-yoga-100 text-yoga-700 text-[10px] font-semibold flex items-center justify-center">
-                    {count}
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)] lg:items-center">
+            <div>
+              <p className="eyebrow text-yoga-600 mb-5">Sacred Gatherings</p>
+              <h1 className="font-heading text-display-lg md:text-display-xl text-sacred-900 leading-tight mb-5 text-balance max-w-3xl">
+                Events &amp; Retreats
+              </h1>
+              <span className="gold-line w-14 block mb-6" />
+              <p className="text-sacred-500 text-lg font-body font-light leading-relaxed max-w-xl tracking-wide mb-10">
+                Immersive experiences rooted in Richmond, traveling the world. Join us in person, online, or on retreat.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                {[
+                  { label: 'All Events', count: events.length },
+                  { label: 'In-Person',  count: inPerson.length },
+                  { label: 'Virtual',    count: virtual.length },
+                  { label: 'Retreats',   count: retreats.length },
+                ].map(({ label, count }) => (
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-body font-medium border border-yoga-200 text-yoga-700 bg-white/80"
+                  >
+                    {label}
+                    {count > 0 && (
+                      <span className="w-5 h-5 rounded-full bg-yoga-100 text-yoga-700 text-[10px] font-semibold flex items-center justify-center">
+                        {count}
+                      </span>
+                    )}
                   </span>
-                )}
-              </span>
-            ))}
+                ))}
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-white/70 shadow-luxury">
+              <img
+                src="/images/events.jpg"
+                alt="Sacred Vibes event gathering"
+                className="w-full h-[320px] md:h-[420px] object-cover object-center"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/25 to-transparent p-6 md:p-8">
+                <p className="eyebrow text-yoga-300 mb-2">Upcoming Energy</p>
+                <p className="font-heading text-2xl text-white leading-snug max-w-md">
+                  Workshops, retreats, and sacred experiences designed to bring people together
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

@@ -21,24 +21,44 @@ export default async function AboutPage() {
     <main>
       {/* Hero */}
       <section className="section bg-sacred-50">
-        <div className="container-sacred max-w-3xl mx-auto text-center">
-          <p className="text-xs font-medium uppercase tracking-widest text-sacred-400 mb-4">Our Story</p>
-          <h1 className="font-heading text-4xl md:text-6xl text-sacred-900 mb-6">
-            {brand.slug === 'sacred-vibes-yoga' && 'Born from a Love of Movement'}
-            {brand.slug === 'sacred-hands' && 'Healing Through Touch'}
-            {brand.slug === 'sacred-sound' && 'The Power of Sacred Sound'}
-          </h1>
-          <p className="text-lg text-sacred-600 leading-relaxed">
-            {brand.slug === 'sacred-vibes-yoga' && (
-              'Sacred Vibes Yoga was founded on the belief that yoga is for every body. Our studio is a sanctuary — a place to slow down, go inward, and reconnect with what matters most.'
-            )}
-            {brand.slug === 'sacred-hands' && (
-              'Sacred Hands was born from a deep respect for the healing potential of therapeutic touch. Every session is an intentional act of care, tailored to the person in front of us.'
-            )}
-            {brand.slug === 'sacred-sound' && (
-              'Sacred Sound was created to bring people into deeper states of presence and healing through the ancient technology of sound. Our practitioners combine Tibetan bowls, crystal bowls, gongs, and voice to guide profound inner journeys.'
-            )}
-          </p>
+        <div className="container-sacred max-w-6xl mx-auto">
+          <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)] lg:items-center">
+            <div className="text-center lg:text-left">
+              <p className="text-xs font-medium uppercase tracking-widest text-sacred-400 mb-4">Our Story</p>
+              <h1 className="font-heading text-4xl md:text-6xl text-sacred-900 mb-6">
+                {brand.slug === 'sacred-vibes-yoga' && 'Born from a Love of Movement'}
+                {brand.slug === 'sacred-hands' && 'Healing Through Touch'}
+                {brand.slug === 'sacred-sound' && 'The Power of Sacred Sound'}
+              </h1>
+              <p className="text-lg text-sacred-600 leading-relaxed max-w-2xl lg:max-w-none mx-auto lg:mx-0">
+                {brand.slug === 'sacred-vibes-yoga' && (
+                  'Sacred Vibes Yoga was founded on the belief that yoga is for every body. Our studio is a sanctuary — a place to slow down, go inward, and reconnect with what matters most.'
+                )}
+                {brand.slug === 'sacred-hands' && (
+                  'Sacred Hands was born from a deep respect for the healing potential of therapeutic touch. Every session is an intentional act of care, tailored to the person in front of us.'
+                )}
+                {brand.slug === 'sacred-sound' && (
+                  'Sacred Sound was created to bring people into deeper states of presence and healing through the ancient technology of sound. Our practitioners combine Tibetan bowls, crystal bowls, gongs, and voice to guide profound inner journeys.'
+                )}
+              </p>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-luxury">
+              <img
+                src="/images/about.jpg"
+                alt={`${brand.name} about page`}
+                className="w-full h-[320px] md:h-[420px] object-cover object-center"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent p-6 md:p-8">
+                <p className="text-xs font-medium uppercase tracking-[0.22em] text-yoga-300 mb-2">
+                  Sacred Vibes
+                </p>
+                <p className="font-heading text-2xl text-white leading-snug max-w-md">
+                  A practice rooted in presence, healing, and honest connection
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

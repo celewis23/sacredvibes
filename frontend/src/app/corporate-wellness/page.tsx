@@ -122,6 +122,22 @@ export default function CorporateWellnessPage() {
             </div>
           </div>
 
+          <div className="mt-16 max-w-5xl mx-auto">
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-luxury">
+              <img
+                src="/images/corporate-wellness.jpg"
+                alt="Sacred Vibes facilitating a corporate wellness experience with a team"
+                className="w-full h-[360px] md:h-[460px] object-cover object-center"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-6 md:p-8">
+                <p className="eyebrow text-yoga-300 mb-2">In Practice</p>
+                <p className="font-heading text-2xl text-white leading-snug max-w-2xl">
+                  Real-world corporate wellness experiences built to help teams reset, reconnect, and re-energize
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Stats strip */}
           <div className="mt-20 max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6">
             {STATS.map((s) => (
