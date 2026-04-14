@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
 using System.Data;
@@ -28,9 +30,10 @@ public static class SeedData
 
     private static async Task EnsureDatabaseReadyAsync(AppDbContext db)
     {
-        var migrations = await db.Database.GetMigrationsAsync();
+        var migrationsAssembly = db.Database.GetService<IMigrationsAssembly>();
+        var hasMigrations = migrationsAssembly.Migrations.Count > 0;
 
-        if (migrations.Any())
+        if (hasMigrations)
         {
             await db.Database.MigrateAsync();
         }

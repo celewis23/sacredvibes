@@ -170,11 +170,6 @@ public static class DependencyInjection
                 continue;
             }
 
-            if (key.Equals("trust server certificate", StringComparison.OrdinalIgnoreCase) &&
-                bool.TryParse(valuePart, out var trustServerCertificate))
-            {
-                builder.TrustServerCertificate = trustServerCertificate;
-            }
         }
 
         return builder.ConnectionString;

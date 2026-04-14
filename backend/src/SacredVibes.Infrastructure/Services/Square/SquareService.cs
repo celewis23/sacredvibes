@@ -273,7 +273,7 @@ public class SquareService : ISquareService
                 {
                     BookingId = booking.Id,
                     Provider = "Square",
-                    ProviderPaymentId = squarePaymentId,
+                    ProviderPaymentId = squarePaymentId!,
                     Amount = amountCents / 100m,
                     Currency = currency ?? "USD",
                     Status = booking.PaymentStatus,

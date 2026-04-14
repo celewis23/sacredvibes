@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SacredVibes.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d4a94780996920162b69e7b87e376dce603d6e4d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c8ba46358ac43d8020af7f294d141ca4571b2c13")]
 [assembly: System.Reflection.AssemblyProductAttribute("SacredVibes.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SacredVibes.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
