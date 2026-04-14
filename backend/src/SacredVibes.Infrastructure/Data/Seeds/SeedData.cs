@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
-using System.Data;
 
 namespace SacredVibes.Infrastructure.Data.Seeds;
 
@@ -103,41 +102,23 @@ public static class SeedData
 
     private static async Task<bool> TableExistsAsync(AppDbContext db, string tableName)
     {
-        await using var connection = db.Database.GetDbConnection();
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync();
-        }
-
-        await using var command = connection.CreateCommand();
-        command.CommandText =
+        return await ExecuteExistsQueryAsync(
+            db,
             """
             SELECT EXISTS (
                 SELECT 1
                 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_name = @tableName
             );
-            """;
-
-        var parameter = command.CreateParameter();
-        parameter.ParameterName = "@tableName";
-        parameter.Value = tableName;
-        command.Parameters.Add(parameter);
-
-        var result = await command.ExecuteScalarAsync();
-        return result is bool exists && exists;
+            """,
+            ("@tableName", tableName)
+        );
     }
 
     private static async Task<bool> ColumnExistsAsync(AppDbContext db, string tableName, string columnName)
     {
-        await using var connection = db.Database.GetDbConnection();
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync();
-        }
-
-        await using var command = connection.CreateCommand();
-        command.CommandText =
+        return await ExecuteExistsQueryAsync(
+            db,
             """
             SELECT EXISTS (
                 SELECT 1
@@ -146,20 +127,48 @@ public static class SeedData
                   AND table_name = @tableName
                   AND column_name = @columnName
             );
-            """;
+            """,
+            ("@tableName", tableName),
+            ("@columnName", columnName)
+        );
+    }
 
-        var tableParam = command.CreateParameter();
-        tableParam.ParameterName = "@tableName";
-        tableParam.Value = tableName;
-        command.Parameters.Add(tableParam);
+    private static async Task<bool> ExecuteExistsQueryAsync(
+        AppDbContext db,
+        string sql,
+        params (string Name, object Value)[] parameters)
+    {
+        var connection = db.Database.GetDbConnection();
+        var shouldCloseConnection = connection.State != ConnectionState.Open;
 
-        var columnParam = command.CreateParameter();
-        columnParam.ParameterName = "@columnName";
-        columnParam.Value = columnName;
-        command.Parameters.Add(columnParam);
+        if (shouldCloseConnection)
+        {
+            await db.Database.OpenConnectionAsync();
+        }
 
-        var result = await command.ExecuteScalarAsync();
-        return result is bool exists && exists;
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+
+            foreach (var (name, value) in parameters)
+            {
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = name;
+                parameter.Value = value;
+                command.Parameters.Add(parameter);
+            }
+
+            var result = await command.ExecuteScalarAsync();
+            return result is bool exists && exists;
+        }
+        finally
+        {
+            if (shouldCloseConnection)
+            {
+                await db.Database.CloseConnectionAsync();
+            }
+        }
     }
 
     private static async Task ValidateCriticalAuthSchemaAsync(AppDbContext db)
