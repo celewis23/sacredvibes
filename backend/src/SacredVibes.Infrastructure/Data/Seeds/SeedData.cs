@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
+using System.Data;
 
 namespace SacredVibes.Infrastructure.Data.Seeds;
 
