@@ -12,7 +12,19 @@ import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { toast } from 'sonner'
 
-const navGroups = [
+interface NavItem {
+  label: string
+  href: string
+  icon: React.ElementType
+  exact?: boolean
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
   {
     label: 'Overview',
     items: [
