@@ -59,7 +59,7 @@ public class CreateBookingRequest
     public string? ReferralSource { get; set; }
 }
 
-public class CreateCheckoutRequest
+public record CreateCheckoutRequest
 {
     public Guid BookingId { get; set; }
     public string ReturnUrl { get; set; } = string.Empty;
