@@ -37,22 +37,26 @@ public static class SeedData
 
     private static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager)
     {
-        const string adminEmail = "admin@sacredvibesyoga.com";
-        if (await userManager.FindByEmailAsync(adminEmail) is not null) return;
+        var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? "admin@sacredvibesyoga.com";
+        var adminPassword = Environment.GetEnvironmentVariable("ADMIN_PASSWORD") ?? "Admin@Sacred2025!";
+
+        var existing = await userManager.FindByEmailAsync(adminEmail);
+        if (existing is not null) return;
 
         var admin = new ApplicationUser
         {
             UserName = adminEmail,
             Email = adminEmail,
-            FirstName = "Sacred",
-            LastName = "Admin",
+            FirstName = "Shanna",
+            LastName = "Latia",
             Role = UserRole.Admin,
             EmailConfirmed = true,
             IsActive = true
         };
 
-        await userManager.CreateAsync(admin, "Admin@Sacred2025!");
-        await userManager.AddToRoleAsync(admin, "Admin");
+        var result = await userManager.CreateAsync(admin, adminPassword);
+        if (result.Succeeded)
+            await userManager.AddToRoleAsync(admin, "Admin");
     }
 
     private static async Task SeedBrandsAsync(AppDbContext db)
