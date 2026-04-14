@@ -8,6 +8,10 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway injects PORT at runtime — bind to it so the health check can reach us
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://+:{port}");
+
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddInfrastructure(builder.Configuration);
