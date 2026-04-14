@@ -87,9 +87,10 @@ builder.Services.AddRateLimiter(opts =>
     opts.RejectionStatusCode = 429;
 });
 
-// Health checks
+// Health checks — DB reported as Degraded (not Unhealthy) so a slow/missing DB
+// doesn't prevent the service from starting and passing Railway's health gate.
 builder.Services.AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>();
+    .AddDbContextCheck<AppDbContext>(failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded);
 
 builder.Services.AddAuthorization();
 
