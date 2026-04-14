@@ -57,6 +57,11 @@ builder.Services.AddCors(opts =>
                "https://hands.sacredvibesyoga.com", "https://sound.sacredvibesyoga.com",
                "https://admin.sacredvibesyoga.com"];
 
+        // Allow any extra URL set via FRONTEND_URL env var (e.g. Vercel deployment URL)
+        var extra = Environment.GetEnvironmentVariable("FRONTEND_URL");
+        if (!string.IsNullOrWhiteSpace(extra))
+            origins = [.. origins, extra];
+
         policy
             .WithOrigins(origins)
             .AllowAnyHeader()
