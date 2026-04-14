@@ -58,17 +58,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
+                var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
+                var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var compareFalse = System.Linq.Expressions.Expression.Equal(
+                    isDeletedProperty,
+                    System.Linq.Expressions.Expression.Constant(false)
+                );
+
                 builder.Entity(entityType.ClrType)
                     .HasQueryFilter(
                         System.Linq.Expressions.Expression.Lambda(
-                            System.Linq.Expressions.Expression.Equal(
-                                System.Linq.Expressions.Expression.Property(
-                                    System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e"),
-                                    nameof(BaseEntity.IsDeleted)
-                                ),
-                                System.Linq.Expressions.Expression.Constant(false)
-                            ),
-                            System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e")
+                            compareFalse,
+                            parameter
                         )
                     );
             }
