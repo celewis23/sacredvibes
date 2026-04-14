@@ -230,7 +230,12 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
       {/* Mobile menu — always opaque regardless of background */}
       {isOpen && (
-        <div className="lg:hidden border-t border-white/10 bg-sacred-950/96 backdrop-blur-2xl animate-slide-down">
+        <div className={clsx(
+          'lg:hidden backdrop-blur-2xl animate-slide-down border-t',
+          onDark
+            ? 'border-white/10 bg-sacred-950/96'
+            : 'border-sacred-100/80 bg-white/98'
+        )}>
           <nav className="max-w-7xl mx-auto px-4 py-6 flex flex-col gap-1">
             {brand.navLinks.map((link) => (
               <div key={link.href}>
@@ -241,7 +246,9 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       onClick={() => setOpenMobileMenu((current) => current === link.href ? null : link.href)}
                       className={clsx(
                         'w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
-                        'text-white/90 hover:text-white hover:bg-white/10'
+                        onDark
+                          ? 'text-white/90 hover:text-white hover:bg-white/10'
+                          : `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
                       )}
                     >
                       <span>{link.label}</span>
@@ -254,7 +261,12 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                         key={child.href}
                         type="button"
                         onClick={() => navigateTo(child.href)}
-                        className="block w-full text-left px-8 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-2xl transition-colors"
+                        className={clsx(
+                          'block w-full text-left px-8 py-2.5 text-sm rounded-2xl transition-colors',
+                          onDark
+                            ? 'text-white/70 hover:text-white hover:bg-white/10'
+                            : 'text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50'
+                        )}
                       >
                         {child.label}
                       </button>
@@ -266,7 +278,9 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     onClick={() => setIsOpen(false)}
                     className={clsx(
                       'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
-                      'text-white/90 hover:text-white hover:bg-white/10'
+                      onDark
+                        ? 'text-white/90 hover:text-white hover:bg-white/10'
+                        : `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
                     )}
                   >
                     {link.label}
@@ -274,7 +288,10 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 )}
               </div>
             ))}
-            <div className="pt-4 mt-2 border-t border-white/10 flex flex-col gap-3">
+            <div className={clsx(
+              'pt-4 mt-2 border-t flex flex-col gap-3',
+              onDark ? 'border-white/10' : 'border-sacred-100'
+            )}>
               <Link
                 href={toBrandPath(brand, '/booking')}
                 onClick={() => setIsOpen(false)}
@@ -288,7 +305,12 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               <Link
                 href={toBrandPath(brand, '/contact')}
                 onClick={() => setIsOpen(false)}
-                className="block text-center px-6 py-3 rounded-full text-sm font-medium border border-white/25 text-white/90 hover:border-white/45 hover:text-white"
+                className={clsx(
+                  'block text-center px-6 py-3 rounded-full text-sm font-medium border transition-colors',
+                  onDark
+                    ? 'border-white/25 text-white/90 hover:border-white/45 hover:text-white'
+                    : 'border-sacred-200 text-sacred-700 hover:border-yoga-300 hover:text-yoga-700'
+                )}
               >
                 Contact
               </Link>

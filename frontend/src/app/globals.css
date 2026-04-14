@@ -145,6 +145,16 @@
     @apply flex-1 h-px bg-gradient-to-r from-transparent via-yoga-300/60 to-transparent;
   }
 
+  .hero-home-mobile-image {
+    background-position-x: 77%;
+  }
+
+  @media (min-width: 640px) {
+    .hero-home-mobile-image {
+      background-position-x: center;
+    }
+  }
+
   /* Shimmer overlay for cards */
   .shimmer-overlay {
     @apply absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-300;
