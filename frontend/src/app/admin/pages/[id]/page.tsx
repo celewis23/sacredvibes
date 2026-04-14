@@ -69,8 +69,8 @@ function BlockPreview({ block }: { block: Block }) {
       return (
         <div className="bg-gradient-to-br from-sacred-800 to-yoga-700 rounded-xl p-10 text-white text-center">
           <p className="text-2xl font-heading font-bold mb-2">{String(p.title || 'Hero Headline')}</p>
-          {p.subtitle && <p className="text-sm opacity-80 mb-4">{String(p.subtitle)}</p>}
-          {p.ctaText && (
+          {!!p.subtitle && <p className="text-sm opacity-80 mb-4">{String(p.subtitle)}</p>}
+          {!!p.ctaText && (
             <div className="inline-block bg-white text-sacred-800 text-xs font-semibold px-4 py-1.5 rounded-full mt-2">
               {String(p.ctaText)}
             </div>
@@ -103,7 +103,7 @@ function BlockPreview({ block }: { block: Block }) {
               <p className="text-xs">No image set</p>
             </div>
           )}
-          {p.caption && <p className="text-xs text-gray-400 mt-1 text-center">{String(p.caption)}</p>}
+          {!!p.caption && <p className="text-xs text-gray-400 mt-1 text-center">{String(p.caption)}</p>}
         </div>
       )
     case 'two-column':
@@ -116,7 +116,7 @@ function BlockPreview({ block }: { block: Block }) {
     case 'services':
       return (
         <div>
-          {p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
+          {!!p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
           <div className="grid grid-cols-3 gap-2">
             {[1, 2, 3].map(i => (
               <div key={i} className="bg-yoga-50 border border-yoga-100 rounded-lg p-3 text-center">
@@ -131,7 +131,7 @@ function BlockPreview({ block }: { block: Block }) {
     case 'events':
       return (
         <div>
-          {p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
+          {!!p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
           <div className="space-y-1.5">
             {[1, 2].map(i => (
               <div key={i} className="flex gap-3 bg-gray-50 rounded-lg p-2">
@@ -149,7 +149,7 @@ function BlockPreview({ block }: { block: Block }) {
     case 'gallery':
       return (
         <div>
-          {p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
+          {!!p.title && <p className="text-sm font-semibold text-gray-700 mb-2">{String(p.title)}</p>}
           <div className={`grid gap-1.5`} style={{ gridTemplateColumns: `repeat(${Math.min(Number(p.columns) || 3, 4)}, 1fr)` }}>
             {Array.from({ length: Math.min(Number(p.columns) || 3, 6) }).map((_, i) => (
               <div key={i} className="bg-gray-100 aspect-square rounded" />
@@ -161,8 +161,8 @@ function BlockPreview({ block }: { block: Block }) {
       return (
         <div className={`rounded-xl p-8 text-center ${p.background === 'dark' ? 'bg-sacred-900 text-white' : 'bg-yoga-50 text-sacred-900'}`}>
           <p className="font-heading font-bold text-lg">{String(p.title || 'Call to Action')}</p>
-          {p.subtitle && <p className="text-sm opacity-70 mt-1">{String(p.subtitle)}</p>}
-          {p.buttonText && (
+          {!!p.subtitle && <p className="text-sm opacity-70 mt-1">{String(p.subtitle)}</p>}
+          {!!p.buttonText && (
             <div className="inline-block mt-3 bg-yoga-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full">
               {String(p.buttonText)}
             </div>
@@ -173,7 +173,7 @@ function BlockPreview({ block }: { block: Block }) {
       return (
         <div className="border-l-4 border-yoga-400 pl-4 py-2">
           <p className="text-sm text-gray-700 italic">{String(p.text || 'Your quote here...')}</p>
-          {(p.author || p.source) && (
+          {!!(p.author || p.source) && (
             <p className="text-xs text-gray-400 mt-1">
               — {String(p.author || '')} {p.source ? `· ${String(p.source)}` : ''}
             </p>
