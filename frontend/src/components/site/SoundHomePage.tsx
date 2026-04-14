@@ -41,6 +41,7 @@ export default async function SoundHomePage({ brand }: Props) {
         primaryCta={{ label: 'Upcoming Events', href: '/events' }}
         secondaryCta={{ label: 'Sound on the River', href: '/sound-on-the-river' }}
         colorScheme="sound"
+        imageUrl="/images/sound-bath.jpg"
       />
 
       {/* Services */}

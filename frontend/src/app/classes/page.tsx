@@ -52,6 +52,10 @@ export default async function ClassesPage() {
 
       {/* ── Page Hero ─────────────────────────────────────────────────── */}
       <section className="section-sand pt-32 pb-20 relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/yoga-flow.jpg')", opacity: 0.16 }}
+        />
         <div className="orb w-[500px] h-[500px] bg-yoga-200"
              style={{ top: '-100px', right: '-100px', opacity: 0.5 }} />
         <div className="container-sacred relative z-10">

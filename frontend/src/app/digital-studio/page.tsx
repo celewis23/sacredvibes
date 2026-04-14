@@ -130,6 +130,10 @@ export default function DigitalStudioPage() {
 
       {/* ── Page Hero ───────────────────────────────────────────────── */}
       <section data-header="dark" className="section-dark pt-32 pb-28 relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/studio.jpg')", opacity: 0.22 }}
+        />
         <div className="orb w-[700px] h-[700px] bg-yoga-700"
              style={{ top: '-150px', right: '-150px', opacity: 0.1 }} />
         <div className="orb w-[500px] h-[500px] bg-sage-700"

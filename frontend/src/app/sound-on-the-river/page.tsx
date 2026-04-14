@@ -28,8 +28,11 @@ export default async function SoundOnTheRiverPage() {
     <main>
       {/* Hero */}
       <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
-        {/* Background gradient — replace with a real image in production */}
-        <div className="absolute inset-0 bg-gradient-to-br from-sound-950 via-sound-800 to-indigo-900" />
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/images/sound-on-river.jpg')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-sound-950/85 via-sound-800/70 to-indigo-900/85" />
         {/* Decorative rings */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           {[1, 2, 3, 4].map(i => (
