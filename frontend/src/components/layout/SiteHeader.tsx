@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import type { BrandContext } from '@/lib/brand/resolution'
@@ -17,10 +18,15 @@ const subBrandSchemes = {
   sound: { ctaGradient: 'from-sound-700 to-sound-500', text: 'text-sacred-800', hoverText: 'hover:text-sound-600', activeBg: 'hover:bg-sound-50' },
 }
 
-export default function SiteHeader({ brand, heroMode = false }: SiteHeaderProps) {
+export default function SiteHeader({ brand, heroMode: heroModeProp = false }: SiteHeaderProps) {
   const [isOpen, setIsOpen]     = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const scheme = subBrandSchemes[brand.colorScheme]
+
+  // Use client-side pathname so this stays correct during client-side navigation.
+  // The server prop heroModeProp is only a hint for the initial render.
+  const pathname = usePathname()
+  const isHeroPage = pathname === '/'
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 60)
@@ -28,8 +34,8 @@ export default function SiteHeader({ brand, heroMode = false }: SiteHeaderProps)
     return () => window.removeEventListener('scroll', handler)
   }, [])
 
-  // On non-hero pages, treat as always-scrolled so the header is always opaque with dark text
-  const isOpaque = !heroMode || scrolled
+  // Only go transparent on the homepage hero; everywhere else stay opaque with dark text
+  const isOpaque = !isHeroPage || scrolled
 
   const isYoga = brand.slug === 'sacred-vibes-yoga'
 

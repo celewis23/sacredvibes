@@ -82,9 +82,12 @@ export default function HeroSection({
 
       {/* ── Cinematic Overlays ── */}
       <div className="absolute inset-0 pointer-events-none"
-           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.45) 100%)' }} />
-      <div className="absolute inset-0 pointer-events-none"
-           style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, transparent 40%, rgba(0,0,0,0.15) 100%)' }} />
+           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.4) 100%)' }} />
+      {/* Left-side gradient so text pops over a busy image */}
+      {variant === 'left' && (
+        <div className="absolute inset-0 pointer-events-none"
+             style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 50%, transparent 75%)' }} />
+      )}
 
       {/* ── Floating Particles ── */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -106,8 +109,7 @@ export default function HeroSection({
       {/* ── Hero Content ── */}
       <div className="relative z-10 container-sacred w-full pt-28 pb-20">
         <div className={clsx(
-          'max-w-5xl',
-          variant === 'centered' ? 'mx-auto text-center' : 'text-left'
+          variant === 'centered' ? 'max-w-5xl mx-auto text-center' : 'max-w-xl text-left'
         )}>
 
           {/* Eyebrow */}
@@ -144,9 +146,9 @@ export default function HeroSection({
           {/* Subheading */}
           {subheading && (
             <p className={clsx(
-              'text-lg md:text-xl text-white/65 max-w-2xl leading-relaxed mb-14',
-              'font-body font-light tracking-wide',
-              variant === 'centered' && 'mx-auto',
+              'text-base md:text-lg text-white/75 leading-relaxed mb-12',
+              'font-body font-light tracking-widest uppercase',
+              variant === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-sm',
               'transition-all duration-1000 delay-400',
               mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             )}>

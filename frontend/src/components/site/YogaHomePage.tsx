@@ -283,13 +283,13 @@ export default async function YogaHomePage({ brand }: Props) {
           1. HERO — Cinematic entry portal
       ══════════════════════════════════════════════ */}
       <HeroSection
-        eyebrow="Sacred Vibes Healing & Wellness"
         heading="Align. Restore. Elevate."
-        subheading="Merging ancient sacred wellness practices with modern life — to help you regulate, reconnect, and elevate your frequency."
+        subheading="Merging Ancient Sacred Wellness with Modern Life"
         primaryCta={{ label: 'Begin Your Journey', href: '/booking' }}
         secondaryCta={{ label: 'Book a Session',   href: '/classes' }}
         colorScheme="yoga"
-        variant="centered"
+        variant="left"
+        imageUrl="/images/hero-bg.png"
       />
 
       {/* ══════════════════════════════════════════════
@@ -433,17 +433,14 @@ export default async function YogaHomePage({ brand }: Props) {
 
             {/* Portrait placeholder — replace with actual photo */}
             <div className="relative order-2 lg:order-1">
-              <div className="aspect-[3/4] rounded-[2.5rem] overflow-hidden bg-gradient-to-br from-yoga-100 via-yoga-200 to-yoga-300 relative">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-8xl mb-4 animate-float">✦</div>
-                    <p className="text-yoga-600/60 text-sm font-body tracking-widest uppercase">
-                      Shanna Latia
-                    </p>
-                  </div>
-                </div>
-                {/* Overlay gradient for polish */}
-                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-yoga-200/60 to-transparent" />
+              <div className="aspect-[3/4] rounded-[2.5rem] overflow-hidden relative">
+                <img
+                  src="/images/shana-portrait.jpg"
+                  alt="Shanna Latia — founder of Sacred Vibes Healing & Wellness"
+                  className="w-full h-full object-cover object-center"
+                />
+                {/* Subtle bottom fade for polish */}
+                <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-yoga-100/40 to-transparent pointer-events-none" />
               </div>
               {/* Floating credential badge */}
               <div className="absolute -bottom-6 -right-6 p-5 rounded-3xl bg-white shadow-luxury border border-sacred-100">
