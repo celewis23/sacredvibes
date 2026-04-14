@@ -146,12 +146,12 @@
   }
 
   .hero-home-mobile-image {
-    background-position-x: 77%;
+    background-position-x: 77% !important;
   }
 
   @media (min-width: 640px) {
     .hero-home-mobile-image {
-      background-position-x: center;
+      background-position-x: center !important;
     }
   }
 
