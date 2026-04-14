@@ -133,4 +133,62 @@ public class AuthController : ControllerBase
             return BadRequest(ApiResponse<UserProfileDto>.Fail(ex.Message));
         }
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("users")]
+    public async Task<ActionResult<ApiResponse<List<AdminUserDto>>>> GetUsers(CancellationToken ct)
+    {
+        var userManager = HttpContext.RequestServices
+            .GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<SacredVibes.Domain.Entities.ApplicationUser>>();
+
+        var users = userManager.Users
+            .OrderBy(u => u.LastName)
+            .ThenBy(u => u.FirstName)
+            .AsEnumerable()
+            .Select(u => new AdminUserDto
+            {
+                Id = u.Id,
+                Email = u.Email ?? "",
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                FullName = u.FullName,
+                Role = u.Role.ToString(),
+                IsActive = u.IsActive,
+                LastLoginAt = u.LastLoginAt,
+                CreatedAt = u.CreatedAt
+            })
+            .ToList();
+
+        return Ok(ApiResponse<List<AdminUserDto>>.Ok(users));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPatch("users/{userId}/active")]
+    public async Task<ActionResult> SetUserActive(string userId, [FromBody] SetUserActiveRequest req, CancellationToken ct)
+    {
+        var userManager = HttpContext.RequestServices
+            .GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<SacredVibes.Domain.Entities.ApplicationUser>>();
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound();
+
+        user.IsActive = req.IsActive;
+        await userManager.UpdateAsync(user);
+        return Ok(new { message = req.IsActive ? "User activated" : "User deactivated" });
+    }
 }
+
+public class AdminUserDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public record SetUserActiveRequest(bool IsActive);

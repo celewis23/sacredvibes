@@ -350,6 +350,61 @@ export interface DashboardStats {
   recentImports: RecentImport[]
 }
 
+// ── Pages ─────────────────────────────────────────────────────────────────────
+
+export interface SitePage {
+  id: string
+  brandId: string
+  brandName: string
+  brandSlug: string
+  title: string
+  slug: string
+  heroTitle?: string
+  heroSubtitle?: string
+  seoTitle?: string
+  seoDescription?: string
+  status: ContentStatus
+  publishedAt?: string
+  showInNav: boolean
+  navLabel?: string
+  navSortOrder: number
+  template?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// ── Admin Users ───────────────────────────────────────────────────────────────
+
+export interface AdminUser {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  role: string
+  isActive: boolean
+  lastLoginAt?: string
+  createdAt: string
+}
+
+// ── Import Jobs ───────────────────────────────────────────────────────────────
+
+export interface ImportJob {
+  id: string
+  source: string
+  status: string
+  fileName?: string
+  totalRows: number
+  insertedCount: number
+  updatedCount: number
+  skippedCount: number
+  errorCount: number
+  errorSummary?: string
+  startedAt?: string
+  completedAt?: string
+  createdAt: string
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

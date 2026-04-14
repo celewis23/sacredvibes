@@ -3,6 +3,7 @@ import type {
   ApiResponse, PagedResult, BlogPostSummary, BlogPost, BlogCategory, BlogTag,
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
+  SitePage, AdminUser, ImportJob,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -155,4 +156,92 @@ export const dashboardApi = {
 
   getBrands: () =>
     apiClient.get<ApiResponse<Brand[]>>('/dashboard/brands'),
+}
+
+// ── Offerings (Admin) ─────────────────────────────────────────────────────────
+
+export const offeringsApi = {
+  // Services
+  getServices: (params?: { brandId?: string; includeInactive?: boolean }) =>
+    apiClient.get<ApiResponse<ServiceOffering[]>>('/offerings/services', { params }),
+
+  getService: (id: string) =>
+    apiClient.get<ApiResponse<ServiceOffering>>(`/offerings/services/${id}`),
+
+  createService: (data: unknown) =>
+    apiClient.post<ApiResponse<ServiceOffering>>('/offerings/services', data),
+
+  updateService: (id: string, data: unknown) =>
+    apiClient.put<ApiResponse<ServiceOffering>>(`/offerings/services/${id}`, data),
+
+  deleteService: (id: string) =>
+    apiClient.delete(`/offerings/services/${id}`),
+
+  // Events
+  getEvents: (params?: { brandId?: string; includeInactive?: boolean; upcomingOnly?: boolean }) =>
+    apiClient.get<ApiResponse<EventOffering[]>>('/offerings/events', { params }),
+
+  getEvent: (id: string) =>
+    apiClient.get<ApiResponse<EventOffering>>(`/offerings/events/${id}`),
+
+  createEvent: (data: unknown) =>
+    apiClient.post<ApiResponse<EventOffering>>('/offerings/events', data),
+
+  updateEvent: (id: string, data: unknown) =>
+    apiClient.put<ApiResponse<EventOffering>>(`/offerings/events/${id}`, data),
+
+  deleteEvent: (id: string) =>
+    apiClient.delete(`/offerings/events/${id}`),
+}
+
+// ── Brands (Admin) ────────────────────────────────────────────────────────────
+
+export const brandsApi = {
+  getBrands: () =>
+    apiClient.get<ApiResponse<Brand[]>>('/brands'),
+
+  getBrand: (id: string) =>
+    apiClient.get<ApiResponse<Brand>>(`/brands/${id}`),
+
+  updateBrand: (id: string, data: unknown) =>
+    apiClient.put<ApiResponse<Brand>>(`/brands/${id}`, data),
+}
+
+// ── Pages (Admin) ─────────────────────────────────────────────────────────────
+
+export const pagesApi = {
+  getPages: (params?: { brandId?: string }) =>
+    apiClient.get<ApiResponse<SitePage[]>>('/pages', { params }),
+
+  getPage: (id: string) =>
+    apiClient.get<ApiResponse<SitePage>>(`/pages/${id}`),
+
+  createPage: (data: unknown) =>
+    apiClient.post<ApiResponse<SitePage>>('/pages', data),
+
+  updatePage: (id: string, data: unknown) =>
+    apiClient.put<ApiResponse<SitePage>>(`/pages/${id}`, data),
+
+  deletePage: (id: string) =>
+    apiClient.delete(`/pages/${id}`),
+}
+
+// ── Admin Users ───────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  getUsers: () =>
+    apiClient.get<ApiResponse<AdminUser[]>>('/auth/users'),
+
+  createUser: (data: unknown) =>
+    apiClient.post<ApiResponse<AdminUser>>('/auth/users', data),
+
+  setActive: (userId: string, isActive: boolean) =>
+    apiClient.patch(`/auth/users/${userId}/active`, { isActive }),
+}
+
+// ── Import Jobs ───────────────────────────────────────────────────────────────
+
+export const importsApi = {
+  getJobs: (params?: { page?: number; pageSize?: number }) =>
+    apiClient.get<ApiResponse<PagedResult<ImportJob>>>('/subscribers/import/jobs', { params }),
 }
