@@ -12,7 +12,7 @@ RUN dotnet restore backend/src/SacredVibes.Api/SacredVibes.Api.csproj
 # Copy source and publish
 COPY backend/src/ backend/src/
 RUN dotnet publish backend/src/SacredVibes.Api/SacredVibes.Api.csproj \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
