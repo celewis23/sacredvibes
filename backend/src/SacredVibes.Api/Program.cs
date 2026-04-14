@@ -180,6 +180,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         logger.LogError(ex, "Error seeding database");
+        throw;
     }
 }
 

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
+using System.Data;
 
 namespace SacredVibes.Infrastructure.Data.Seeds;
 
@@ -32,10 +33,161 @@ public static class SeedData
         if (migrations.Any())
         {
             await db.Database.MigrateAsync();
+        }
+        else
+        {
+            await db.Database.EnsureCreatedAsync();
+        }
+
+        await EnsureAuthSchemaCompatibilityAsync(db);
+        await ValidateCriticalAuthSchemaAsync(db);
+    }
+
+    private static async Task EnsureAuthSchemaCompatibilityAsync(AppDbContext db)
+    {
+        if (!await TableExistsAsync(db, "AspNetUsers"))
+        {
             return;
         }
 
-        await db.Database.EnsureCreatedAsync();
+        string[] aspNetUserColumnStatements =
+        [
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "FirstName" text NOT NULL DEFAULT '';""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "LastName" text NOT NULL DEFAULT '';""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "Role" integer NOT NULL DEFAULT 1;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "AvatarPath" text NULL;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "Bio" text NULL;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "Title" text NULL;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "IsActive" boolean NOT NULL DEFAULT TRUE;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "LastLoginAt" timestamp with time zone NULL;""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW();""",
+            """ALTER TABLE "AspNetUsers" ADD COLUMN IF NOT EXISTS "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW();"""
+        ];
+
+        foreach (var statement in aspNetUserColumnStatements)
+        {
+            await db.Database.ExecuteSqlRawAsync(statement);
+        }
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                "Id" uuid NOT NULL,
+                "UserId" text NOT NULL,
+                "Token" character varying(500) NOT NULL,
+                "ExpiresAt" timestamp with time zone NOT NULL,
+                "CreatedAt" timestamp with time zone NOT NULL,
+                "IsRevoked" boolean NOT NULL DEFAULT FALSE,
+                "RevokedAt" timestamp with time zone NULL,
+                "ReplacedByToken" text NULL,
+                "RevokedByIp" text NULL,
+                "CreatedByIp" text NULL,
+                "DeviceInfo" text NULL,
+                CONSTRAINT "PK_refresh_tokens" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_refresh_tokens_AspNetUsers_UserId"
+                    FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_refresh_tokens_Token" ON refresh_tokens ("Token");"""
+        );
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_refresh_tokens_UserId" ON refresh_tokens ("UserId");"""
+        );
+    }
+
+    private static async Task<bool> TableExistsAsync(AppDbContext db, string tableName)
+    {
+        await using var connection = db.Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = @tableName
+            );
+            """;
+
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "@tableName";
+        parameter.Value = tableName;
+        command.Parameters.Add(parameter);
+
+        var result = await command.ExecuteScalarAsync();
+        return result is bool exists && exists;
+    }
+
+    private static async Task<bool> ColumnExistsAsync(AppDbContext db, string tableName, string columnName)
+    {
+        await using var connection = db.Database.GetDbConnection();
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = @tableName
+                  AND column_name = @columnName
+            );
+            """;
+
+        var tableParam = command.CreateParameter();
+        tableParam.ParameterName = "@tableName";
+        tableParam.Value = tableName;
+        command.Parameters.Add(tableParam);
+
+        var columnParam = command.CreateParameter();
+        columnParam.ParameterName = "@columnName";
+        columnParam.Value = columnName;
+        command.Parameters.Add(columnParam);
+
+        var result = await command.ExecuteScalarAsync();
+        return result is bool exists && exists;
+    }
+
+    private static async Task ValidateCriticalAuthSchemaAsync(AppDbContext db)
+    {
+        string[] requiredTables = ["AspNetUsers", "AspNetRoles", "AspNetUserRoles", "refresh_tokens"];
+        foreach (var table in requiredTables)
+        {
+            if (!await TableExistsAsync(db, table))
+            {
+                throw new InvalidOperationException($"Database startup validation failed: required table '{table}' is missing.");
+            }
+        }
+
+        string[] requiredAspNetUserColumns =
+        [
+            "FirstName",
+            "LastName",
+            "Role",
+            "IsActive",
+            "LastLoginAt",
+            "CreatedAt",
+            "UpdatedAt"
+        ];
+
+        foreach (var column in requiredAspNetUserColumns)
+        {
+            if (!await ColumnExistsAsync(db, "AspNetUsers", column))
+            {
+                throw new InvalidOperationException($"Database startup validation failed: required column 'AspNetUsers.{column}' is missing.");
+            }
+        }
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
