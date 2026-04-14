@@ -37,26 +37,38 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, string? ipAddress = null, CancellationToken ct = default)
     {
-        var user = await _userManager.FindByEmailAsync(request.Email)
-            ?? throw new UnauthorizedAccessException("Invalid credentials");
-
-        if (!user.IsActive)
-            throw new UnauthorizedAccessException("Account is disabled");
-
-        if (!await _userManager.CheckPasswordAsync(user, request.Password))
+        try
         {
-            await _userManager.AccessFailedAsync(user);
-            throw new UnauthorizedAccessException("Invalid credentials");
+            var user = await _userManager.FindByEmailAsync(request.Email)
+                ?? throw new UnauthorizedAccessException("Invalid credentials");
+
+            if (!user.IsActive)
+                throw new UnauthorizedAccessException("Account is disabled");
+
+            if (!await _userManager.CheckPasswordAsync(user, request.Password))
+            {
+                await _userManager.AccessFailedAsync(user);
+                throw new UnauthorizedAccessException("Invalid credentials");
+            }
+
+            await _userManager.ResetAccessFailedCountAsync(user);
+            user.LastLoginAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+
+            var accessToken = GenerateAccessToken(user);
+            var refreshToken = await CreateRefreshTokenAsync(user.Id, ipAddress, request.DeviceInfo, ct);
+
+            return BuildAuthResponse(accessToken, refreshToken, user);
         }
-
-        await _userManager.ResetAccessFailedCountAsync(user);
-        user.LastLoginAt = DateTime.UtcNow;
-        await _userManager.UpdateAsync(user);
-
-        var accessToken = GenerateAccessToken(user);
-        var refreshToken = await CreateRefreshTokenAsync(user.Id, ipAddress, request.DeviceInfo, ct);
-
-        return BuildAuthResponse(accessToken, refreshToken, user);
+        catch (UnauthorizedAccessException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while logging in user {Email}", request.Email);
+            throw;
+        }
     }
 
     public async Task<AuthResponse> RefreshTokenAsync(string refreshToken, string? ipAddress = null, CancellationToken ct = default)

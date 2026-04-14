@@ -9,7 +9,7 @@ public static class SeedData
 {
     public static async Task SeedAsync(AppDbContext db, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager)
     {
-        await db.Database.MigrateAsync();
+        await EnsureDatabaseReadyAsync(db);
 
         await SeedRolesAsync(roleManager);
         await SeedAdminUserAsync(userManager);
@@ -23,6 +23,19 @@ public static class SeedData
         await SeedIntegrationSettingsAsync(db);
 
         await db.SaveChangesAsync();
+    }
+
+    private static async Task EnsureDatabaseReadyAsync(AppDbContext db)
+    {
+        var migrations = await db.Database.GetMigrationsAsync();
+
+        if (migrations.Any())
+        {
+            await db.Database.MigrateAsync();
+            return;
+        }
+
+        await db.Database.EnsureCreatedAsync();
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
