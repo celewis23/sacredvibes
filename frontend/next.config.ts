@@ -21,8 +21,8 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  // Multi-domain support via middleware (see middleware.ts)
-  // Each subdomain maps to a brand context that's passed down
+  // Multi-brand support via middleware (see middleware.ts)
+  // Path prefixes (/hands, /sound) map to sub-brand contexts; admin uses its own host
 }
 
 export default nextConfig

@@ -137,7 +137,15 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     type="button"
                     aria-haspopup="menu"
                     aria-expanded={openDesktopMenu === link.href}
-                    onClick={() => setOpenDesktopMenu((current) => current === link.href ? null : link.href)}
+                    onClick={() => {
+                      if (canHover) {
+                        // On hover devices the dropdown opens via mouseenter; clicking the
+                        // parent label should navigate to its page rather than toggling.
+                        navigateTo(link.href)
+                      } else {
+                        setOpenDesktopMenu((current) => current === link.href ? null : link.href)
+                      }
+                    }}
                     className={clsx(
                       'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
                       onDark

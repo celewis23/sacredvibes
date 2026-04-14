@@ -84,10 +84,8 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     navLinks: [
       { label: 'Home',               href: '/sound' },
       { label: 'About',              href: '/sound/about' },
-      { label: 'Sound Healing',      href: '/sound' },
-      { label: 'Workshops',          href: '/sound/events' },
-      { label: 'Sound on the River', href: '/sound/sound-on-the-river' },
       { label: 'Events',             href: '/sound/events' },
+      { label: 'Sound on the River', href: '/sound/sound-on-the-river' },
       { label: 'Gallery',            href: '/sound/gallery' },
       { label: 'Blog',               href: '/sound/blog' },
       { label: 'Contact',            href: '/sound/contact' },
