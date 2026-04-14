@@ -9,6 +9,7 @@ using SacredVibes.Application.Features.Auth;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Payments;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Domain.Interfaces;
 using SacredVibes.Infrastructure.Data;
 using SacredVibes.Infrastructure.Services;
 using SacredVibes.Infrastructure.Services.Csv;
