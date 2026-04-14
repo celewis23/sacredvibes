@@ -52,18 +52,16 @@ builder.Services.AddCors(opts =>
 {
     opts.AddPolicy("FrontendPolicy", policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-            ?? ["http://localhost:3000", "https://sacredvibesyoga.com",
-               "https://hands.sacredvibesyoga.com", "https://sound.sacredvibesyoga.com",
-               "https://admin.sacredvibesyoga.com"];
-
-        // Allow any extra URL set via FRONTEND_URL env var (e.g. Vercel deployment URL)
-        var extra = Environment.GetEnvironmentVariable("FRONTEND_URL");
-        if (!string.IsNullOrWhiteSpace(extra))
-            origins = [.. origins, extra];
-
         policy
-            .WithOrigins(origins)
+            .SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                var host = new Uri(origin).Host;
+                return host == "localhost"
+                    || host.EndsWith(".vercel.app")
+                    || host.EndsWith("sacredvibesyoga.com")
+                    || host.EndsWith("railway.app");
+            })
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
