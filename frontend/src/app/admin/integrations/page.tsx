@@ -76,7 +76,7 @@ export default function AdminIntegrationsPage() {
     <div>
       {importModal === 'csv' && (
         <ImportModal
-          source="csv"
+          type="csv"
           onClose={() => setImportModal(null)}
           onSuccess={() => {
             setImportModal(null)
