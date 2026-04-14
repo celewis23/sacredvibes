@@ -243,7 +243,7 @@ export default async function ClassesPage() {
       )}
 
       {/* ── CTA strip ───────────────────────────────────────────────────── */}
-      <section className="py-20 section-dark relative overflow-hidden">
+      <section data-header="dark" className="py-20 section-dark relative overflow-hidden">
         <div className="orb w-[500px] h-[500px] bg-yoga-700"
              style={{ top: '-100px', left: '50%', transform: 'translateX(-50%)', opacity: 0.08 }} />
         <div className="container-sacred relative z-10 text-center">

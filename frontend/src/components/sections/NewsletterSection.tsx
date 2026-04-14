@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { leadsApi } from '@/lib/api'
+import LotusMark from '@/components/branding/LotusMark'
 
 const schema = z.object({
   email:     z.string().email('Please enter a valid email'),
@@ -45,7 +46,7 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
   }
 
   return (
-    <section className="relative py-28 overflow-hidden"
+    <section data-header="dark" className="relative py-28 overflow-hidden"
              style={{ background: 'linear-gradient(135deg, #1c1714 0%, #2d2420 50%, #1c1714 100%)' }}>
       {/* Ambient glow */}
       <div className="orb w-[600px] h-[600px] bg-yoga-600"
@@ -56,7 +57,7 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
 
           {/* Icon */}
           <div className="w-14 h-14 rounded-full bg-yoga-700/30 border border-yoga-500/30 flex items-center justify-center text-2xl mx-auto mb-8 animate-float">
-            ✦
+            <LotusMark className="w-8" />
           </div>
 
           <p className="eyebrow text-yoga-400 mb-5">Join the Community</p>

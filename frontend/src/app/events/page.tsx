@@ -171,7 +171,7 @@ export default async function EventsPage() {
       )}
 
       {/* ── Global positioning strip ────────────────────────────────── */}
-      <section className="section-dark py-24 relative overflow-hidden">
+      <section data-header="dark" className="section-dark py-24 relative overflow-hidden">
         <div className="orb w-[600px] h-[600px] bg-yoga-700"
              style={{ top: '-120px', left: '50%', transform: 'translateX(-50%)', opacity: 0.08 }} />
         <div className="container-sacred relative z-10">

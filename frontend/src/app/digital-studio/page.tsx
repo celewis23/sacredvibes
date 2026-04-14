@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Play, Lock } from 'lucide-react'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 import { getBrandIdBySlug } from '@/lib/brand/resolution'
+import LotusMark from '@/components/branding/LotusMark'
 
 export const metadata: Metadata = {
   title: 'Digital Studio',
@@ -128,7 +129,7 @@ export default function DigitalStudioPage() {
     <main className="bg-white">
 
       {/* ── Page Hero ───────────────────────────────────────────────── */}
-      <section className="section-dark pt-32 pb-28 relative overflow-hidden">
+      <section data-header="dark" className="section-dark pt-32 pb-28 relative overflow-hidden">
         <div className="orb w-[700px] h-[700px] bg-yoga-700"
              style={{ top: '-150px', right: '-150px', opacity: 0.1 }} />
         <div className="orb w-[500px] h-[500px] bg-sage-700"
@@ -137,7 +138,7 @@ export default function DigitalStudioPage() {
         <div className="container-sacred relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <div className="w-16 h-16 rounded-full bg-yoga-700/30 border border-yoga-500/30 flex items-center justify-center text-3xl mx-auto mb-8 animate-float">
-              ✦
+              <LotusMark className="w-10" />
             </div>
             <p className="eyebrow text-yoga-400 mb-5">Sacred Vibes Digital Studio</p>
             <h1 className="font-heading text-display-lg md:text-display-xl text-white leading-tight mb-5 text-balance">
@@ -350,7 +351,7 @@ export default function DigitalStudioPage() {
       </div>
 
       {/* ── Final CTA ───────────────────────────────────────────────── */}
-      <section className="section-dark py-20 relative overflow-hidden">
+      <section data-header="dark" className="section-dark py-20 relative overflow-hidden">
         <div className="orb w-[500px] h-[500px] bg-yoga-700"
              style={{ top: '-100px', left: '50%', transform: 'translateX(-50%)', opacity: 0.08 }} />
         <div className="container-sacred relative z-10 text-center">

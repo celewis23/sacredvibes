@@ -355,7 +355,7 @@ export default async function YogaHomePage({ brand }: Props) {
       {/* ══════════════════════════════════════════════
           5. DIGITAL STUDIO — Global expansion
       ══════════════════════════════════════════════ */}
-      <section className="section section-dark relative overflow-hidden">
+      <section data-header="dark" className="section section-dark relative overflow-hidden">
         <div className="orb w-[500px] h-[500px] bg-sage-700"
              style={{ top: '-60px', left: '10%', opacity: 0.07 }} />
         <div className="orb w-[400px] h-[400px] bg-yoga-600"
@@ -532,7 +532,7 @@ export default async function YogaHomePage({ brand }: Props) {
       {/* ══════════════════════════════════════════════
           9. FINAL CTA — Begin your journey
       ══════════════════════════════════════════════ */}
-      <section className="relative py-32 overflow-hidden section-dark">
+      <section data-header="dark" className="relative py-32 overflow-hidden section-dark">
         <div className="orb w-[600px] h-[600px] bg-yoga-700"
              style={{ top: '-120px', left: '50%', transform: 'translateX(-50%)', opacity: 0.1 }} />
 

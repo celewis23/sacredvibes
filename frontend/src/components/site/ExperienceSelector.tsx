@@ -49,7 +49,7 @@ export default function ExperienceSelector() {
   const selected = EXPERIENCES.find(e => e.id === active)
 
   return (
-    <section className="section section-dark relative overflow-hidden">
+    <section data-header="dark" className="section section-dark relative overflow-hidden">
       {/* Ambient orbs */}
       <div className="orb w-[400px] h-[400px] bg-yoga-700"
            style={{ top: '-80px', right: '-80px', opacity: 0.08 }} />

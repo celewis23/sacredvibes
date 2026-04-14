@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { BrandContext } from '@/lib/brand/resolution'
+import LotusMark from '@/components/branding/LotusMark'
 
 interface SiteFooterProps {
   brand: BrandContext
@@ -67,9 +68,10 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
           {/* Brand column */}
           <div className="lg:col-span-5">
             <Link href="/" className="inline-flex items-center gap-3 group mb-6">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-yoga-500 to-yoga-800 flex items-center justify-center text-white text-xl shadow-glow">
-                ✦
-              </div>
+              <LotusMark
+                className="w-12"
+                gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
+              />
               <div>
                 <p className="font-heading font-semibold text-white text-lg leading-tight">
                   Sacred Vibes

@@ -46,7 +46,7 @@ export default function HeroSection({
   }, [])
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-sacred-900">
+    <section data-header="dark" className="relative min-h-screen flex items-center overflow-hidden bg-sacred-900">
 
       {/* ── Background Layer ── */}
       {videoUrl ? (
