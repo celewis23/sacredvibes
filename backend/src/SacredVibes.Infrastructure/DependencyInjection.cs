@@ -92,7 +92,7 @@ public static class DependencyInjection
         var environmentConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
         if (!string.IsNullOrWhiteSpace(environmentConnectionString))
         {
-            return environmentConnectionString;
+            return NormalizeConnectionString(environmentConnectionString);
         }
 
         var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? config["DATABASE_URL"];
@@ -119,7 +119,7 @@ public static class DependencyInjection
         var configuredConnectionString = config.GetConnectionString("DefaultConnection");
         if (!string.IsNullOrWhiteSpace(configuredConnectionString))
         {
-            return configuredConnectionString;
+            return NormalizeConnectionString(configuredConnectionString);
         }
 
         throw new InvalidOperationException(
@@ -162,7 +162,11 @@ public static class DependencyInjection
 
             if (key.Equals("sslmode", StringComparison.OrdinalIgnoreCase))
             {
-                if (Enum.TryParse<SslMode>(valuePart, true, out var sslMode))
+                if (string.IsNullOrWhiteSpace(valuePart))
+                {
+                    builder.SslMode = SslMode.Require;
+                }
+                else if (Enum.TryParse<SslMode>(valuePart, true, out var sslMode))
                 {
                     builder.SslMode = sslMode;
                 }
