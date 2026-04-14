@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 
@@ -9,34 +12,20 @@ interface HeroSectionProps {
   secondaryCta?: { label: string; href: string }
   colorScheme?: 'yoga' | 'hands' | 'sound'
   variant?: 'centered' | 'left'
+  videoUrl?: string
   imageUrl?: string
-  imageAlt?: string
-  overlay?: boolean
 }
 
-const schemes = {
-  yoga: {
-    bg: 'bg-gradient-to-b from-yoga-50 via-sacred-50 to-white',
-    eyebrow: 'text-yoga-600',
-    accent: 'bg-yoga-700 hover:bg-yoga-800',
-    outline: 'border-yoga-300 text-yoga-700 hover:bg-yoga-50',
-    decoration: 'bg-yoga-100',
-  },
-  hands: {
-    bg: 'bg-gradient-to-b from-hands-50 via-sacred-50 to-white',
-    eyebrow: 'text-hands-600',
-    accent: 'bg-hands-700 hover:bg-hands-800',
-    outline: 'border-hands-300 text-hands-700 hover:bg-hands-50',
-    decoration: 'bg-hands-100',
-  },
-  sound: {
-    bg: 'bg-gradient-to-b from-sound-50 via-sacred-50 to-white',
-    eyebrow: 'text-sound-600',
-    accent: 'bg-sound-700 hover:bg-sound-800',
-    outline: 'border-sound-300 text-sound-700 hover:bg-sound-50',
-    decoration: 'bg-sound-100',
-  },
-}
+const PARTICLES = [
+  { size: 4, left: '8%',  top: '25%', dur: 7,  delay: 0   },
+  { size: 6, left: '20%', top: '60%', dur: 9,  delay: 1.2 },
+  { size: 3, left: '35%', top: '20%', dur: 6,  delay: 2.5 },
+  { size: 5, left: '55%', top: '70%', dur: 8,  delay: 0.8 },
+  { size: 4, left: '70%', top: '30%', dur: 10, delay: 1.7 },
+  { size: 3, left: '82%', top: '55%', dur: 7,  delay: 3.1 },
+  { size: 6, left: '92%', top: '20%', dur: 9,  delay: 0.5 },
+  { size: 4, left: '45%', top: '45%', dur: 8,  delay: 2.0 },
+]
 
 export default function HeroSection({
   eyebrow,
@@ -46,65 +35,140 @@ export default function HeroSection({
   secondaryCta,
   colorScheme = 'yoga',
   variant = 'centered',
+  videoUrl,
   imageUrl,
-  imageAlt,
 }: HeroSectionProps) {
-  const scheme = schemes[colorScheme]
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 80)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
-    <section className={clsx('relative min-h-[85vh] flex items-center pt-20', scheme.bg)}>
-      {/* Decorative circles */}
-      <div className={clsx('absolute top-20 right-10 w-96 h-96 rounded-full opacity-20 blur-3xl pointer-events-none', scheme.decoration)} />
-      <div className={clsx('absolute bottom-10 left-5 w-72 h-72 rounded-full opacity-15 blur-3xl pointer-events-none', scheme.decoration)} />
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-sacred-900">
 
-      <div className="container-sacred relative z-10 w-full">
+      {/* ── Background Layer ── */}
+      {videoUrl ? (
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0.55 }}
+          autoPlay muted loop playsInline
+        >
+          <source src={videoUrl} type="video/mp4" />
+        </video>
+      ) : imageUrl ? (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${imageUrl})`, opacity: 0.45 }}
+        />
+      ) : (
+        /* Atmospheric cinematic gradient when no video/image */
+        <div className="absolute inset-0">
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(135deg, #1c1714 0%, #2a1e18 35%, #1f1a16 65%, #161210 100%)'
+          }} />
+          {/* Ambient gold orbs */}
+          <div className="orb w-[700px] h-[700px] bg-yoga-700"
+               style={{ top: '-150px', right: '-180px', opacity: 0.12 }} />
+          <div className="orb w-[500px] h-[500px] bg-yoga-600"
+               style={{ bottom: '-100px', left: '-120px', opacity: 0.09 }} />
+          <div className="orb w-[350px] h-[350px] bg-sage-700"
+               style={{ top: '30%', left: '25%', opacity: 0.06 }} />
+          <div className="orb w-[250px] h-[250px] bg-yoga-400"
+               style={{ top: '60%', right: '20%', opacity: 0.07 }} />
+        </div>
+      )}
+
+      {/* ── Cinematic Overlays ── */}
+      <div className="absolute inset-0 pointer-events-none"
+           style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.45) 100%)' }} />
+      <div className="absolute inset-0 pointer-events-none"
+           style={{ background: 'linear-gradient(to right, rgba(0,0,0,0.15) 0%, transparent 40%, rgba(0,0,0,0.15) 100%)' }} />
+
+      {/* ── Floating Particles ── */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {PARTICLES.map((p, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-yoga-400/25"
+            style={{
+              width: p.size,
+              height: p.size,
+              left: p.left,
+              top: p.top,
+              animation: `float ${p.dur}s ease-in-out infinite ${p.delay}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ── Hero Content ── */}
+      <div className="relative z-10 container-sacred w-full pt-28 pb-20">
         <div className={clsx(
-          'max-w-4xl',
+          'max-w-5xl',
           variant === 'centered' ? 'mx-auto text-center' : 'text-left'
         )}>
+
+          {/* Eyebrow */}
           {eyebrow && (
-            <p className={clsx(
-              'text-sm font-medium tracking-widest uppercase mb-4 animate-fade-in',
-              scheme.eyebrow
+            <div className={clsx(
+              'inline-flex items-center gap-3 mb-8 transition-all duration-1000',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             )}>
-              {eyebrow}
-            </p>
+              <span className="w-8 h-px bg-yoga-400/70" />
+              <span className="eyebrow text-yoga-300">{eyebrow}</span>
+              <span className="w-8 h-px bg-yoga-400/70" />
+            </div>
           )}
 
-          <h1 className="font-heading text-display-xl md:text-display-2xl text-sacred-900 leading-tight mb-6 animate-slide-up text-balance">
+          {/* Main heading */}
+          <h1 className={clsx(
+            'font-heading text-display-xl md:text-display-2xl lg:text-display-3xl',
+            'text-white leading-[1.02] mb-8 text-balance',
+            'transition-all duration-1000 delay-150',
+            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+          )}>
             {heading}
           </h1>
 
+          {/* Gold accent line */}
+          <div className={clsx(
+            'transition-all duration-1000 delay-300',
+            mounted ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0',
+            variant === 'centered' && 'flex justify-center'
+          )}>
+            <span className="gold-line w-20 mb-8" />
+          </div>
+
+          {/* Subheading */}
           {subheading && (
-            <p className="text-lg md:text-xl text-sacred-600 max-w-2xl leading-relaxed mb-10 animate-fade-in mx-auto">
+            <p className={clsx(
+              'text-lg md:text-xl text-white/65 max-w-2xl leading-relaxed mb-14',
+              'font-body font-light tracking-wide',
+              variant === 'centered' && 'mx-auto',
+              'transition-all duration-1000 delay-400',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            )}>
               {subheading}
             </p>
           )}
 
+          {/* CTAs */}
           {(primaryCta || secondaryCta) && (
             <div className={clsx(
-              'flex flex-col sm:flex-row gap-4 animate-slide-up',
-              variant === 'centered' && 'justify-center'
+              'flex flex-col sm:flex-row gap-4',
+              variant === 'centered' && 'justify-center',
+              'transition-all duration-1000 delay-600',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             )}>
               {primaryCta && (
-                <Link
-                  href={primaryCta.href}
-                  className={clsx(
-                    'px-8 py-3.5 rounded-xl font-medium text-white shadow-sm transition-all duration-200',
-                    scheme.accent
-                  )}
-                >
+                <Link href={primaryCta.href} className="btn-gold">
                   {primaryCta.label}
                 </Link>
               )}
               {secondaryCta && (
-                <Link
-                  href={secondaryCta.href}
-                  className={clsx(
-                    'px-8 py-3.5 rounded-xl font-medium border bg-transparent transition-all duration-200',
-                    scheme.outline
-                  )}
-                >
+                <Link href={secondaryCta.href} className="btn-ghost-light">
                   {secondaryCta.label}
                 </Link>
               )}
@@ -113,8 +177,15 @@ export default function HeroSection({
         </div>
       </div>
 
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+      {/* ── Scroll indicator ── */}
+      <div className={clsx(
+        'absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2',
+        'transition-all duration-1000 delay-[800ms]',
+        mounted ? 'opacity-100' : 'opacity-0'
+      )}>
+        <span className="text-white/35 text-[10px] tracking-[0.25em] uppercase font-body">Scroll</span>
+        <div className="w-px h-14 bg-gradient-to-b from-white/40 to-transparent animate-breathe" />
+      </div>
     </section>
   )
 }

@@ -3,79 +3,178 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --scroll-behavior: smooth;
-  }
+  :root { --scroll-behavior: smooth; }
 
-  html {
-    scroll-behavior: smooth;
-  }
+  html { scroll-behavior: smooth; }
 
-  /* Premium body defaults */
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Heading defaults */
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-heading;
-  }
+  h1, h2, h3, h4, h5, h6 { @apply font-heading; }
 
-  /* Focus ring */
   :focus-visible {
     @apply outline-none ring-2 ring-yoga-400 ring-offset-2;
   }
 
-  /* Smooth scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.sacred.300') transparent;
+    scrollbar-color: theme('colors.yoga.400') transparent;
   }
-
-  *::-webkit-scrollbar { width: 6px; height: 6px; }
+  *::-webkit-scrollbar { width: 5px; height: 5px; }
   *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background-color: theme('colors.sacred.300'); border-radius: 9999px; }
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, theme('colors.yoga.400'), theme('colors.yoga.600'));
+    border-radius: 9999px;
+  }
 }
 
 @layer components {
-  /* Rich content prose */
-  .prose-sacred {
-    @apply text-sacred-800 leading-relaxed;
-  }
+  /* ─── Prose ─── */
+  .prose-sacred { @apply text-sacred-800 leading-relaxed; }
   .prose-sacred h1 { @apply font-heading text-display-lg text-sacred-900 mb-6; }
   .prose-sacred h2 { @apply font-heading text-3xl text-sacred-900 mt-10 mb-4; }
   .prose-sacred h3 { @apply font-heading text-2xl text-sacred-800 mt-8 mb-3; }
   .prose-sacred p  { @apply mb-5 text-[1.0625rem]; }
-  .prose-sacred a  { @apply text-yoga-600 underline underline-offset-2 hover:text-yoga-800 transition-colors; }
+  .prose-sacred a  { @apply text-yoga-600 underline underline-offset-2 hover:text-yoga-700 transition-colors; }
   .prose-sacred ul { @apply list-disc pl-6 mb-5 space-y-2; }
   .prose-sacred ol { @apply list-decimal pl-6 mb-5 space-y-2; }
   .prose-sacred blockquote { @apply border-l-4 border-yoga-300 pl-6 italic text-sacred-600 my-6; }
   .prose-sacred img { @apply rounded-2xl w-full my-6; }
 
-  /* Section spacing */
-  .section { @apply py-16 md:py-24 lg:py-32; }
-  .section-sm { @apply py-10 md:py-16; }
+  /* ─── Layout ─── */
+  .section        { @apply py-20 md:py-28 lg:py-36; }
+  .section-sm     { @apply py-12 md:py-20; }
   .container-sacred { @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8; }
 
-  /* Admin layout */
+  /* ─── Admin ─── */
   .admin-sidebar { @apply fixed inset-y-0 left-0 w-64 bg-sacred-900 text-sacred-100 z-40 overflow-y-auto; }
 
-  /* Gallery grid */
-  .gallery-masonry {
-    columns: 2;
-    column-gap: 1rem;
-  }
+  /* ─── Gallery ─── */
+  .gallery-masonry { columns: 2; column-gap: 1rem; }
   @media (min-width: 640px)  { .gallery-masonry { columns: 3; } }
   @media (min-width: 1024px) { .gallery-masonry { columns: 4; } }
-
   .gallery-item {
     @apply break-inside-avoid mb-4 rounded-2xl overflow-hidden cursor-pointer;
     @apply transition-all duration-300 hover:shadow-card hover:-translate-y-0.5;
   }
+
+  /* ─── LUXURY WELLNESS SYSTEM ─── */
+
+  /* Buttons */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply bg-gradient-to-r from-yoga-700 to-yoga-500 text-white;
+    @apply shadow-glow hover:shadow-gold transition-all duration-500;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply border border-yoga-400/60 text-yoga-700 bg-transparent;
+    @apply hover:border-yoga-600 hover:bg-yoga-50 transition-all duration-300;
+  }
+
+  .btn-ghost-light {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply border border-white/40 text-white bg-white/10 backdrop-blur-sm;
+    @apply hover:bg-white/20 hover:border-white/70 transition-all duration-300;
+  }
+
+  .btn-ghost-dark {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply border border-sacred-700 text-sacred-300 bg-transparent;
+    @apply hover:border-yoga-500 hover:text-yoga-400 transition-all duration-300;
+  }
+
+  /* Eyebrow label */
+  .eyebrow {
+    @apply font-body font-semibold tracking-[0.25em] uppercase text-xs;
+  }
+
+  /* Gold accent line */
+  .gold-line {
+    @apply block h-px bg-gradient-to-r from-transparent via-yoga-400 to-transparent;
+  }
+
+  /* Section heading */
+  .section-heading {
+    @apply font-heading text-display-md md:text-display-lg text-sacred-900 leading-tight text-balance;
+  }
+
+  /* Luxury experience card */
+  .experience-card {
+    @apply relative overflow-hidden rounded-3xl bg-white border border-sacred-100;
+    @apply shadow-soft hover:shadow-luxury transition-all duration-500;
+    @apply hover:-translate-y-1.5 cursor-pointer;
+  }
+
+  /* Floating orb decoration */
+  .orb {
+    @apply absolute rounded-full blur-3xl pointer-events-none;
+  }
+
+  /* Testimonial card */
+  .testimonial-card {
+    @apply relative p-8 rounded-3xl bg-white border border-sacred-100 shadow-soft;
+    @apply hover:shadow-card transition-shadow duration-300;
+  }
+
+  /* Cinematic dark section */
+  .section-dark {
+    background: linear-gradient(135deg, #1c1714 0%, #2d2420 50%, #1c1714 100%);
+  }
+
+  /* Sand warm background */
+  .section-sand {
+    background: linear-gradient(135deg, #fdfbf7 0%, #f8f2e7 50%, #fdfbf7 100%);
+  }
+
+  /* Sacred divider */
+  .sacred-divider {
+    @apply relative flex items-center justify-center gap-5 my-6;
+  }
+  .sacred-divider::before,
+  .sacred-divider::after {
+    content: '';
+    @apply flex-1 h-px bg-gradient-to-r from-transparent via-yoga-300/60 to-transparent;
+  }
+
+  /* Shimmer overlay for cards */
+  .shimmer-overlay {
+    @apply absolute inset-0 pointer-events-none opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 60%, transparent 70%);
+  }
+  .group:hover .shimmer-overlay { @apply opacity-100; }
 }
 
 @layer utilities {
-  .text-balance { text-wrap: balance; }
-  .bg-grain { background-image: var(--tw-gradient-stops), url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E"); }
+  .text-balance    { text-wrap: balance; }
+
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl border border-white/60;
+  }
+  .glass-dark {
+    background: rgba(28, 23, 20, 0.8);
+    @apply backdrop-blur-xl border border-white/10;
+  }
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-yoga-700 via-yoga-500 to-yoga-600 bg-clip-text text-transparent;
+  }
+  .text-gold-shimmer {
+    background: linear-gradient(90deg, #c49a58, #e4cba3, #c49a58, #8c6430);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 3s linear infinite;
+  }
+  .bg-grain {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  }
 }

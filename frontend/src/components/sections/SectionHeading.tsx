@@ -6,6 +6,7 @@ interface SectionHeadingProps {
   subheading?: string
   align?: 'left' | 'center'
   colorScheme?: 'yoga' | 'hands' | 'sound'
+  light?: boolean
 }
 
 const eyebrowColors = {
@@ -20,19 +21,31 @@ export default function SectionHeading({
   subheading,
   align = 'left',
   colorScheme = 'yoga',
+  light = false,
 }: SectionHeadingProps) {
   return (
     <div className={clsx('max-w-2xl', align === 'center' && 'mx-auto text-center')}>
       {eyebrow && (
-        <p className={clsx('text-xs font-semibold tracking-widest uppercase mb-3', eyebrowColors[colorScheme])}>
+        <p className={clsx('eyebrow mb-4', eyebrowColors[colorScheme])}>
           {eyebrow}
         </p>
       )}
-      <h2 className="font-heading text-display-md md:text-display-lg text-sacred-900 leading-tight mb-4 text-balance">
+      <h2 className={clsx(
+        'font-heading text-display-md md:text-display-lg leading-tight mb-4 text-balance',
+        light ? 'text-white' : 'text-sacred-900'
+      )}>
         {heading}
       </h2>
+      {/* Gold accent line */}
+      <span className={clsx(
+        'gold-line block mb-5',
+        align === 'center' ? 'mx-auto w-14' : 'w-12'
+      )} />
       {subheading && (
-        <p className="text-base md:text-lg text-sacred-600 leading-relaxed">
+        <p className={clsx(
+          'text-base font-body font-light leading-relaxed tracking-wide',
+          light ? 'text-white/60' : 'text-sacred-500'
+        )}>
           {subheading}
         </p>
       )}

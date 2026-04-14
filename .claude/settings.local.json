@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(echo \"tsc exit: $?\")",
+      "Read(//c/Users/cel3m/.claude/projects/c--Users-cel3m-sacred-vibes-sacredvibes/**)"
+    ]
+  }
+}

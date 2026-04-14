@@ -10,82 +10,93 @@ interface SiteHeaderProps {
   brand: BrandContext
 }
 
-const colorSchemes = {
-  yoga:  { bg: 'bg-yoga-50/95',   text: 'text-yoga-800',  accent: 'text-yoga-600',  border: 'border-yoga-100',  hover: 'hover:text-yoga-600',  activeBg: 'bg-yoga-100' },
-  hands: { bg: 'bg-hands-50/95',  text: 'text-hands-800', accent: 'text-hands-600', border: 'border-hands-100', hover: 'hover:text-hands-600', activeBg: 'bg-hands-100' },
-  sound: { bg: 'bg-sound-50/95',  text: 'text-sound-800', accent: 'text-sound-600', border: 'border-sound-100', hover: 'hover:text-sound-600', activeBg: 'bg-sound-100' },
+const subBrandSchemes = {
+  yoga:  { ctaGradient: 'from-yoga-700 to-yoga-500',  text: 'text-sacred-800', hoverText: 'hover:text-yoga-600',  activeBg: 'hover:bg-yoga-50' },
+  hands: { ctaGradient: 'from-hands-700 to-hands-500', text: 'text-sacred-800', hoverText: 'hover:text-hands-600', activeBg: 'hover:bg-hands-50' },
+  sound: { ctaGradient: 'from-sound-700 to-sound-500', text: 'text-sacred-800', hoverText: 'hover:text-sound-600', activeBg: 'hover:bg-sound-50' },
 }
 
 export default function SiteHeader({ brand }: SiteHeaderProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen]   = useState(false)
   const [scrolled, setScrolled] = useState(false)
-  const scheme = colorSchemes[brand.colorScheme]
+  const scheme = subBrandSchemes[brand.colorScheme]
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    const handler = () => setScrolled(window.scrollY > 60)
+    window.addEventListener('scroll', handler, { passive: true })
+    return () => window.removeEventListener('scroll', handler)
   }, [])
+
+  const isYoga = brand.slug === 'sacred-vibes-yoga'
 
   return (
     <header className={clsx(
-      'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-      scheme.bg, 'backdrop-blur-md',
-      scrolled ? `shadow-soft border-b ${scheme.border}` : 'border-b border-transparent'
+      'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
+      scrolled
+        ? 'bg-white/96 backdrop-blur-2xl shadow-soft border-b border-sacred-100/80'
+        : 'bg-transparent'
     )}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-20">
+        <div className="flex items-center justify-between h-20 lg:h-24">
+
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
             <div className={clsx(
-              'w-10 h-10 rounded-xl flex items-center justify-center text-lg font-heading font-bold',
-              'bg-gradient-to-br from-yoga-600 to-yoga-800 text-white shadow-sm',
-              'group-hover:shadow-glow transition-shadow duration-300'
+              'w-11 h-11 rounded-2xl flex items-center justify-center',
+              'bg-gradient-to-br from-yoga-500 to-yoga-800 text-white text-xl',
+              'shadow-glow group-hover:shadow-gold transition-all duration-400 group-hover:scale-105'
             )}>
-              {brand.name.charAt(0)}
+              ✦
             </div>
             <div className="hidden sm:block">
-              <p className={clsx('font-heading font-semibold text-base leading-tight', scheme.text)}>
-                {brand.name}
+              <p className={clsx(
+                'font-heading font-semibold text-lg leading-tight tracking-wide transition-colors duration-300',
+                scrolled ? 'text-sacred-900' : 'text-white'
+              )}>
+                Sacred Vibes
               </p>
-              {brand.slug === 'sacred-vibes-yoga' && (
-                <p className="text-xs text-sacred-500 tracking-widest uppercase">Wellness Studio</p>
-              )}
+              <p className={clsx(
+                'text-[9px] tracking-[0.22em] uppercase font-body font-medium transition-colors duration-300',
+                scrolled ? 'text-yoga-600' : 'text-yoga-300'
+              )}>
+                Healing &amp; Wellness
+              </p>
             </div>
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-0.5">
             {brand.navLinks.map((link) => (
               <div key={link.href} className="relative group">
                 <Link
                   href={link.href}
                   className={clsx(
-                    'px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150',
-                    scheme.text, scheme.hover, `hover:${scheme.activeBg}`
+                    'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
+                    scrolled
+                      ? `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
+                      : 'text-white/85 hover:text-white hover:bg-white/10'
                   )}
                 >
                   {link.label}
                   {link.children && (
-                    <svg className="inline-block ml-1 w-3 h-3 opacity-60" viewBox="0 0 12 12" fill="currentColor">
-                      <path d="M6 8L2 4h8L6 8z"/>
+                    <svg className="w-3 h-3 opacity-50" viewBox="0 0 12 12" fill="currentColor">
+                      <path d="M6 8L2 4h8z"/>
                     </svg>
                   )}
                 </Link>
+
                 {link.children && (
                   <div className={clsx(
-                    'absolute top-full left-0 mt-1 w-48 rounded-xl border shadow-card opacity-0 invisible',
-                    'group-hover:opacity-100 group-hover:visible transition-all duration-200',
-                    'bg-white', scheme.border, 'overflow-hidden'
+                    'absolute top-full left-0 mt-2 w-56 rounded-2xl border shadow-luxury',
+                    'opacity-0 invisible translate-y-1',
+                    'group-hover:opacity-100 group-hover:visible group-hover:translate-y-0',
+                    'transition-all duration-300 bg-white border-sacred-100/80 overflow-hidden'
                   )}>
                     {link.children.map((child) => (
                       <Link
                         key={child.href}
                         href={child.href}
-                        className={clsx(
-                          'block px-4 py-2.5 text-sm transition-colors',
-                          scheme.text, scheme.hover, `hover:${scheme.activeBg}`
-                        )}
+                        className="block px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
                       >
                         {child.label}
                       </Link>
@@ -96,29 +107,40 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             ))}
           </nav>
 
-          {/* CTA */}
-          <div className="hidden lg:flex items-center gap-3">
+          {/* Desktop CTA */}
+          <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+            {!isYoga && (
+              <Link
+                href="/contact"
+                className={clsx(
+                  'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
+                  scrolled
+                    ? 'border-sacred-300 text-sacred-700 hover:border-yoga-400 hover:text-yoga-700'
+                    : 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
+                )}
+              >
+                Contact
+              </Link>
+            )}
             <Link
-              href="/contact"
+              href="/booking"
               className={clsx(
-                'px-5 py-2 rounded-xl text-sm font-medium border transition-all duration-200',
-                'border-yoga-300 text-yoga-700 hover:bg-yoga-50'
+                'px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase',
+                `bg-gradient-to-r ${scheme.ctaGradient} text-white`,
+                'shadow-glow hover:shadow-gold hover:scale-[1.02] transition-all duration-300'
               )}
             >
-              Contact
-            </Link>
-            <Link
-              href={brand.slug === 'sacred-hands' ? '/booking' : '/events'}
-              className="px-5 py-2 rounded-xl text-sm font-medium bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm transition-all duration-200"
-            >
-              {brand.slug === 'sacred-hands' ? 'Book Now' : 'Register'}
+              Book Now
             </Link>
           </div>
 
           {/* Mobile toggle */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className={clsx('lg:hidden p-2 rounded-lg transition-colors', scheme.text, `hover:${scheme.activeBg}`)}
+            className={clsx(
+              'lg:hidden p-2.5 rounded-xl transition-colors',
+              scrolled ? 'text-sacred-700 hover:bg-sacred-100' : 'text-white hover:bg-white/10'
+            )}
             aria-label="Toggle menu"
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
@@ -128,16 +150,16 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
       {/* Mobile menu */}
       {isOpen && (
-        <div className={clsx('lg:hidden border-t', scheme.border, 'bg-white/98 backdrop-blur-md animate-slide-down')}>
-          <nav className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-1">
+        <div className="lg:hidden border-t border-sacred-100/80 bg-white/98 backdrop-blur-2xl animate-slide-down">
+          <nav className="max-w-7xl mx-auto px-4 py-6 flex flex-col gap-1">
             {brand.navLinks.map((link) => (
               <div key={link.href}>
                 <Link
                   href={link.href}
                   onClick={() => setIsOpen(false)}
                   className={clsx(
-                    'block px-4 py-3 rounded-xl text-sm font-medium transition-colors',
-                    scheme.text, scheme.hover, `hover:${scheme.activeBg}`
+                    'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
+                    `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
                   )}
                 >
                   {link.label}
@@ -147,23 +169,30 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     key={child.href}
                     href={child.href}
                     onClick={() => setIsOpen(false)}
-                    className={clsx(
-                      'block px-8 py-2 text-sm transition-colors text-sacred-600 hover:text-sacred-900',
-                      `hover:${scheme.activeBg}`, 'rounded-xl'
-                    )}
+                    className="block px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
                   >
                     {child.label}
                   </Link>
                 ))}
               </div>
             ))}
-            <div className="flex gap-3 pt-3 border-t border-sacred-100 mt-2">
+            <div className="pt-4 mt-2 border-t border-sacred-100 flex flex-col gap-3">
               <Link
-                href={brand.slug === 'sacred-hands' ? '/booking' : '/events'}
+                href="/booking"
                 onClick={() => setIsOpen(false)}
-                className="flex-1 text-center px-4 py-2.5 rounded-xl text-sm font-medium bg-yoga-700 text-white"
+                className={clsx(
+                  'block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase',
+                  `bg-gradient-to-r ${scheme.ctaGradient} text-white shadow-glow`
+                )}
               >
-                {brand.slug === 'sacred-hands' ? 'Book Now' : 'Register'}
+                Book Now
+              </Link>
+              <Link
+                href="/contact"
+                onClick={() => setIsOpen(false)}
+                className="block text-center px-6 py-3 rounded-full text-sm font-medium border border-sacred-200 text-sacred-700 hover:border-yoga-300"
+              >
+                Contact
               </Link>
             </div>
           </nav>

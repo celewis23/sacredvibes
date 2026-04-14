@@ -25,14 +25,15 @@ const lato = Lato({
 export const metadata: Metadata = {
   metadataBase: new URL('https://sacredvibesyoga.com'),
   title: {
-    default: 'Sacred Vibes Yoga | Holistic Wellness Studio',
-    template: '%s | Sacred Vibes Yoga',
+    default: 'Sacred Vibes Healing & Wellness | Align. Restore. Elevate.',
+    template: '%s | Sacred Vibes Healing & Wellness',
   },
-  description: 'A holistic wellness sanctuary dedicated to yoga, sound healing, and therapeutic massage in Asheville, NC.',
+  description: 'A premium healing & wellness sanctuary merging ancient sacred practices with modern life. Yoga, sound healing, therapeutic massage, and energy work with Shanna Latia.',
+  keywords: ['yoga', 'sound healing', 'wellness', 'energy healing', 'massage', 'sacred vibes', 'healing', 'meditation', 'Richmond', 'holistic wellness'],
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    siteName: 'Sacred Vibes Yoga',
+    siteName: 'Sacred Vibes Healing & Wellness',
   },
   twitter: {
     card: 'summary_large_image',

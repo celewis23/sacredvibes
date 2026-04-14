@@ -18,10 +18,10 @@ export interface NavLink {
 
 const LOCAL_DEV_PORT = '3000'
 const LOCAL_HOSTS: Record<string, string> = {
-  'sacredvibesyoga.local': 'sacredvibesyoga.com',
-  'hands.sacredvibesyoga.local': 'hands.sacredvibesyoga.com',
-  'sound.sacredvibesyoga.local': 'sound.sacredvibesyoga.com',
-  'admin.sacredvibesyoga.local': 'admin.sacredvibesyoga.com',
+  'sacredvibesyoga.local':        'sacredvibesyoga.com',
+  'hands.sacredvibesyoga.local':  'hands.sacredvibesyoga.com',
+  'sound.sacredvibesyoga.local':  'sound.sacredvibesyoga.com',
+  'admin.sacredvibesyoga.local':  'admin.sacredvibesyoga.com',
 }
 
 // Well-known GUIDs must match SeedData.cs WellKnownIds
@@ -35,27 +35,26 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
   'sacredvibesyoga.com': {
     id: BRAND_IDS['sacred-vibes-yoga'],
     slug: 'sacred-vibes-yoga',
-    name: 'Sacred Vibes Yoga',
+    name: 'Sacred Vibes Healing & Wellness',
     subdomain: 'sacredvibesyoga.com',
     isAdmin: false,
     colorScheme: 'yoga',
     navLinks: [
-      { label: 'Home', href: '/' },
-      { label: 'About', href: '/about' },
+      { label: 'Home',           href: '/' },
       {
-        label: 'Yoga',
+        label: 'Experiences',
         href: '/classes',
         children: [
-          { label: 'Classes', href: '/classes' },
-          { label: 'Workshops', href: '/workshops' },
-          { label: 'Events', href: '/events' },
+          { label: 'Yoga & Movement',    href: '/classes' },
+          { label: 'Sound Healing',      href: 'https://sound.sacredvibesyoga.com' },
+          { label: 'Sacred Hands',       href: 'https://hands.sacredvibesyoga.com' },
+          { label: 'Corporate Wellness', href: '/contact' },
         ],
       },
-      { label: 'Sacred Hands', href: 'https://hands.sacredvibesyoga.com' },
-      { label: 'Sacred Sound', href: 'https://sound.sacredvibesyoga.com' },
-      { label: 'Gallery', href: '/gallery' },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Events',         href: '/events' },
+      { label: 'About',          href: '/about' },
+      { label: 'Digital Studio', href: '/digital-studio' },
+      { label: 'Blog',           href: '/blog' },
     ],
   },
   'hands.sacredvibesyoga.com': {
@@ -66,13 +65,13 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     isAdmin: false,
     colorScheme: 'hands',
     navLinks: [
-      { label: 'Home', href: '/' },
-      { label: 'About', href: '/about' },
+      { label: 'Home',     href: '/' },
+      { label: 'About',    href: '/about' },
       { label: 'Services', href: '/services' },
       { label: 'Book Now', href: '/booking' },
-      { label: 'Gallery', href: '/gallery' },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Gallery',  href: '/gallery' },
+      { label: 'Blog',     href: '/blog' },
+      { label: 'Contact',  href: '/contact' },
     ],
   },
   'sound.sacredvibesyoga.com': {
@@ -83,15 +82,15 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
     isAdmin: false,
     colorScheme: 'sound',
     navLinks: [
-      { label: 'Home', href: '/' },
-      { label: 'About', href: '/about' },
-      { label: 'Sound Healing', href: '/sound-healing' },
-      { label: 'Workshops', href: '/workshops' },
+      { label: 'Home',               href: '/' },
+      { label: 'About',              href: '/about' },
+      { label: 'Sound Healing',      href: '/sound-healing' },
+      { label: 'Workshops',          href: '/workshops' },
       { label: 'Sound on the River', href: '/sound-on-the-river' },
-      { label: 'Events', href: '/events' },
-      { label: 'Gallery', href: '/gallery' },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Contact', href: '/contact' },
+      { label: 'Events',             href: '/events' },
+      { label: 'Gallery',            href: '/gallery' },
+      { label: 'Blog',               href: '/blog' },
+      { label: 'Contact',            href: '/contact' },
     ],
   },
 }
@@ -132,15 +131,18 @@ function withLocalDevLinks(brand: BrandContext, normalizedHost: string): BrandCo
   if (!isLocalDevHost(normalizedHost)) return brand
 
   const navLinks = brand.navLinks.map((link) => {
-    if (link.href === 'https://hands.sacredvibesyoga.com') {
+    if (link.href === 'https://hands.sacredvibesyoga.com')
       return { ...link, href: `http://hands.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
-    }
-
-    if (link.href === 'https://sound.sacredvibesyoga.com') {
+    if (link.href === 'https://sound.sacredvibesyoga.com')
       return { ...link, href: `http://sound.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
-    }
-
-    return link
+    const children = link.children?.map((child) => {
+      if (child.href === 'https://hands.sacredvibesyoga.com')
+        return { ...child, href: `http://hands.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
+      if (child.href === 'https://sound.sacredvibesyoga.com')
+        return { ...child, href: `http://sound.sacredvibesyoga.local:${LOCAL_DEV_PORT}` }
+      return child
+    })
+    return children ? { ...link, children } : link
   })
 
   return { ...brand, navLinks }
