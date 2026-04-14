@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { toBrandPath, type BrandContext } from '@/lib/brand/resolution'
@@ -26,6 +26,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   const [openMobileMenu, setOpenMobileMenu] = useState<string | null>(null)
   const scheme = subBrandSchemes[brand.colorScheme]
   const pathname = usePathname()
+  const router = useRouter()
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -78,6 +79,13 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   }, [pathname]) // re-run the observer whenever the page changes
 
   const isYoga = brand.slug === 'sacred-vibes-yoga'
+
+  function navigateTo(href: string) {
+    setOpenDesktopMenu(null)
+    setOpenMobileMenu(null)
+    setIsOpen(false)
+    router.push(href)
+  }
 
   return (
     <header className={clsx(
@@ -163,14 +171,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       'bg-white border-sacred-100/80 overflow-hidden opacity-100 visible translate-y-0'
                     )}>
                       {link.children.map((child) => (
-                        <Link
+                        <button
                           key={child.href}
-                          href={child.href}
-                          onClick={() => setOpenDesktopMenu(null)}
-                          className="block px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
+                          type="button"
+                          onClick={() => navigateTo(child.href)}
+                          className="block w-full text-left px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
                         >
                           {child.label}
-                        </Link>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -242,17 +250,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       </svg>
                     </button>
                     {openMobileMenu === link.href && link.children.map((child) => (
-                      <Link
+                      <button
                         key={child.href}
-                        href={child.href}
-                        onClick={() => {
-                          setOpenMobileMenu(null)
-                          setIsOpen(false)
-                        }}
-                        className="block px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
+                        type="button"
+                        onClick={() => navigateTo(child.href)}
+                        className="block w-full text-left px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
                       >
                         {child.label}
-                      </Link>
+                      </button>
                     ))}
                   </>
                 ) : (
