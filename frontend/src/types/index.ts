@@ -303,6 +303,54 @@ export interface PagedResult<T> {
   hasPreviousPage: boolean
 }
 
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+export interface RecentBooking {
+  id: string
+  customerName: string
+  customerEmail: string
+  amount: number
+  status: string
+  brandName: string
+  createdAt: string
+}
+
+export interface RecentLead {
+  id: string
+  name?: string
+  email?: string
+  type: string
+  brandName: string
+  createdAt: string
+}
+
+export interface RecentImport {
+  id: string
+  source: string
+  totalRows: number
+  insertedCount: number
+  status: string
+  createdAt: string
+}
+
+export interface DashboardStats {
+  totalSubscribers: number
+  newSubscribersThisMonth: number
+  totalLeads: number
+  newLeadsThisWeek: number
+  totalBookings: number
+  pendingBookings: number
+  totalAssets: number
+  totalStorageBytes: number
+  totalBlogPosts: number
+  publishedBlogPosts: number
+  revenueThisMonth: number
+  revenueTotal: number
+  recentBookings: RecentBooking[]
+  recentLeads: RecentLead[]
+  recentImports: RecentImport[]
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

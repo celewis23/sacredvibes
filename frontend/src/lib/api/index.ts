@@ -2,7 +2,7 @@ import { apiClient } from './client'
 import type {
   ApiResponse, PagedResult, BlogPostSummary, BlogPost, BlogCategory, BlogTag,
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
-  Subscriber, SubscriberTag, AuthResponse, Brand, Lead,
+  Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -151,7 +151,7 @@ export const subscribersApi = {
 
 export const dashboardApi = {
   getStats: () =>
-    apiClient.get('/dashboard/stats'),
+    apiClient.get<ApiResponse<DashboardStats>>('/dashboard/stats'),
 
   getBrands: () =>
     apiClient.get<ApiResponse<Brand[]>>('/dashboard/brands'),
