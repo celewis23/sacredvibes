@@ -6,7 +6,7 @@ import ServiceCard from '@/components/booking/ServiceCard'
 import EventCard from '@/components/booking/EventCard'
 import BlogCard from '@/components/blog/BlogCard'
 import NewsletterSection from '@/components/sections/NewsletterSection'
-import { getBrandIdBySlug } from '@/lib/brand/resolution'
+import { getBrandIdBySlug, toBrandPath } from '@/lib/brand/resolution'
 import { servicesApi, blogApi } from '@/lib/api'
 
 interface Props { brand: BrandContext }
@@ -38,8 +38,8 @@ export default async function SoundHomePage({ brand }: Props) {
         eyebrow="Sacred Sound Healing"
         heading="Vibrate Higher"
         subheading="A portal into vibrational healing through sound baths, singing bowls, gong immersions, and our signature Sound on the River experiences. Let the vibrations guide you inward."
-        primaryCta={{ label: 'Upcoming Events', href: '/events' }}
-        secondaryCta={{ label: 'Sound on the River', href: '/sound-on-the-river' }}
+        primaryCta={{ label: 'Upcoming Events', href: toBrandPath(brand, '/events') }}
+        secondaryCta={{ label: 'Sound on the River', href: toBrandPath(brand, '/sound-on-the-river') }}
         colorScheme="sound"
         imageUrl="/images/sound-bath.jpg"
       />
@@ -56,7 +56,7 @@ export default async function SoundHomePage({ brand }: Props) {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-12">
               {services.map((service) => (
-                <ServiceCard key={service.id} service={service} colorScheme="sound" />
+                <ServiceCard key={service.id} service={service} colorScheme="sound" brandSlug={brand.slug} />
               ))}
             </div>
           </div>
@@ -75,13 +75,13 @@ export default async function SoundHomePage({ brand }: Props) {
             {riverEvents.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10 text-left">
                 {riverEvents.slice(0, 2).map((event) => (
-                  <EventCard key={event.id} event={event} colorScheme="sound" />
+                  <EventCard key={event.id} event={event} colorScheme="sound" brandSlug={brand.slug} />
                 ))}
               </div>
             )}
             <div className="mt-8">
               <Link
-                href="/sound-on-the-river"
+                href={toBrandPath(brand, '/sound-on-the-river')}
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-medium bg-sound-700 text-white hover:bg-sound-800 shadow-sm transition-all duration-200"
               >
                 Learn About Sound on the River
@@ -102,7 +102,7 @@ export default async function SoundHomePage({ brand }: Props) {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
               {events.slice(0, 3).map((event) => (
-                <EventCard key={event.id} event={event} colorScheme="sound" />
+                <EventCard key={event.id} event={event} colorScheme="sound" brandSlug={brand.slug} />
               ))}
             </div>
           </div>
@@ -115,7 +115,7 @@ export default async function SoundHomePage({ brand }: Props) {
           <div className="container-sacred">
             <SectionHeading eyebrow="Learn" heading="Sound Healing Wisdom" colorScheme="sound" />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
-              {posts.map((post) => <BlogCard key={post.id} post={post} />)}
+              {posts.map((post) => <BlogCard key={post.id} post={post} brandSlug={brand.slug} />)}
             </div>
           </div>
         </section>

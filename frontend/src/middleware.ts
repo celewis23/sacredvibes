@@ -5,20 +5,58 @@ const BRAND_HOST_MAP: Record<string, string> = {
   'hands.sacredvibesyoga.com': 'sacred-hands',
   'sound.sacredvibesyoga.com': 'sacred-sound',
   'admin.sacredvibesyoga.com': 'admin',
-  'sacredvibesyoga.local':       'sacred-vibes-yoga',
+  'sacredvibesyoga.local':     'sacred-vibes-yoga',
   'hands.sacredvibesyoga.local': 'sacred-hands',
   'sound.sacredvibesyoga.local': 'sacred-sound',
   'admin.sacredvibesyoga.local': 'admin',
 }
 
+// Path prefixes that map to sub-brands
+const BRAND_PATH_PREFIXES: Record<string, string> = {
+  '/hands': 'sacred-hands',
+  '/sound': 'sacred-sound',
+}
+
+const LEGACY_SUBDOMAIN_BASE_PATHS: Record<string, string> = {
+  'hands.sacredvibesyoga.com': '/hands',
+  'sound.sacredvibesyoga.com': '/sound',
+  'hands.sacredvibesyoga.local': '/hands',
+  'sound.sacredvibesyoga.local': '/sound',
+}
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const hostname = host.replace(/:\d+$/, '').toLowerCase()
+  const pathname = request.nextUrl.pathname
+  const search = request.nextUrl.search
 
-  // Determine brand from host
-  let brand = BRAND_HOST_MAP[hostname]
+  const legacyBasePath = LEGACY_SUBDOMAIN_BASE_PATHS[hostname]
+  if (legacyBasePath) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.hostname = hostname.endsWith('.local') ? 'sacredvibesyoga.local' : 'sacredvibesyoga.com'
+    redirectUrl.pathname = pathname === '/' ? legacyBasePath : `${legacyBasePath}${pathname}`
+    redirectUrl.search = search
+    return NextResponse.redirect(redirectUrl, 308)
+  }
 
-  // Dev: allow ?brand= override or x-brand header
+  // 1. Path-prefix brand detection (takes priority over host)
+  let brand: string | undefined
+  let rewritePath: string | undefined
+
+  for (const [prefix, slug] of Object.entries(BRAND_PATH_PREFIXES)) {
+    if (pathname === prefix || pathname.startsWith(prefix + '/')) {
+      brand = slug
+      rewritePath = pathname === prefix ? '/' : pathname.slice(prefix.length)
+      break
+    }
+  }
+
+  // 2. Host-based brand detection
+  if (!brand) {
+    brand = BRAND_HOST_MAP[hostname]
+  }
+
+  // 3. Dev overrides / fallback
   if (!brand) {
     brand = request.nextUrl.searchParams.get('brand')
       ?? request.headers.get('x-brand')
@@ -26,9 +64,8 @@ export function middleware(request: NextRequest) {
   }
 
   const isAdmin = brand === 'admin'
-  const pathname = request.nextUrl.pathname
 
-  // Redirect admin subdomain to /admin/* paths
+  // Redirect admin host to /admin/* paths
   if (isAdmin && !pathname.startsWith('/admin')) {
     return NextResponse.redirect(new URL('/admin', request.url))
   }
@@ -41,17 +78,23 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Pass brand context through request and response headers so server components
-  // can honor localhost query-param overrides during development.
+  // Pass brand context through request headers so server components can read it
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-brand', brand)
   requestHeaders.set('x-hostname', hostname)
   requestHeaders.set('x-pathname', pathname)
 
+  // Rewrite sub-brand paths to shared routes (browser URL stays as-is)
+  if (rewritePath !== undefined) {
+    const rewriteUrl = new URL(rewritePath || '/', request.url)
+    rewriteUrl.search = search
+    return NextResponse.rewrite(rewriteUrl, {
+      request: { headers: requestHeaders },
+    })
+  }
+
   const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
+    request: { headers: requestHeaders },
   })
   response.headers.set('x-brand', brand)
   response.headers.set('x-hostname', hostname)

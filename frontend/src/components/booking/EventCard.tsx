@@ -2,17 +2,18 @@ import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Calendar, MapPin, Users } from 'lucide-react'
 import { format } from 'date-fns'
-import type { EventOffering } from '@/types'
-import { formatPrice } from '@/lib/brand/resolution'
+import type { EventOffering, BrandSlug } from '@/types'
+import { formatPrice, toBrandPath } from '@/lib/brand/resolution'
 import Card from '@/components/ui/card'
 import Badge from '@/components/ui/badge'
 
 interface Props {
   event: EventOffering
   colorScheme?: 'yoga' | 'hands' | 'sound'
+  brandSlug?: BrandSlug
 }
 
-export default function EventCard({ event, colorScheme = 'yoga' }: Props) {
+export default function EventCard({ event, colorScheme = 'yoga', brandSlug = 'sacred-vibes-yoga' }: Props) {
   const accent = { yoga: 'text-yoga-600', hands: 'text-hands-600', sound: 'text-sound-600' }[colorScheme]
   const startDate = new Date(event.startAt)
   const isSoldOut = event.isSoldOut
@@ -68,7 +69,7 @@ export default function EventCard({ event, colorScheme = 'yoga' }: Props) {
         </p>
         {event.isBookable && !isSoldOut && (
           <Link
-            href={`/events/${event.slug}?register=1`}
+            href={toBrandPath(brandSlug, `/events/${event.slug}?register=1`)}
             className="px-4 py-2 rounded-lg text-xs font-medium bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm transition-all duration-200"
           >
             Register

@@ -79,7 +79,7 @@ const STATIC_OFFERINGS = [
     description: 'The ultimate healing fusion — therapeutic massage infused with live sound healing vibrations that permeate every cell.',
     duration: '90 min',
     price: 'From $150',
-    href: 'https://hands.sacredvibesyoga.com',
+    href: '/hands',
     featured: false,
   },
   {
@@ -89,7 +89,7 @@ const STATIC_OFFERINGS = [
     description: 'Our beloved outdoor ceremonial experience. Imagine: crystal bowls by the water at golden hour. Pure magic.',
     duration: '2 hrs',
     price: 'From $65',
-    href: 'https://sound.sacredvibesyoga.com/sound-on-the-river',
+    href: '/sound/sound-on-the-river',
     featured: false,
   },
 ]

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { BrandContext } from '@/lib/brand/resolution'
+import { toBrandPath, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
 
 interface SiteFooterProps {
@@ -67,7 +67,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
 
           {/* Brand column */}
           <div className="lg:col-span-5">
-            <Link href="/" className="inline-flex items-center gap-3 group mb-6">
+            <Link href={toBrandPath(brand, '/')} className="inline-flex items-center gap-3 group mb-6">
               <LotusMark
                 className="w-12"
                 gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
@@ -139,18 +139,18 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
                 <p className="eyebrow text-white/60 mb-4">The Sacred Family</p>
                 <ul className="space-y-3">
                   <li>
-                    <a href="https://hands.sacredvibesyoga.com"
+                    <Link href="/hands"
                        className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                       Sacred Hands — Healing Touch
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>
-                    </a>
+                    </Link>
                   </li>
                   <li>
-                    <a href="https://sound.sacredvibesyoga.com"
+                    <Link href="/sound"
                        className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                       Sacred Sound — Vibrational Healing
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>
-                    </a>
+                    </Link>
                   </li>
                 </ul>
               </div>
@@ -158,11 +158,11 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
 
             {!isYoga && (
               <div>
-                <a href="https://sacredvibesyoga.com"
+                <Link href="/"
                    className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                   Sacred Vibes Healing & Wellness
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>
-                </a>
+                </Link>
               </div>
             )}
           </div>

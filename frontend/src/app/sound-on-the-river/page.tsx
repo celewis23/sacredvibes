@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { servicesApi } from '@/lib/api'
-import { getBrandConfigBySlug } from '@/lib/brand/resolution'
+import { getBrandConfigBySlug, toBrandPath } from '@/lib/brand/resolution'
 import type { EventOffering } from '@/types'
 
 export const revalidate = 300
@@ -60,7 +60,7 @@ export default async function SoundOnTheRiverPage() {
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
           <Link
-            href={events.length > 0 ? `#upcoming-events` : '/contact'}
+            href={events.length > 0 ? '#upcoming-events' : toBrandPath(brand, '/contact')}
             className="inline-block px-10 py-4 bg-white text-sound-900 rounded-full font-medium text-lg hover:bg-sound-50 transition-colors"
           >
             {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
@@ -117,7 +117,7 @@ export default async function SoundOnTheRiverPage() {
                 Sound on the River sells out quickly.
               </p>
               <Link
-                href="/contact"
+                href={toBrandPath(brand, '/contact')}
                 className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors"
               >
                 Join the Waitlist
@@ -170,7 +170,7 @@ export default async function SoundOnTheRiverPage() {
                       </span>
                     ) : event.isBookable ? (
                       <Link
-                        href={`/booking?eventId=${event.id}`}
+                        href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
                         className="inline-block px-5 py-2.5 bg-sound-800 text-white text-sm rounded-full hover:bg-sound-900 transition-colors"
                       >
                         Reserve Your Spot
@@ -193,7 +193,7 @@ export default async function SoundOnTheRiverPage() {
           <p className="text-sound-400 text-sm">— Sarah M., Sound on the River attendee</p>
           <div className="mt-10">
             <Link
-              href="/contact"
+              href={toBrandPath(brand, '/contact')}
               className="inline-block px-8 py-3 border border-white/30 text-white rounded-full text-sm hover:bg-white/10 transition-colors"
             >
               Questions? Get in Touch

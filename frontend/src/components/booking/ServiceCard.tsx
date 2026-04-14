@@ -1,16 +1,17 @@
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import { Clock } from 'lucide-react'
-import type { ServiceOffering } from '@/types'
-import { formatPrice } from '@/lib/brand/resolution'
+import type { ServiceOffering, BrandSlug } from '@/types'
+import { formatPrice, toBrandPath } from '@/lib/brand/resolution'
 import Card from '@/components/ui/card'
 
 interface Props {
   service: ServiceOffering
   colorScheme?: 'yoga' | 'hands' | 'sound'
+  brandSlug?: BrandSlug
 }
 
-export default function ServiceCard({ service, colorScheme = 'yoga' }: Props) {
+export default function ServiceCard({ service, colorScheme = 'yoga', brandSlug = 'sacred-vibes-yoga' }: Props) {
   const accent = { yoga: 'text-yoga-600', hands: 'text-hands-600', sound: 'text-sound-600' }[colorScheme]
 
   return (
@@ -41,7 +42,7 @@ export default function ServiceCard({ service, colorScheme = 'yoga' }: Props) {
         </div>
         {service.isBookable && (
           <Link
-            href={`/booking?service=${service.id}`}
+            href={toBrandPath(brandSlug, `/booking?service=${service.id}`)}
             className={clsx(
               'px-4 py-2 rounded-lg text-xs font-medium transition-all duration-200',
               'bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm'

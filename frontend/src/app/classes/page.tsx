@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { Clock, Calendar, MapPin, Users } from 'lucide-react'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
+import { toBrandPath } from '@/lib/brand/resolution'
 import type { ServiceOffering, EventOffering } from '@/types'
 
 export const revalidate = 300
@@ -118,7 +119,7 @@ export default async function ClassesPage() {
                     </div>
                     {service.isBookable && (
                       <Link
-                        href={`/booking?serviceId=${service.id}`}
+                        href={toBrandPath(brand, `/booking?serviceId=${service.id}`)}
                         className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300"
                       >
                         Book Now
@@ -215,7 +216,7 @@ export default async function ClassesPage() {
                     {event.isBookable && !event.isSoldOut && (
                       <div className="shrink-0 self-center">
                         <Link
-                          href={`/booking?eventId=${event.id}`}
+                          href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
                           className="px-6 py-3 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300 whitespace-nowrap"
                         >
                           Register
@@ -239,7 +240,7 @@ export default async function ClassesPage() {
             <p className="text-sacred-500 text-base font-body font-light mb-8 max-w-sm mx-auto leading-relaxed tracking-wide">
               We&apos;re updating our schedule. Reach out to learn about current availability.
             </p>
-            <Link href="/contact" className="btn-outline-gold">
+            <Link href={toBrandPath(brand, '/contact')} className="btn-outline-gold">
               Contact Us
             </Link>
           </div>
@@ -259,8 +260,8 @@ export default async function ClassesPage() {
             Book a private session or reach out — we&apos;ll help you find the right fit.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/booking" className="btn-gold">Book a Session</Link>
-            <Link href="/contact" className="btn-ghost-light">Get in Touch</Link>
+            <Link href={toBrandPath(brand, '/booking')} className="btn-gold">Book a Session</Link>
+            <Link href={toBrandPath(brand, '/contact')} className="btn-ghost-light">Get in Touch</Link>
           </div>
         </div>
       </section>

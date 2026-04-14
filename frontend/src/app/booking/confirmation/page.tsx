@@ -1,20 +1,16 @@
-import { Suspense } from 'react'
+import { headers } from 'next/headers'
 import Link from 'next/link'
+import { getCurrentBrand } from '@/lib/brand/current'
+import { toBrandPath } from '@/lib/brand/resolution'
 
-export default function BookingConfirmationPage() {
-  return (
-    <Suspense>
-      <ConfirmationContent />
-    </Suspense>
-  )
-}
+export default async function BookingConfirmationPage() {
+  const headersList = await headers()
+  const brand = getCurrentBrand(headersList)
 
-function ConfirmationContent() {
   return (
     <main className="section">
       <div className="container-sacred">
         <div className="max-w-lg mx-auto text-center py-12">
-          {/* Checkmark */}
           <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg className="w-10 h-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -45,13 +41,13 @@ function ConfirmationContent() {
 
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
-              href="/"
+              href={toBrandPath(brand, '/')}
               className="px-6 py-2.5 bg-sacred-800 text-white rounded-full text-sm hover:bg-sacred-900 transition-colors"
             >
               Return Home
             </Link>
             <Link
-              href="/contact"
+              href={toBrandPath(brand, '/contact')}
               className="px-6 py-2.5 border border-sacred-200 text-sacred-700 rounded-full text-sm hover:bg-sacred-50 transition-colors"
             >
               Contact Us

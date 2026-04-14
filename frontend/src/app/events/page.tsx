@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 import { Calendar, MapPin, Users, Globe } from 'lucide-react'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
-import { formatPrice } from '@/lib/brand/resolution'
+import { formatPrice, toBrandPath } from '@/lib/brand/resolution'
 import type { EventOffering } from '@/types'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 
@@ -99,7 +99,7 @@ export default async function EventsPage() {
             </div>
             <div className="grid gap-6 md:grid-cols-2">
               {featured.map(event => (
-                <EventCard key={event.id} event={event} featured />
+                <EventCard key={event.id} event={event} featured brand={brand} />
               ))}
             </div>
           </div>
@@ -113,6 +113,7 @@ export default async function EventsPage() {
           eyebrow="Richmond & Beyond"
           events={inPerson}
           bg="section-sand"
+          brand={brand}
         />
       )}
 
@@ -123,6 +124,7 @@ export default async function EventsPage() {
           eyebrow="Join from Anywhere"
           events={virtual}
           bg="bg-white"
+          brand={brand}
         />
       )}
 
@@ -133,6 +135,7 @@ export default async function EventsPage() {
           eyebrow="Deep Immersion"
           events={retreats}
           bg="section-sand"
+          brand={brand}
         />
       )}
 
@@ -146,7 +149,7 @@ export default async function EventsPage() {
               <span className="gold-line w-12 block" />
             </div>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {events.map(event => <EventCard key={event.id} event={event} />)}
+              {events.map(event => <EventCard key={event.id} event={event} brand={brand} />)}
             </div>
           </div>
         </section>
@@ -163,7 +166,7 @@ export default async function EventsPage() {
             <p className="text-sacred-500 text-base font-body font-light mb-8 max-w-sm mx-auto leading-relaxed tracking-wide">
               We&apos;re planning something sacred. Subscribe below to be the first to know.
             </p>
-            <Link href="/contact" className="btn-outline-gold">
+            <Link href={toBrandPath(brand, '/contact')} className="btn-outline-gold">
               Stay in Touch
             </Link>
           </div>
@@ -202,11 +205,13 @@ export default async function EventsPage() {
 // ── Reusable section wrapper ────────────────────────────────────────────────
 function EventSection({
   title, eyebrow, events, bg,
+  brand,
 }: {
   title: string
   eyebrow: string
   events: EventOffering[]
   bg: string
+  brand: ReturnType<typeof getCurrentBrand>
 }) {
   return (
     <section className={`section ${bg} relative overflow-hidden`}>
@@ -217,7 +222,7 @@ function EventSection({
           <span className="gold-line w-12 block" />
         </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {events.map(event => <EventCard key={event.id} event={event} />)}
+          {events.map(event => <EventCard key={event.id} event={event} brand={brand} />)}
         </div>
       </div>
     </section>
@@ -225,7 +230,7 @@ function EventSection({
 }
 
 // ── Event Card ──────────────────────────────────────────────────────────────
-function EventCard({ event, featured = false }: { event: EventOffering; featured?: boolean }) {
+function EventCard({ event, featured = false, brand }: { event: EventOffering; featured?: boolean; brand: ReturnType<typeof getCurrentBrand> }) {
   const startDate = new Date(event.startAt)
   const endDate   = new Date(event.endAt)
 
@@ -305,7 +310,7 @@ function EventCard({ event, featured = false }: { event: EventOffering; featured
         </p>
         {event.isBookable && !event.isSoldOut ? (
           <Link
-            href={`/booking?eventId=${event.id}`}
+            href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
             className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300"
           >
             Register

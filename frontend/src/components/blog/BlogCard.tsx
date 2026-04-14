@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { format } from 'date-fns'
-import type { BlogPostSummary } from '@/types'
+import type { BlogPostSummary, BrandSlug } from '@/types'
 import Card from '@/components/ui/card'
+import { toBrandPath } from '@/lib/brand/resolution'
 
 interface Props {
   post: BlogPostSummary
+  brandSlug?: BrandSlug
 }
 
-export default function BlogCard({ post }: Props) {
-  const href = `/blog/${post.slug}`
+export default function BlogCard({ post, brandSlug = 'sacred-vibes-yoga' }: Props) {
+  const href = toBrandPath(brandSlug, `/blog/${post.slug}`)
 
   return (
     <Card hover padding="none" as="article" className="overflow-hidden flex flex-col">

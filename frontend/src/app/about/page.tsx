@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { getCurrentBrand } from '@/lib/brand/current'
+import { toBrandPath } from '@/lib/brand/resolution'
 
 export async function generateMetadata(): Promise<Metadata> {
   const headersList = await headers()
@@ -108,13 +109,13 @@ export default async function AboutPage() {
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link
-              href="/contact"
+              href={toBrandPath(brand, '/contact')}
               className="px-8 py-3 bg-white text-sacred-900 rounded-full font-medium hover:bg-sacred-100 transition-colors"
             >
               Get in Touch
             </Link>
             <Link
-              href={brand.slug === 'sacred-hands' ? '/booking' : '/classes'}
+              href={toBrandPath(brand, brand.slug === 'sacred-hands' ? '/booking' : '/classes')}
               className="px-8 py-3 border border-white/30 text-white rounded-full font-medium hover:bg-white/10 transition-colors"
             >
               {brand.slug === 'sacred-hands' ? 'Book a Session' : 'View Schedule'}

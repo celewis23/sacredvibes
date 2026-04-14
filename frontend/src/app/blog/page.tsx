@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { blogApi } from '@/lib/api'
+import { toBrandPath } from '@/lib/brand/resolution'
 import type { BlogPostSummary } from '@/types'
 
 export const revalidate = 300
@@ -62,7 +63,7 @@ export default async function BlogPage({
             {/* Hero post */}
             {heroPost && (
               <Link
-                href={`/blog/${heroPost.slug}`}
+                href={toBrandPath(brand, `/blog/${heroPost.slug}`)}
                 className="group block mb-12 rounded-2xl overflow-hidden border border-sacred-100 hover:shadow-card transition-shadow"
               >
                 <div className="grid md:grid-cols-2">
@@ -110,7 +111,7 @@ export default async function BlogPage({
                 {restPosts.map(post => (
                   <Link
                     key={post.id}
-                    href={`/blog/${post.slug}`}
+                    href={toBrandPath(brand, `/blog/${post.slug}`)}
                     className="group block rounded-2xl overflow-hidden border border-sacred-100 hover:shadow-card transition-shadow bg-white"
                   >
                     {post.featuredImage && (
@@ -156,7 +157,7 @@ export default async function BlogPage({
               <div className="flex items-center justify-center gap-3">
                 {page > 1 && (
                   <Link
-                    href={`/blog?page=${page - 1}${category ? `&category=${category}` : ''}`}
+                    href={toBrandPath(brand, `/blog?page=${page - 1}${category ? `&category=${category}` : ''}`)}
                     className="px-5 py-2 border border-sacred-200 rounded-full text-sm text-sacred-700 hover:bg-sacred-50 transition-colors"
                   >
                     Previous
@@ -165,7 +166,7 @@ export default async function BlogPage({
                 <span className="text-sm text-sacred-400">Page {page} of {totalPages}</span>
                 {page < totalPages && (
                   <Link
-                    href={`/blog?page=${page + 1}${category ? `&category=${category}` : ''}`}
+                    href={toBrandPath(brand, `/blog?page=${page + 1}${category ? `&category=${category}` : ''}`)}
                     className="px-5 py-2 border border-sacred-200 rounded-full text-sm text-sacred-700 hover:bg-sacred-50 transition-colors"
                   >
                     Next

@@ -5,7 +5,7 @@ import SectionHeading from '@/components/sections/SectionHeading'
 import ServiceCard from '@/components/booking/ServiceCard'
 import BlogCard from '@/components/blog/BlogCard'
 import NewsletterSection from '@/components/sections/NewsletterSection'
-import { getBrandIdBySlug } from '@/lib/brand/resolution'
+import { getBrandIdBySlug, toBrandPath } from '@/lib/brand/resolution'
 import { servicesApi, blogApi } from '@/lib/api'
 
 interface Props { brand: BrandContext }
@@ -33,8 +33,8 @@ export default async function HandsHomePage({ brand }: Props) {
         eyebrow="Sacred Hands Massage Therapy"
         heading="Healing Through Touch"
         subheading="Transformative massage therapy designed to melt tension, restore balance, and return you to yourself. Our skilled therapists blend traditional techniques with intuitive healing touch."
-        primaryCta={{ label: 'Book a Session', href: '/booking' }}
-        secondaryCta={{ label: 'Our Services', href: '/services' }}
+        primaryCta={{ label: 'Book a Session', href: toBrandPath(brand, '/booking') }}
+        secondaryCta={{ label: 'Our Services', href: toBrandPath(brand, '/services') }}
         colorScheme="hands"
       />
 
@@ -50,12 +50,12 @@ export default async function HandsHomePage({ brand }: Props) {
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
               {services.map((service) => (
-                <ServiceCard key={service.id} service={service} colorScheme="hands" />
+                <ServiceCard key={service.id} service={service} colorScheme="hands" brandSlug={brand.slug} />
               ))}
             </div>
             <div className="mt-10">
               <Link
-                href="/booking"
+                href={toBrandPath(brand, '/booking')}
                 className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl font-medium bg-hands-700 text-white hover:bg-hands-800 shadow-sm transition-all duration-200"
               >
                 Book Your Session
@@ -110,7 +110,7 @@ export default async function HandsHomePage({ brand }: Props) {
               colorScheme="hands"
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
-              {posts.map((post) => <BlogCard key={post.id} post={post} />)}
+              {posts.map((post) => <BlogCard key={post.id} post={post} brandSlug={brand.slug} />)}
             </div>
           </div>
         </section>

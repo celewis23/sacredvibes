@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { clsx } from 'clsx'
-import type { BrandContext } from '@/lib/brand/resolution'
+import { toBrandPath, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
 
 interface SiteHeaderProps {
@@ -76,7 +76,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
         <div className="flex items-center justify-between h-20 lg:h-24">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
+          <Link href={toBrandPath(brand, '/')} className="flex items-center gap-3 group flex-shrink-0">
             <LotusMark
               className="w-12 transition-all duration-300 group-hover:scale-105"
               gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
@@ -144,7 +144,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
           <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
             {!isYoga && (
               <Link
-                href="/contact"
+                href={toBrandPath(brand, '/contact')}
                 className={clsx(
                   'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
                   onDark
@@ -156,7 +156,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               </Link>
             )}
             <Link
-              href="/booking"
+              href={toBrandPath(brand, '/booking')}
               className={clsx(
                 'px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase',
                 `bg-gradient-to-r ${scheme.ctaGradient} text-white`,
@@ -211,7 +211,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             ))}
             <div className="pt-4 mt-2 border-t border-sacred-100 flex flex-col gap-3">
               <Link
-                href="/booking"
+                href={toBrandPath(brand, '/booking')}
                 onClick={() => setIsOpen(false)}
                 className={clsx(
                   'block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase',
@@ -221,7 +221,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 Book Now
               </Link>
               <Link
-                href="/contact"
+                href={toBrandPath(brand, '/contact')}
                 onClick={() => setIsOpen(false)}
                 className="block text-center px-6 py-3 rounded-full text-sm font-medium border border-sacred-200 text-sacred-700 hover:border-yoga-300"
               >

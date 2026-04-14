@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { servicesApi, bookingsApi } from '@/lib/api'
-import { getBrandConfigBySlug } from '@/lib/brand/resolution'
+import { getBrandConfigBySlug, getBrandSlugFromPathname, toBrandPath } from '@/lib/brand/resolution'
 import type { ServiceOffering, EventOffering } from '@/types'
 
 const schema = z.object({
@@ -22,6 +22,7 @@ type FormData = z.infer<typeof schema>
 function BookingForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const pathname = usePathname()
   const serviceId = searchParams.get('serviceId')
   const eventId = searchParams.get('eventId')
 
@@ -30,8 +31,8 @@ function BookingForm() {
   const [step, setStep] = useState<'form' | 'processing' | 'error'>('form')
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Detect brand from subdomain (client-side fallback)
-  const brandConfig = getBrandConfigBySlug('sacred-hands')
+  const brandSlug = getBrandSlugFromPathname(pathname) ?? 'sacred-vibes-yoga'
+  const brandConfig = getBrandConfigBySlug(brandSlug)
 
   useEffect(() => {
     if (serviceId) {
@@ -58,6 +59,15 @@ function BookingForm() {
   const price = offering?.price ?? 0
   const currency = offering?.currency ?? 'USD'
   const isFree = offering?.priceType === 'Free' || price === 0
+  const bookingType = service
+    ? brandSlug === 'sacred-hands'
+      ? 'MassageService'
+      : brandSlug === 'sacred-sound'
+        ? 'SoundHealingClass'
+        : 'YogaClass'
+    : brandSlug === 'sacred-sound'
+      ? 'SoundHealingEvent'
+      : 'YogaEvent'
 
   const onSubmit = async (data: FormData) => {
     setStep('processing')
@@ -68,7 +78,7 @@ function BookingForm() {
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone,
         customerNotes: data.customerNotes,
-        bookingType: service ? 'MassageService' : 'SoundHealingEvent',
+        bookingType,
         serviceOfferingId: serviceId ?? undefined,
         eventOfferingId: eventId ?? undefined,
         amount: price,
@@ -80,10 +90,12 @@ function BookingForm() {
 
       if (!isFree && price > 0) {
         const origin = window.location.origin
+        const confirmationPath = toBrandPath(brandSlug, `/booking/confirmation?bookingId=${booking.id}`)
+        const cancelPath = toBrandPath(brandSlug, `/booking?serviceId=${serviceId ?? ''}&eventId=${eventId ?? ''}`)
         const checkoutRes = await bookingsApi.createCheckout(
           booking.id,
-          `${origin}/booking/confirmation?bookingId=${booking.id}`,
-          `${origin}/booking?serviceId=${serviceId ?? ''}&eventId=${eventId ?? ''}`
+          `${origin}${confirmationPath}`,
+          `${origin}${cancelPath}`
         )
         const checkoutUrl = checkoutRes.data.data?.checkoutUrl
         if (checkoutUrl) {
@@ -92,7 +104,7 @@ function BookingForm() {
         }
       }
 
-      router.push(`/booking/confirmation?bookingId=${booking.id}`)
+      router.push(toBrandPath(brandSlug, `/booking/confirmation?bookingId=${booking.id}`))
     } catch (err) {
       setStep('error')
       setErrorMsg(err instanceof Error ? err.message : 'Something went wrong. Please try again.')

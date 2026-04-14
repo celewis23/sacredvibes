@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCurrentBrand } from '@/lib/brand/current'
+import { toBrandPath } from '@/lib/brand/resolution'
 import { blogApi } from '@/lib/api'
 
 export const revalidate = 300
@@ -163,7 +164,7 @@ export default async function BlogPostPage({ params }: Props) {
                     Receive updates, class schedules, and teachings from {brand.name}.
                   </p>
                   <Link
-                    href="/contact"
+                    href={toBrandPath(brand, '/contact')}
                     className="block text-center px-5 py-2.5 bg-sacred-800 text-white text-sm rounded-full hover:bg-sacred-900 transition-colors"
                   >
                     Join the Community
@@ -176,7 +177,7 @@ export default async function BlogPostPage({ params }: Props) {
           {/* Back link */}
           <div className="mt-12 pt-8 border-t border-sacred-100">
             <Link
-              href="/blog"
+              href={toBrandPath(brand, '/blog')}
               className="text-sm text-sacred-600 hover:text-sacred-900 transition-colors"
             >
               ← Back to Journal

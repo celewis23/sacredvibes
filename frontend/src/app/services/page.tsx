@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
 import type { ServiceOffering } from '@/types'
+import { toBrandPath } from '@/lib/brand/resolution'
 
 export const revalidate = 300
 
@@ -55,7 +56,7 @@ export default async function ServicesPage() {
             We combine proven technique with genuine care.
           </p>
           <Link
-            href="/booking"
+            href={toBrandPath(brand, '/booking')}
             className="inline-block px-8 py-3 bg-hands-800 text-white rounded-full font-medium hover:bg-hands-900 transition-colors"
           >
             Book a Session
@@ -70,7 +71,7 @@ export default async function ServicesPage() {
             <div className="text-center py-12 text-sacred-400">
               <p className="font-heading text-2xl mb-2">Services coming soon</p>
               <p className="text-sm mb-6">Contact us for current availability.</p>
-              <Link href="/contact" className="px-6 py-2.5 bg-sacred-800 text-white rounded-full text-sm hover:bg-sacred-900 transition-colors">
+              <Link href={toBrandPath(brand, '/contact')} className="px-6 py-2.5 bg-sacred-800 text-white rounded-full text-sm hover:bg-sacred-900 transition-colors">
                 Get in Touch
               </Link>
             </div>
@@ -104,7 +105,7 @@ export default async function ServicesPage() {
                           </div>
                           {service.isBookable && (
                             <Link
-                              href={`/booking?serviceId=${service.id}`}
+                              href={toBrandPath(brand, `/booking?serviceId=${service.id}`)}
                               className="block text-center px-5 py-2.5 bg-hands-800 text-white text-sm rounded-full hover:bg-hands-900 transition-colors"
                             >
                               Book This Service
