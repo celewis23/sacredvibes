@@ -103,15 +103,15 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               className="w-12 transition-all duration-300 group-hover:scale-105"
               gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
             />
-            <div className="hidden sm:block">
+            <div className="block min-w-0">
               <p className={clsx(
-                'font-heading font-semibold text-lg leading-tight tracking-wide transition-colors duration-300',
+                'font-heading font-semibold leading-tight tracking-wide transition-colors duration-300 text-base sm:text-lg',
                 onDark ? 'text-white' : 'text-sacred-900'
               )}>
                 Sacred Vibes
               </p>
               <p className={clsx(
-                'text-[9px] tracking-[0.22em] uppercase font-body font-medium transition-colors duration-300',
+                'text-[8px] sm:text-[9px] tracking-[0.18em] sm:tracking-[0.22em] uppercase font-body font-medium transition-colors duration-300',
                 onDark ? 'text-yoga-300' : 'text-yoga-600'
               )}>
                 Healing &amp; Wellness
@@ -230,7 +230,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
       {/* Mobile menu — always opaque regardless of background */}
       {isOpen && (
-        <div className="lg:hidden border-t border-sacred-100/80 bg-white/98 backdrop-blur-2xl animate-slide-down">
+        <div className="lg:hidden border-t border-white/10 bg-sacred-950/96 backdrop-blur-2xl animate-slide-down">
           <nav className="max-w-7xl mx-auto px-4 py-6 flex flex-col gap-1">
             {brand.navLinks.map((link) => (
               <div key={link.href}>
@@ -241,7 +241,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       onClick={() => setOpenMobileMenu((current) => current === link.href ? null : link.href)}
                       className={clsx(
                         'w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
-                        `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                        'text-white/90 hover:text-white hover:bg-white/10'
                       )}
                     >
                       <span>{link.label}</span>
@@ -254,7 +254,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                         key={child.href}
                         type="button"
                         onClick={() => navigateTo(child.href)}
-                        className="block w-full text-left px-8 py-2.5 text-sm text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50 rounded-2xl transition-colors"
+                        className="block w-full text-left px-8 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-2xl transition-colors"
                       >
                         {child.label}
                       </button>
@@ -266,7 +266,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     onClick={() => setIsOpen(false)}
                     className={clsx(
                       'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
-                      `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                      'text-white/90 hover:text-white hover:bg-white/10'
                     )}
                   >
                     {link.label}
@@ -274,7 +274,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 )}
               </div>
             ))}
-            <div className="pt-4 mt-2 border-t border-sacred-100 flex flex-col gap-3">
+            <div className="pt-4 mt-2 border-t border-white/10 flex flex-col gap-3">
               <Link
                 href={toBrandPath(brand, '/booking')}
                 onClick={() => setIsOpen(false)}
@@ -288,7 +288,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               <Link
                 href={toBrandPath(brand, '/contact')}
                 onClick={() => setIsOpen(false)}
-                className="block text-center px-6 py-3 rounded-full text-sm font-medium border border-sacred-200 text-sacred-700 hover:border-yoga-300"
+                className="block text-center px-6 py-3 rounded-full text-sm font-medium border border-white/25 text-white/90 hover:border-white/45 hover:text-white"
               >
                 Contact
               </Link>

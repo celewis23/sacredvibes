@@ -59,7 +59,10 @@ export default function HeroSection({
         </video>
       ) : imageUrl ? (
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className={clsx(
+            'absolute inset-0 bg-cover bg-center',
+            imageUrl === '/images/hero-bg.png' && 'bg-[position:72%_center] sm:bg-center'
+          )}
           style={{ backgroundImage: `url(${imageUrl})`, opacity: 0.45 }}
         />
       ) : (
