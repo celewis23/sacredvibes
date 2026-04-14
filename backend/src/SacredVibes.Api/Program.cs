@@ -8,6 +8,18 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+static bool IsAllowedFrontendOrigin(string? origin)
+{
+    if (string.IsNullOrWhiteSpace(origin)) return false;
+    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+
+    var host = uri.Host;
+    return host == "localhost"
+        || host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase)
+        || host.EndsWith("sacredvibesyoga.com", StringComparison.OrdinalIgnoreCase)
+        || host.EndsWith("railway.app", StringComparison.OrdinalIgnoreCase);
+}
+
 // Railway injects PORT at runtime — bind to it so the health check can reach us
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://+:{port}");
@@ -53,15 +65,7 @@ builder.Services.AddCors(opts =>
     opts.AddPolicy("FrontendPolicy", policy =>
     {
         policy
-            .SetIsOriginAllowed(origin =>
-            {
-                if (string.IsNullOrWhiteSpace(origin)) return false;
-                var host = new Uri(origin).Host;
-                return host == "localhost"
-                    || host.EndsWith(".vercel.app")
-                    || host.EndsWith("sacredvibesyoga.com")
-                    || host.EndsWith("railway.app");
-            })
+            .SetIsOriginAllowed(IsAllowedFrontendOrigin)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -116,6 +120,41 @@ if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 app.UseStaticFiles(); // serves /wwwroot/uploads
 app.UseCors("FrontendPolicy");
+
+// Catch unhandled request exceptions inside the main pipeline so we can preserve
+// CORS headers on JSON error responses for browser-based clients.
+app.Use(async (ctx, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var logger = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Unhandled exception for {Method} {Path}", ctx.Request.Method, ctx.Request.Path);
+
+        if (ctx.Response.HasStarted)
+        {
+            throw;
+        }
+
+        ctx.Response.Clear();
+
+        var origin = ctx.Request.Headers.Origin.ToString();
+        if (IsAllowedFrontendOrigin(origin))
+        {
+            ctx.Response.Headers.AccessControlAllowOrigin = origin;
+            ctx.Response.Headers.AccessControlAllowCredentials = "true";
+            ctx.Response.Headers.Append("Vary", "Origin");
+        }
+
+        ctx.Response.StatusCode = 500;
+        ctx.Response.ContentType = "application/json";
+        await ctx.Response.WriteAsJsonAsync(new { success = false, errors = new[] { "An internal server error occurred" } });
+    }
+});
+
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
