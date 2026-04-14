@@ -103,7 +103,9 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-app.UseHttpsRedirection();
+// Railway and most PaaS hosts terminate TLS at the proxy — don't redirect internally
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 app.UseStaticFiles(); // serves /wwwroot/uploads
 app.UseCors("FrontendPolicy");
 app.UseRateLimiter();
