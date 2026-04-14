@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Pencil, Trash2, X, Layout } from 'lucide-react'
 import { pagesApi, brandsApi } from '@/lib/api'
 import type { SitePage, Brand } from '@/types'
 
@@ -208,8 +209,12 @@ export default function AdminPagesPage() {
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Link href={`/admin/pages/${p.id}`}
+                              className="flex items-center gap-1 px-2.5 py-1 text-xs text-yoga-700 border border-yoga-200 rounded-lg hover:bg-yoga-50 transition-colors font-medium" title="Open page builder">
+                              <Layout size={12} /> Edit
+                            </Link>
                             <button onClick={() => openEdit(p)}
-                              className="p-1.5 text-gray-400 hover:text-yoga-700 transition-colors rounded" title="Edit">
+                              className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded" title="Edit settings">
                               <Pencil size={13} />
                             </button>
                             <button onClick={() => setDeleteConfirm(p.id)}

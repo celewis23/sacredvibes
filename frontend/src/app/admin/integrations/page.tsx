@@ -73,7 +73,7 @@ export default function AdminIntegrationsPage() {
   })
 
   return (
-    <div>
+    <div className="p-6 lg:p-8">
       {importModal === 'csv' && (
         <ImportModal
           type="csv"

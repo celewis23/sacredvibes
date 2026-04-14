@@ -35,7 +35,7 @@ export default function AdminGalleriesPage() {
   })
 
   return (
-    <div>
+    <div className="p-6 lg:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Galleries</h1>

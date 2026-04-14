@@ -165,7 +165,7 @@ export default function AdminLeadsPage() {
   const totalPages = data?.totalPages ?? 1
 
   return (
-    <div>
+    <div className="p-6 lg:p-8">
       {selected && (
         <LeadDetail
           lead={selected}

@@ -119,7 +119,7 @@ export default function AdminBookingsPage() {
   const BOOKING_STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
 
   return (
-    <div>
+    <div className="p-6 lg:p-8">
       {editing && (
         <StatusModal
           booking={editing}

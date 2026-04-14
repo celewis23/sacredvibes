@@ -369,6 +369,7 @@ export interface SitePage {
   navLabel?: string
   navSortOrder: number
   template?: string
+  contentJson?: string
   createdAt: string
   updatedAt: string
 }

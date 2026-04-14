@@ -75,6 +75,7 @@ public class PagesController : ControllerBase
         page.ShowInNav = req.ShowInNav;
         page.NavLabel = req.NavLabel;
         page.NavSortOrder = req.NavSortOrder;
+        if (req.ContentJson is not null) page.ContentJson = req.ContentJson;
 
         var wasPublished = page.Status == ContentStatus.Published;
         page.Status = req.Status;
@@ -111,7 +112,8 @@ public class PagesController : ControllerBase
         SeoTitle = p.SeoTitle, SeoDescription = p.SeoDescription,
         Status = p.Status.ToString(), PublishedAt = p.PublishedAt,
         ShowInNav = p.ShowInNav, NavLabel = p.NavLabel, NavSortOrder = p.NavSortOrder,
-        Template = p.Template, CreatedAt = p.CreatedAt, UpdatedAt = p.UpdatedAt
+        Template = p.Template, ContentJson = p.ContentJson,
+        CreatedAt = p.CreatedAt, UpdatedAt = p.UpdatedAt
     };
 }
 
@@ -135,6 +137,7 @@ public class PageDto
     public string? NavLabel { get; set; }
     public int NavSortOrder { get; set; }
     public string? Template { get; set; }
+    public string? ContentJson { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
@@ -153,4 +156,5 @@ public class SavePageRequest
     public string? NavLabel { get; set; }
     public int NavSortOrder { get; set; }
     public string? Template { get; set; }
+    public string? ContentJson { get; set; }
 }
