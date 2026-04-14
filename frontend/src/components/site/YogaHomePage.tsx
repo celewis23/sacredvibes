@@ -3,6 +3,7 @@ import type { BrandContext } from '@/lib/brand/resolution'
 import HeroSection from '@/components/sections/HeroSection'
 import ExperienceSelector from '@/components/site/ExperienceSelector'
 import NewsletterSection from '@/components/sections/NewsletterSection'
+import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 import { getBrandIdBySlug } from '@/lib/brand/resolution'
 import { servicesApi, blogApi } from '@/lib/api'
 import type { ServiceOffering, EventOffering } from '@/types'
@@ -33,7 +34,7 @@ async function getData() {
 // ── Static fallback offerings when no API data ──────────────────────────────
 const STATIC_OFFERINGS = [
   {
-    icon: '🎵',
+    icon: 'sound-healing' as SacredIconName,
     category: 'Signature',
     name: 'Floating Sound Bath',
     description: 'Our signature immersive experience — lay back and let crystal singing bowls, gongs, and sacred instruments carry you into deep restoration.',
@@ -43,7 +44,7 @@ const STATIC_OFFERINGS = [
     featured: true,
   },
   {
-    icon: '🧘',
+    icon: 'yoga-flows' as SacredIconName,
     category: 'Yoga',
     name: 'Yoga + Sound Bath',
     description: 'A full-spectrum session blending intentional movement with the healing power of sound. Leave feeling completely renewed.',
@@ -53,7 +54,7 @@ const STATIC_OFFERINGS = [
     featured: false,
   },
   {
-    icon: '✦',
+    icon: 'private-sound-healing' as SacredIconName,
     category: 'Private',
     name: 'Private Sound Healing',
     description: 'One-on-one vibrational therapy custom-designed for your specific needs, intentions, and healing journey.',
@@ -63,7 +64,7 @@ const STATIC_OFFERINGS = [
     featured: false,
   },
   {
-    icon: '🌿',
+    icon: 'wellness' as SacredIconName,
     category: 'Wellness',
     name: 'Corporate Wellness',
     description: 'Bring sacred wellness to your team. Custom sound healing, breathwork, and yoga programs for organizations of all sizes.',
@@ -73,7 +74,7 @@ const STATIC_OFFERINGS = [
     featured: false,
   },
   {
-    icon: '💆',
+    icon: 'bodywork' as SacredIconName,
     category: 'Bodywork',
     name: 'Massage + Sound Therapy',
     description: 'The ultimate healing fusion — therapeutic massage infused with live sound healing vibrations that permeate every cell.',
@@ -83,7 +84,7 @@ const STATIC_OFFERINGS = [
     featured: false,
   },
   {
-    icon: '🌊',
+    icon: 'sound-on-the-river' as SacredIconName,
     category: 'Outdoor',
     name: 'Sound on the River',
     description: 'Our beloved outdoor ceremonial experience. Imagine: crystal bowls by the water at golden hour. Pure magic.',
@@ -166,7 +167,9 @@ function OfferingCard({ item }: { item: typeof STATIC_OFFERINGS[0] }) {
           </span>
         </div>
       )}
-      <div className="text-3xl mb-5">{item.icon}</div>
+      <div className="mb-5 text-yoga-700">
+        <SacredIcon name={item.icon} className="w-11 h-11" label={item.name} />
+      </div>
       <div className="flex-1">
         <p className="eyebrow text-yoga-500 mb-2">{item.category}</p>
         <h3 className="font-heading text-2xl text-sacred-900 mb-3 leading-snug">{item.name}</h3>
@@ -400,17 +403,17 @@ export default async function YogaHomePage({ brand }: Props) {
               {/* Right: preview cards */}
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { icon: '🎵', label: 'Sound Healing',  count: '12+ sessions' },
-                  { icon: '🧘', label: 'Yoga Flows',     count: '24+ classes'  },
-                  { icon: '🌬️', label: 'Breathwork',     count: '8+ practices' },
-                  { icon: '🔮', label: 'Meditations',    count: '16+ tracks'   },
+                  { icon: 'sound-healing' as SacredIconName, label: 'Sound Healing',  count: '12+ sessions' },
+                  { icon: 'yoga-flows' as SacredIconName, label: 'Yoga Flows',     count: '24+ classes'  },
+                  { icon: 'breathwork' as SacredIconName, label: 'Breathwork',     count: '8+ practices' },
+                  { icon: 'guided-meditation' as SacredIconName, label: 'Meditations',    count: '16+ tracks'   },
                 ].map((item) => (
                   <div
                     key={item.label}
                     className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:bg-white/8 hover:border-yoga-500/30 transition-all duration-400 group cursor-pointer"
                   >
-                    <div className="text-3xl mb-3 group-hover:scale-110 transition-transform duration-300">
-                      {item.icon}
+                    <div className="mb-3 text-yoga-300 group-hover:scale-110 transition-transform duration-300">
+                      <SacredIcon name={item.icon} className="w-10 h-10" label={item.label} />
                     </div>
                     <p className="font-heading text-lg text-white mb-1">{item.label}</p>
                     <p className="text-xs text-yoga-400/70 font-body tracking-wide">{item.count}</p>

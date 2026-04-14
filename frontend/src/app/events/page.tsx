@@ -1,11 +1,12 @@
 import { headers } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { Calendar, MapPin, Users, Globe } from 'lucide-react'
+import { Calendar, MapPin, Users } from 'lucide-react'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { servicesApi } from '@/lib/api'
 import { formatPrice, toBrandPath } from '@/lib/brand/resolution'
 import type { EventOffering } from '@/types'
+import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 
 export const revalidate = 300
@@ -185,13 +186,13 @@ export default async function EventsPage() {
         <div className="container-sacred relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             {[
-              { icon: '📍', title: 'Richmond, VA',       sub: 'Our home base & studio hub' },
-              { icon: '✈️', title: 'Traveling Worldwide', sub: 'NYC · LA · Miami · International' },
-              { icon: <Globe size={28} className="text-yoga-400 mx-auto" />, title: 'Global Online',  sub: 'Live virtual & on-demand' },
+              { icon: 'location' as SacredIconName, title: 'Richmond, VA',       sub: 'Our home base & studio hub' },
+              { icon: 'travel' as SacredIconName, title: 'Traveling Worldwide', sub: 'NYC · LA · Miami · International' },
+              { icon: 'wellness' as SacredIconName, title: 'Global Online',  sub: 'Live virtual & on-demand' },
             ].map((item, i) => (
               <div key={i} className="p-8 rounded-3xl bg-white/5 border border-white/10">
-                <div className="text-3xl mb-4 flex justify-center">
-                  {typeof item.icon === 'string' ? item.icon : item.icon}
+                <div className="mb-4 flex justify-center text-yoga-400">
+                  <SacredIcon name={item.icon} className="w-10 h-10" label={item.title} />
                 </div>
                 <p className="font-heading text-xl text-white mb-2">{item.title}</p>
                 <p className="text-sacred-400/70 text-sm font-body tracking-wide">{item.sub}</p>

@@ -4,6 +4,7 @@ import { Play, Lock } from 'lucide-react'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 import { getBrandIdBySlug } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
+import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 
 export const metadata: Metadata = {
   title: 'Digital Studio',
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 
 const CATEGORIES = [
   {
-    icon: '🎵',
+    icon: 'sound-healing' as SacredIconName,
     title: 'Sound Healing',
     description: 'Crystal bowls, gongs, and sacred instruments delivered directly to your nervous system. Sessions range from 10-minute resets to full 60-minute journeys.',
     count: 12,
@@ -20,7 +21,7 @@ const CATEGORIES = [
     preview: true,
   },
   {
-    icon: '🧘',
+    icon: 'yoga-flows' as SacredIconName,
     title: 'Yoga Flows',
     description: 'Vinyasa, yin, restorative, and alignment-focused classes with Shanna. All levels. All bodies. Every practice is an act of sacred self-care.',
     count: 24,
@@ -28,7 +29,7 @@ const CATEGORIES = [
     preview: true,
   },
   {
-    icon: '🌬️',
+    icon: 'breathwork' as SacredIconName,
     title: 'Breathwork',
     description: 'Conscious connected breath, box breathing, pranayama, and ceremonial breathwork practices to regulate, energize, or deeply release.',
     count: 8,
@@ -36,7 +37,7 @@ const CATEGORIES = [
     preview: false,
   },
   {
-    icon: '🔮',
+    icon: 'guided-meditation' as SacredIconName,
     title: 'Guided Meditation',
     description: 'Body scans, visualizations, chakra journeys, and frequency meditations designed to quiet the mind and open the heart.',
     count: 16,
@@ -44,7 +45,7 @@ const CATEGORIES = [
     preview: false,
   },
   {
-    icon: '🌙',
+    icon: 'ceremonies-rituals' as SacredIconName,
     title: 'Ceremonies & Rituals',
     description: 'Full moon ceremonies, new moon intentions, seasonal rituals, and sacred ceremonial recordings from live events around the world.',
     count: 6,
@@ -52,7 +53,7 @@ const CATEGORIES = [
     preview: false,
   },
   {
-    icon: '💫',
+    icon: 'energy-work' as SacredIconName,
     title: 'Energy Work',
     description: 'Reiki attunements, chakra balancing, aura clearing, and guided energy practices to restore flow and alignment to your subtle body.',
     count: 10,
@@ -184,7 +185,9 @@ export default function DigitalStudioPage() {
             {CATEGORIES.map((cat) => (
               <div key={cat.title} className="experience-card group p-8 flex flex-col">
                 <div className="flex items-start justify-between mb-5">
-                  <span className="text-4xl">{cat.icon}</span>
+                  <div className="text-yoga-700">
+                    <SacredIcon name={cat.icon} className="w-11 h-11" label={cat.title} />
+                  </div>
                   {cat.preview && (
                     <span className="px-3 py-1 rounded-full text-[10px] font-body font-semibold tracking-wider uppercase bg-yoga-100 text-yoga-700 border border-yoga-200">
                       Free Preview

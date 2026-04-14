@@ -3,11 +3,12 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 
 const EXPERIENCES = [
   {
     id: 'relax',
-    icon: '🌊',
+    icon: 'relax-release' as SacredIconName,
     title: 'Relax & Release',
     subtitle: 'Let it all go',
     description: 'Deep rest for your nervous system. Sound baths, gentle yoga nidra, and therapeutic massage that melt tension and return you to stillness.',
@@ -16,7 +17,7 @@ const EXPERIENCES = [
   },
   {
     id: 'heal',
-    icon: '✦',
+    icon: 'heal-restore' as SacredIconName,
     title: 'Heal & Restore',
     subtitle: 'Return to wholeness',
     description: 'Targeted energy work, private sound healing, and restorative sessions designed to support deep cellular healing and inner alignment.',
@@ -25,7 +26,7 @@ const EXPERIENCES = [
   },
   {
     id: 'elevate',
-    icon: '◈',
+    icon: 'elevate-energy' as SacredIconName,
     title: 'Elevate Your Energy',
     subtitle: 'Rise higher',
     description: 'Breathwork, vibrational ceremonies, and immersive sound journeys that clear stagnant energy and raise your frequency to new heights.',
@@ -34,7 +35,7 @@ const EXPERIENCES = [
   },
   {
     id: 'move',
-    icon: '❋',
+    icon: 'move-body' as SacredIconName,
     title: 'Move Your Body',
     subtitle: 'Feel alive',
     description: 'Dynamic yoga flows, alignment-focused vinyasa, and movement practices that strengthen, lengthen, and reconnect you to the intelligence of your body.',
@@ -84,10 +85,10 @@ export default function ExperienceSelector() {
                 )}
               >
                 <div className={clsx(
-                  'text-3xl mb-5 transition-transform duration-300',
+                  'mb-5 text-yoga-300 transition-transform duration-300',
                   isActive ? 'scale-110' : 'group-hover:scale-105'
                 )}>
-                  {exp.icon}
+                  <SacredIcon name={exp.icon} className="w-10 h-10" label={exp.title} />
                 </div>
                 <p className={clsx(
                   'font-heading text-xl mb-1 leading-snug transition-colors duration-300',

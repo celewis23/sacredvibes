@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import LotusMark from '@/components/branding/LotusMark'
+import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 import { getBrandIdBySlug } from '@/lib/brand/resolution'
 
@@ -12,25 +13,25 @@ export const metadata: Metadata = {
 const OFFERINGS = [
   {
     eyebrow: 'Movement',
-    icon: '🧘',
+    icon: 'move-body' as SacredIconName,
     title: 'On-Site Yoga & Movement',
     description: 'Intentional movement sessions that release stored tension, restore presence, and reconnect your team to their bodies. Designed for all levels — from the boardroom to the breakout room.',
   },
   {
     eyebrow: 'Sound Healing',
-    icon: '🎵',
+    icon: 'sound-healing' as SacredIconName,
     title: 'Group Sound Bath',
     description: 'A full nervous-system reset using crystal singing bowls, gongs, and sacred instruments. Employees leave feeling deeply rested, clear-headed, and genuinely restored — not just relaxed.',
   },
   {
     eyebrow: 'Breathwork',
-    icon: '🌬️',
+    icon: 'breathwork' as SacredIconName,
     title: 'Breathwork & Regulation',
     description: 'Evidence-based breath practices that shift your team out of chronic stress and back into clarity, focus, and creative capacity. Tools they can carry into every meeting and deadline.',
   },
   {
     eyebrow: 'Custom Activation',
-    icon: '✦',
+    icon: 'custom-activation' as SacredIconName,
     title: 'Sacred Wellness Activation',
     description: 'A fully bespoke experience designed around your people, your culture, and your goals — blending movement, sound, breathwork, and energy work into one seamless, unforgettable event.',
   },
@@ -209,7 +210,9 @@ export default function CorporateWellnessPage() {
           <div className="grid gap-6 md:grid-cols-2">
             {OFFERINGS.map((item) => (
               <div key={item.title} className="experience-card group p-8">
-                <div className="text-3xl mb-5">{item.icon}</div>
+                <div className="mb-5 text-yoga-700">
+                  <SacredIcon name={item.icon} className="w-11 h-11" label={item.title} />
+                </div>
                 <p className="eyebrow text-yoga-500 mb-2">{item.eyebrow}</p>
                 <h3 className="font-heading text-2xl text-sacred-900 mb-3 leading-snug">{item.title}</h3>
                 <p className="text-sacred-500 font-body font-light leading-relaxed tracking-wide">
