@@ -23,8 +23,11 @@ type FormState = {
   template: string
 }
 
+// Primary brand — Sacred Vibes Healing & Wellness
+const PRIMARY_BRAND_ID = '11111111-1111-1111-1111-111111111111'
+
 const emptyForm: FormState = {
-  brandId: '',
+  brandId: PRIMARY_BRAND_ID,
   title: '',
   slug: '',
   heroTitle: '',
@@ -54,7 +57,7 @@ export default function AdminPagesPage() {
 
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['admin-pages'],
-    queryFn: () => pagesApi.getPages().then(r => r.data.data ?? []),
+    queryFn: () => pagesApi.getPages({ brandId: PRIMARY_BRAND_ID }).then(r => r.data.data ?? []),
   })
 
   const saveMutation = useMutation({
@@ -81,7 +84,7 @@ export default function AdminPagesPage() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ ...emptyForm })
+    setForm(emptyForm)
     setShowModal(true)
   }
 
@@ -110,7 +113,7 @@ export default function AdminPagesPage() {
     setForm(emptyForm)
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     saveMutation.mutate({
       brandId: form.brandId,
