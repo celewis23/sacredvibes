@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SacredVibes.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+95ed37e432fa3ff6521289eb63bdb548ac41e6a1")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f7e7aaa643439a60a3931ce095e0bef3e60bd1b4")]
 [assembly: System.Reflection.AssemblyProductAttribute("SacredVibes.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SacredVibes.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
