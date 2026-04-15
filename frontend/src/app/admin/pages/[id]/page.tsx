@@ -125,13 +125,12 @@ function pyCls(p: string) {
 // ── EditableText ──────────────────────────────────────────────────────────────
 
 function EditableText({
-  value, onChange, as: Tag = 'p', className = '', placeholder = 'Click to edit…',
+  value, onChange, as = 'p', className = '', placeholder = 'Click to edit…',
 }: {
   value: string; onChange: (v: string) => void
-  as?: keyof React.JSX.IntrinsicElements; className?: string; placeholder?: string
+  as?: string; className?: string; placeholder?: string
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ref = useRef<any>(null)
+  const ref = useRef<HTMLElement>(null)
   const committed = useRef(value)
 
   // Only sync DOM when value changes externally (not while user is typing)
@@ -143,9 +142,11 @@ function EditableText({
     committed.current = value
   }, [value])
 
+  const Tag = as as 'div'
   return (
     <Tag
-      ref={ref}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref={ref as any}
       contentEditable
       suppressContentEditableWarning
       data-placeholder={placeholder}
