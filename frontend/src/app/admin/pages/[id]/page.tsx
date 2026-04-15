@@ -74,42 +74,108 @@ function makeSection(type: SectionType, contentOverrides?: Record<string, unknow
   }
 }
 
-function templateSections(template: string): Section[] {
-  switch (template) {
-    case 'home':
+function pageDefaultSections(slug: string, template?: string | null): Section[] {
+  // Exact content per known page slug
+  switch (slug) {
+    case 'about':
       return [
-        makeSection('hero', { headline: 'Move. Breathe. Heal. Thrive.', subheading: 'Sacred Vibes offers yoga, massage, and sound healing in a community built on transformation.', ctaText: 'Explore Our Offerings', ctaLink: '/services', ctaSecondaryText: 'Book a Session', ctaSecondaryLink: '/booking' }),
-        makeSection('services', { eyebrow: 'What We Offer', headline: 'Sacred Offerings', subheading: 'Choose the practice that calls to you.', maxItems: 6 }),
-        makeSection('events',   { eyebrow: 'Join Us', headline: 'Upcoming Events', maxItems: 4, upcomingOnly: true }),
-        makeSection('cta',      { headline: 'Ready to begin your journey?', subheading: 'Your transformation starts with a single step.', ctaText: 'Book a Session', ctaLink: '/booking' }),
+        makeSection('hero', {
+          eyebrow: 'Our Story',
+          headline: 'Born from a Love of Movement',
+          subheading: 'Sacred Vibes Yoga was founded on the belief that yoga is for every body. Our studio is a sanctuary — a place to slow down, go inward, and reconnect with what matters most.',
+          ctaText: '', ctaLink: '', ctaSecondaryText: '', ctaSecondaryLink: '',
+        }, { paddingY: 'lg' }),
+        makeSection('two-column', {
+          leftHeadline: 'Our Mission',
+          leftBody: 'To make yoga an accessible, transformative practice.\n\nWe believe that a consistent yoga practice has the power to transform not just your body, but your relationship with yourself and the world around you. Our classes are designed to meet you exactly where you are — beginner or advanced, healing from injury or training for performance.',
+          rightHeadline: 'Our Values',
+          rightBody: 'Authenticity — We teach what we practice. Our offerings come from lived experience, not just training.\n\nInclusivity — Every offering is designed with accessibility in mind. All bodies. All backgrounds. All levels.\n\nCommunity — We build real relationships. This is not a transactional studio — it is a community.\n\nIntegrity — We operate with honesty and transparency in everything from pricing to teaching lineage.',
+        }),
+        makeSection('cta', {
+          headline: 'Ready to Begin?',
+          subheading: 'Join us on the mat. Your first class is the hardest step — everything after that is the practice.',
+          ctaText: 'Get in Touch',
+          ctaLink: '/contact',
+          ctaSecondaryText: 'View Schedule',
+          ctaSecondaryLink: '/classes',
+        }),
       ]
+
     case 'sound-on-the-river':
       return [
-        makeSection('hero',   { headline: 'Sound on the River', subheading: 'An immersive outdoor sound bath experience on the water.', ctaText: 'View Upcoming Dates', ctaLink: '/events', ctaSecondaryText: '', ctaSecondaryLink: '' }),
-        makeSection('text',   { body: 'Describe the Sound on the River experience here — what attendees can expect, the setting, the instruments used, and why this experience is transformative.' }),
+        makeSection('hero', {
+          eyebrow: 'Sacred Sound Presents',
+          headline: 'Sound on the River',
+          subheading: 'An immersive outdoor sound healing experience where the music of crystal bowls, Tibetan singing bowls, gongs, and the river itself become one.',
+          ctaText: 'See Upcoming Dates', ctaLink: '#upcoming-events', ctaSecondaryText: '', ctaSecondaryLink: '',
+        }),
+        makeSection('two-column', {
+          leftHeadline: 'Where Water Meets Vibration',
+          leftBody: "Sound on the River is our signature outdoor event — a deeply immersive sound journey held at the water's edge at sunrise or twilight. The natural acoustic environment of the river amplifies and complements every tone, creating an experience unlike anything found in a studio.\n\nParticipants lie on comfortable mats surrounded by the instruments and the natural soundscape. There is nothing to do — only receive.",
+          rightHeadline: 'Event Details',
+          rightBody: 'Duration: 90 minutes\n\nSetting: Outdoor riverbank, weather permitting\n\nCapacity: Limited to 20 participants per session\n\nWhat to bring: Yoga mat, blanket, layers for temperature changes\n\nExperience required: None — open to all',
+        }, { bg: 'dark' }),
         makeSection('events', { eyebrow: 'Upcoming Dates', headline: 'Sound on the River', maxItems: 6, upcomingOnly: true }),
-        makeSection('cta',    { headline: 'Reserve Your Spot', subheading: 'Limited capacity. Book early to secure your place.', ctaText: 'Book Now', ctaLink: '/booking' }),
+        makeSection('quote', {
+          text: 'I came in carrying the week in my shoulders. I left feeling like I had been rinsed clean by the river itself.',
+          author: 'Sarah M.',
+          source: 'Sound on the River attendee',
+        }, { bg: 'dark' }),
       ]
+
     case 'contact':
       return [
-        makeSection('hero', { headline: 'Get in Touch', subheading: "We'd love to hear from you.", ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
-        makeSection('text', { body: 'Reach us at info@sacredvibesyoga.com or fill out the form below. We typically respond within 24 hours.' }),
+        makeSection('heading', {
+          eyebrow: '',
+          headline: "Let's Connect",
+          subheading: "Whether you have questions about classes, want to book a service, or simply want to say hello — we'd love to hear from you.",
+        }, { bg: 'white', paddingY: 'lg' }),
+        makeSection('text', {
+          body: 'Yoga classes, workshops, and private sessions for all levels.\n\nEmail: info@sacredvibesyoga.com',
+        }),
       ]
+
     case 'gallery':
       return [
-        makeSection('hero',    { headline: 'Gallery', subheading: 'Moments from our community.', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
+        makeSection('hero', { headline: 'Gallery', subheading: 'Moments from our community.', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
         makeSection('gallery', { headline: '', columns: 3, maxItems: 24 }),
       ]
+
     case 'booking':
       return [
         makeSection('hero', { headline: 'Book a Session', subheading: 'Choose your practice and schedule your next visit.', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
         makeSection('services', { eyebrow: 'Available Services', headline: 'Choose Your Session', maxItems: 12 }),
       ]
-    default:
+
+    case 'services':
+    case 'classes':
       return [
-        makeSection('hero', { headline: 'Page Title', subheading: '', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
-        makeSection('text'),
+        makeSection('hero', { headline: 'Our Services', subheading: 'Yoga, massage, and sound healing — find the practice that calls to you.', ctaText: 'Book a Session', ctaLink: '/booking', ctaSecondaryText: '', ctaSecondaryLink: '' }, { paddingY: 'lg' }),
+        makeSection('services', { eyebrow: 'What We Offer', headline: 'Sacred Offerings', subheading: '', maxItems: 12 }),
       ]
+
+    case 'events':
+      return [
+        makeSection('hero', { headline: 'Upcoming Events', subheading: 'Join us for classes, workshops, and transformational experiences.', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
+        makeSection('events', { eyebrow: '', headline: 'All Upcoming Events', maxItems: 20, upcomingOnly: true }),
+      ]
+
+    default:
+      // Fall back to template-based defaults
+      switch (template) {
+        case 'home':
+          return [
+            makeSection('hero', { headline: 'Move. Breathe. Heal. Thrive.', subheading: 'Sacred Vibes offers yoga, massage, and sound healing in a community built on transformation.', ctaText: 'Explore Our Offerings', ctaLink: '/services', ctaSecondaryText: 'Book a Session', ctaSecondaryLink: '/booking' }),
+            makeSection('services', { eyebrow: 'What We Offer', headline: 'Sacred Offerings', subheading: 'Choose the practice that calls to you.', maxItems: 6 }),
+            makeSection('events', { eyebrow: 'Join Us', headline: 'Upcoming Events', maxItems: 4, upcomingOnly: true }),
+            makeSection('cta', { headline: 'Ready to begin your journey?', subheading: 'Your transformation starts with a single step.', ctaText: 'Book a Session', ctaLink: '/booking' }),
+          ]
+        default:
+          return [
+            makeSection('hero', { headline: 'Page Title', subheading: '', ctaText: '', ctaLink: '' }, { paddingY: 'lg' }),
+            makeSection('text'),
+          ]
+      }
   }
 }
 
@@ -674,7 +740,7 @@ export default function PageEditorPage({ params }: { params: Promise<{ id: strin
         }
       } catch { /* fall through */ }
     }
-    setSections(templateSections(page.template ?? 'default'))
+    setSections(pageDefaultSections(page.slug, page.template))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.id])
 

@@ -26,6 +26,17 @@ public class PagesController : ControllerBase
         return Ok(ApiResponse<List<PageDto>>.Ok(pages.Select(MapToDto).ToList()));
     }
 
+    [HttpGet("public")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<PageDto>>> GetPublicPage(
+        [FromQuery] string slug, CancellationToken ct = default)
+    {
+        var page = await _db.Pages
+            .Include(p => p.Brand)
+            .FirstOrDefaultAsync(p => p.Slug == slug, ct);
+        return page is null ? NotFound() : Ok(ApiResponse<PageDto>.Ok(MapToDto(page)));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ApiResponse<PageDto>>> GetPage(Guid id, CancellationToken ct = default)
     {

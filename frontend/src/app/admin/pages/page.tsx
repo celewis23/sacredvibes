@@ -5,8 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, X, Layout } from 'lucide-react'
-import { pagesApi, brandsApi } from '@/lib/api'
-import type { SitePage, Brand } from '@/types'
+import { pagesApi } from '@/lib/api'
+import type { SitePage } from '@/types'
 
 type FormState = {
   brandId: string
@@ -51,16 +51,10 @@ export default function AdminPagesPage() {
   const [editing, setEditing] = useState<SitePage | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
-  const [brandFilter, setBrandFilter] = useState('')
-
-  const { data: brands = [] } = useQuery({
-    queryKey: ['admin-brands'],
-    queryFn: () => brandsApi.getBrands().then(r => r.data.data ?? []),
-  })
 
   const { data: pages = [], isLoading } = useQuery({
-    queryKey: ['admin-pages', brandFilter],
-    queryFn: () => pagesApi.getPages({ brandId: brandFilter || undefined }).then(r => r.data.data ?? []),
+    queryKey: ['admin-pages'],
+    queryFn: () => pagesApi.getPages().then(r => r.data.data ?? []),
   })
 
   const saveMutation = useMutation({
@@ -87,7 +81,7 @@ export default function AdminPagesPage() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ ...emptyForm, brandId: brands[0]?.id ?? '' })
+    setForm({ ...emptyForm })
     setShowModal(true)
   }
 
@@ -138,20 +132,12 @@ export default function AdminPagesPage() {
     setForm(f => ({ ...f, [key]: value }))
   }
 
-  // Group pages by brand
-  const grouped = pages.reduce<Record<string, SitePage[]>>((acc, p) => {
-    const key = p.brandName || p.brandId
-    if (!acc[key]) acc[key] = []
-    acc[key].push(p)
-    return acc
-  }, {})
-
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">Pages</h1>
-          <p className="text-sm text-gray-500 mt-1">{pages.length} pages across {Object.keys(grouped).length} brands</p>
+          <p className="text-sm text-gray-500 mt-1">{pages.length} page{pages.length !== 1 ? 's' : ''}</p>
         </div>
         <button
           onClick={openCreate}
@@ -162,74 +148,56 @@ export default function AdminPagesPage() {
         </button>
       </div>
 
-      <div className="flex items-center gap-3 mb-6">
-        <select
-          value={brandFilter}
-          onChange={e => setBrandFilter(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-yoga-500"
-        >
-          <option value="">All brands</option>
-          {brands.map((b: Brand) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-      </div>
-
       {isLoading ? (
         <div className="p-12 text-center text-gray-400 text-sm">Loading...</div>
       ) : pages.length === 0 ? (
         <div className="p-12 text-center text-gray-400 text-sm">No pages found.</div>
       ) : (
-        <div className="space-y-6">
-          {Object.entries(grouped).map(([brandName, brandPages]) => (
-            <div key={brandName}>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">{brandName}</h2>
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Page</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Slug</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Template</th>
-                      <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Status</th>
-                      <th className="px-4 py-2.5 text-right font-medium text-gray-600 text-xs">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {brandPages.map(p => (
-                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-2.5">
-                          <div className="font-medium text-gray-900">{p.title}</div>
-                          {p.heroTitle && <div className="text-xs text-gray-400 truncate max-w-xs">{p.heroTitle}</div>}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">/{p.slug}</td>
-                        <td className="px-4 py-2.5 text-gray-500 text-xs">{p.template ?? 'default'}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                            {p.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Link href={`/admin/pages/${p.id}`}
-                              className="flex items-center gap-1 px-2.5 py-1 text-xs text-yoga-700 border border-yoga-200 rounded-lg hover:bg-yoga-50 transition-colors font-medium" title="Open page builder">
-                              <Layout size={12} /> Edit
-                            </Link>
-                            <button onClick={() => openEdit(p)}
-                              className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded" title="Edit settings">
-                              <Pencil size={13} />
-                            </button>
-                            <button onClick={() => setDeleteConfirm(p.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded" title="Delete">
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Page</th>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Slug</th>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Template</th>
+                <th className="px-4 py-2.5 text-left font-medium text-gray-600 text-xs">Status</th>
+                <th className="px-4 py-2.5 text-right font-medium text-gray-600 text-xs">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pages.map(p => (
+                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium text-gray-900">{p.title}</div>
+                    {p.heroTitle && <div className="text-xs text-gray-400 truncate max-w-xs">{p.heroTitle}</div>}
+                  </td>
+                  <td className="px-4 py-2.5 text-gray-500 font-mono text-xs">/{p.slug}</td>
+                  <td className="px-4 py-2.5 text-gray-500 text-xs">{p.template ?? 'default'}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Link href={`/admin/pages/${p.id}`}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-yoga-700 border border-yoga-200 rounded-lg hover:bg-yoga-50 transition-colors font-medium" title="Open page builder">
+                        <Layout size={12} /> Edit
+                      </Link>
+                      <button onClick={() => openEdit(p)}
+                        className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors rounded" title="Edit settings">
+                        <Pencil size={13} />
+                      </button>
+                      <button onClick={() => setDeleteConfirm(p.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded" title="Delete">
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -244,16 +212,6 @@ export default function AdminPagesPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 p-5 space-y-4">
-              {!editing && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Brand *</label>
-                  <select value={form.brandId} onChange={e => set('brandId', e.target.value)} required
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500">
-                    <option value="">Select brand</option>
-                    {brands.map((b: Brand) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-              )}
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Page Title *</label>

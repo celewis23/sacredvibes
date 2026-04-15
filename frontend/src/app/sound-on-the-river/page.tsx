@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { servicesApi } from '@/lib/api'
+import { servicesApi, getPublicPageBySlug } from '@/lib/api'
 import { getBrandConfigBySlug, toBrandPath } from '@/lib/brand/resolution'
+import PageSectionRenderer from '@/components/sections/PageSectionRenderer'
 import type { EventOffering } from '@/types'
 
 export const revalidate = 300
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 
 export default async function SoundOnTheRiverPage() {
   const brand = getBrandConfigBySlug('sacred-sound')
+  const cmsPage = await getPublicPageBySlug('sound-on-the-river')
 
   let events: EventOffering[] = []
   try {
@@ -23,6 +25,55 @@ export default async function SoundOnTheRiverPage() {
     })
     events = res.data.data ?? []
   } catch { /* show page without events */ }
+
+  // If the page has been edited via the CMS, render static sections + live events list
+  if (cmsPage?.contentJson) {
+    return (
+      <main>
+        <PageSectionRenderer contentJson={cmsPage.contentJson} />
+
+        {/* Live events list — always rendered dynamically */}
+        <section id="upcoming-events" className="section bg-white">
+          <div className="container-sacred max-w-3xl mx-auto">
+            <h2 className="font-heading text-3xl text-sound-900 mb-8 text-center">Upcoming Dates</h2>
+            {events.length === 0 ? (
+              <div className="text-center bg-sound-50 rounded-2xl p-12">
+                <p className="font-heading text-xl text-sound-800 mb-3">Next dates coming soon</p>
+                <p className="text-sound-600 text-sm mb-6">Join our list to be the first to know when new dates are announced.</p>
+                <Link href={toBrandPath(brand, '/contact')} className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors">Join the Waitlist</Link>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {events.map(event => (
+                  <div key={event.id} className="bg-sound-50 border border-sound-100 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
+                    <div className="shrink-0 text-center bg-white rounded-xl px-6 py-4 border border-sound-100">
+                      <p className="text-xs font-medium text-sound-400 uppercase">{new Date(event.startAt).toLocaleDateString('en-US', { month: 'short' })}</p>
+                      <p className="font-heading text-3xl text-sound-900 leading-none">{new Date(event.startAt).getDate()}</p>
+                      <p className="text-xs text-sound-500 mt-0.5">{new Date(event.startAt).toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-heading text-xl text-sound-900 mb-1">{event.name}</h3>
+                      <div className="flex flex-wrap gap-3 text-sm text-sound-600">
+                        <span>{new Date(event.startAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} – {new Date(event.endAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+                        {event.venue && <span>{event.venue}</span>}
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      {event.isSoldOut ? (
+                        <span className="px-5 py-2.5 bg-gray-100 text-gray-500 text-sm rounded-full">Sold Out</span>
+                      ) : event.isBookable ? (
+                        <Link href={toBrandPath(brand, `/booking?eventId=${event.id}`)} className="inline-block px-5 py-2.5 bg-sound-800 text-white text-sm rounded-full hover:bg-sound-900 transition-colors">Reserve Your Spot</Link>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+    )
+  }
 
   return (
     <main>
