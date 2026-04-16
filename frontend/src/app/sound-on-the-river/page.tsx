@@ -100,7 +100,6 @@ export default async function SoundOnTheRiverPage() {
         </div>
 
         <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
-          <div className="rounded-[2rem] border border-white/12 bg-black/20 px-6 py-10 shadow-[0_24px_80px_rgba(5,10,20,0.45)] backdrop-blur-sm md:px-10">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sound-100/90 mb-6">
             Sacred Sound Presents
           </p>
@@ -117,7 +116,6 @@ export default async function SoundOnTheRiverPage() {
           >
             {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
           </Link>
-          </div>
         </div>
       </section>
 
