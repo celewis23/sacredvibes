@@ -83,7 +83,7 @@ export default async function SoundOnTheRiverPage() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/images/sound-on-river.jpg')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-sound-950/92 via-sound-900/82 to-indigo-950/90" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sound-950/90 via-sound-900/80 to-indigo-950/90" />
         {/* Decorative rings */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           {[1, 2, 3, 4].map(i => (
@@ -99,14 +99,15 @@ export default async function SoundOnTheRiverPage() {
           ))}
         </div>
 
-        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sound-100/90 mb-6">
+        <div className="relative z-10 mx-auto max-w-3xl px-6 pt-32 pb-20 text-center">
+          <p className="eyebrow text-sound-200 mb-5">
             Sacred Sound Presents
           </p>
-          <h1 className="font-heading text-5xl md:text-7xl text-white mb-6 leading-tight">
+          <h1 className="font-heading text-5xl md:text-7xl text-white mb-5 leading-tight text-balance">
             Sound on the River
           </h1>
-          <p className="text-xl text-white leading-relaxed mb-10 md:text-2xl">
+          <span className="gold-line w-16 block mx-auto mb-8" />
+          <p className="text-xl text-white/90 font-body leading-relaxed tracking-wide mb-10 md:text-2xl">
             An immersive outdoor sound healing experience where the music of crystal bowls,
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
@@ -124,15 +125,15 @@ export default async function SoundOnTheRiverPage() {
         <div className="container-sacred max-w-4xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-sound-100/80">The Experience</p>
-              <h2 className="mb-5 font-heading text-3xl text-white md:text-4xl">Where Water Meets Vibration</h2>
-              <p className="mb-4 leading-relaxed text-white/82">
+              <p className="eyebrow text-sound-200 mb-4">The Experience</p>
+              <h2 className="mb-5 font-heading text-3xl text-white md:text-4xl text-balance">Where Water Meets Vibration</h2>
+              <p className="mb-4 font-body leading-relaxed tracking-wide text-white/80">
                 Sound on the River is our signature outdoor event — a deeply immersive sound journey
                 held at the water&apos;s edge at sunrise or twilight. The natural acoustic environment
                 of the river amplifies and complements every tone, creating an experience unlike
                 anything found in a studio.
               </p>
-              <p className="leading-relaxed text-white/82">
+              <p className="font-body leading-relaxed tracking-wide text-white/80">
                 Participants lie on comfortable mats surrounded by the instruments and the natural
                 soundscape. There is nothing to do — only receive.
               </p>
@@ -145,9 +146,9 @@ export default async function SoundOnTheRiverPage() {
                 { label: 'What to bring', value: 'Yoga mat, blanket, layers for temperature changes' },
                 { label: 'Experience required', value: 'None — open to all' },
               ].map(item => (
-                <div key={item.label} className="flex items-start gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
-                  <span className="w-32 shrink-0 text-sound-100/75">{item.label}</span>
-                  <span className="text-white/88">{item.value}</span>
+                <div key={item.label} className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
+                  <span className="w-32 shrink-0 font-body font-medium text-sound-200">{item.label}</span>
+                  <span className="font-body text-white/90">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -238,14 +239,15 @@ export default async function SoundOnTheRiverPage() {
       {/* Testimonial / closer */}
       <section className="section bg-sound-950 text-center">
         <div className="container-sacred max-w-2xl mx-auto">
-          <p className="mb-6 font-heading text-2xl italic leading-relaxed text-white md:text-3xl">
+          <span className="gold-line w-16 block mx-auto mb-8" />
+          <p className="mb-6 font-heading text-2xl italic leading-relaxed text-white md:text-3xl text-balance">
             &ldquo;I came in carrying the week in my shoulders. I left feeling like I had been rinsed clean by the river itself.&rdquo;
           </p>
-          <p className="text-sm text-sound-100/75">— Sarah M., Sound on the River attendee</p>
+          <p className="font-body text-sm tracking-wide text-sound-200">— Sarah M., Sound on the River attendee</p>
           <div className="mt-10">
             <Link
               href={toBrandPath(brand, '/contact')}
-              className="inline-block rounded-full border border-white/40 px-8 py-3 text-sm text-white transition-colors hover:bg-white/12"
+              className="inline-block rounded-full border border-white/40 px-8 py-3 text-sm font-body text-white transition-colors hover:bg-white/10"
             >
               Questions? Get in Touch
             </Link>
