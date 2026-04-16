@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default async function SoundOnTheRiverPage() {
   const brand = getBrandConfigBySlug('sacred-sound')
-  const cmsPage = await getPublicPageBySlug('sound-on-the-river')
+  const cmsPage = await getPublicPageBySlug('sound-on-the-river', brand.slug)
 
   let events: EventOffering[] = []
   try {

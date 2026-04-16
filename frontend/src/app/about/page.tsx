@@ -1,6 +1,8 @@
 import Link from 'next/link'
+import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import EditablePageSections from '@/components/page-editor/EditablePageSections'
+import { getCurrentBrand } from '@/lib/brand/current'
 import { getPublicPageBySlug } from '@/lib/api'
 
 export const metadata: Metadata = {
@@ -9,7 +11,9 @@ export const metadata: Metadata = {
 }
 
 export default async function AboutPage() {
-  const page = await getPublicPageBySlug('about')
+  const headersList = await headers()
+  const brand = getCurrentBrand(headersList)
+  const page = await getPublicPageBySlug('about', brand.slug)
 
   // If the page has been edited via the CMS, render from contentJson
   if (page?.contentJson) {

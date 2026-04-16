@@ -1,5 +1,8 @@
 import Link from 'next/link'
 import type { BrandContext } from '@/lib/brand/resolution'
+import PageEditorProvider from '@/components/page-editor/PageEditorProvider'
+import PageEditorTextField from '@/components/page-editor/PageEditorTextField'
+import PageEditorToolbar from '@/components/page-editor/PageEditorToolbar'
 import HeroSection from '@/components/sections/HeroSection'
 import SectionHeading from '@/components/sections/SectionHeading'
 import ServiceCard from '@/components/booking/ServiceCard'
@@ -7,10 +10,15 @@ import BlogCard from '@/components/blog/BlogCard'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 import { getBrandIdBySlug, toBrandPath } from '@/lib/brand/resolution'
 import { servicesApi, blogApi } from '@/lib/api'
+import { resolveHandsHomeSections } from '@/lib/page-editor/home-sections'
+import type { SitePage } from '@/types'
 
-interface Props { brand: BrandContext }
+interface Props {
+  brand: BrandContext
+  editablePage?: SitePage | null
+}
 
-async function getData() {
+export async function getHandsHomeData() {
   const brandId = getBrandIdBySlug('sacred-hands')
   try {
     const [servicesRes, postsRes] = await Promise.allSettled([
@@ -24,10 +32,11 @@ async function getData() {
   } catch { return { services: [], posts: [] } }
 }
 
-export default async function HandsHomePage({ brand }: Props) {
-  const { services, posts } = await getData()
+export default async function HandsHomePage({ brand, editablePage }: Props) {
+  const { services, posts } = await getHandsHomeData()
+  const initialSections = editablePage ? resolveHandsHomeSections(editablePage.contentJson) : null
 
-  return (
+  const content = (
     <>
       <HeroSection
         eyebrow="Sacred Hands Massage Therapy"
@@ -37,6 +46,12 @@ export default async function HandsHomePage({ brand }: Props) {
         secondaryCta={{ label: 'Our Services', href: toBrandPath(brand, '/services') }}
         colorScheme="hands"
         imageUrl="/images/sacred-hands.jpg"
+        editable={editablePage ? {
+          sectionId: 'hands-home-hero',
+          eyebrowField: 'eyebrow',
+          headingField: 'heading',
+          subheadingField: 'subheading',
+        } : undefined}
       />
 
       {/* Services */}
@@ -48,6 +63,12 @@ export default async function HandsHomePage({ brand }: Props) {
               heading="Our Massage Services"
               subheading="Every session is a sacred space — tailored to your body, your needs, and your intentions."
               colorScheme="hands"
+              editable={editablePage ? {
+                sectionId: 'hands-home-services',
+                eyebrowField: 'eyebrow',
+                headingField: 'heading',
+                subheadingField: 'subheading',
+              } : undefined}
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
               {services.map((service) => (
@@ -76,26 +97,46 @@ export default async function HandsHomePage({ brand }: Props) {
                 heading="More Than Massage"
                 subheading="Touch is one of our most fundamental human needs. When skilled hands meet an open body, something profound becomes possible — genuine healing at every level."
                 colorScheme="hands"
+                editable={editablePage ? {
+                  sectionId: 'hands-home-philosophy',
+                  eyebrowField: 'eyebrow',
+                  headingField: 'heading',
+                  subheadingField: 'subheading',
+                } : undefined}
               />
               <ul className="mt-8 space-y-4 text-sacred-600 text-sm leading-relaxed">
-                {[
-                  'Nervous system regulation through skilled therapeutic touch',
-                  'Release of held tension patterns in the body\'s tissues',
-                  'Deep rest in a space free from expectation',
-                  'Integration of mind, body, and spirit',
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3">
+                {['item1', 'item2', 'item3', 'item4'].map((field) => (
+                  <li key={field} className="flex items-start gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-hands-400 mt-2 shrink-0" />
-                    {item}
+                    <PageEditorTextField
+                      sectionId="hands-home-philosophy"
+                      field={field}
+                      fallback=""
+                      as="span"
+                      label="Philosophy item"
+                    />
                   </li>
                 ))}
               </ul>
             </div>
             <div className="bg-white rounded-3xl border border-hands-100 p-8 shadow-soft">
-              <p className="font-heading text-2xl text-hands-900 leading-snug mb-6">
-                &ldquo;The body is the first teacher. When we learn to listen to it, healing becomes possible in ways we never imagined.&rdquo;
-              </p>
-              <p className="text-sm text-sacred-500">— Sacred Hands Practitioner</p>
+              <PageEditorTextField
+                sectionId="hands-home-philosophy"
+                field="quote"
+                fallback="“The body is the first teacher. When we learn to listen to it, healing becomes possible in ways we never imagined.”"
+                as="p"
+                label="Philosophy quote"
+                className="font-heading text-2xl text-hands-900 leading-snug mb-6"
+              />
+              <PageEditorTextField
+                sectionId="hands-home-philosophy"
+                field="quoteAuthor"
+                fallback="— Sacred Hands Practitioner"
+                as="p"
+                multiline={false}
+                label="Philosophy quote author"
+                className="text-sm text-sacred-500"
+              />
             </div>
           </div>
         </div>
@@ -109,6 +150,11 @@ export default async function HandsHomePage({ brand }: Props) {
               eyebrow="From the Practice"
               heading="Wellness Insights"
               colorScheme="hands"
+              editable={editablePage ? {
+                sectionId: 'hands-home-blog',
+                eyebrowField: 'eyebrow',
+                headingField: 'heading',
+              } : undefined}
             />
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
               {posts.map((post) => <BlogCard key={post.id} post={post} brandSlug={brand.slug} />)}
@@ -119,5 +165,16 @@ export default async function HandsHomePage({ brand }: Props) {
 
       <NewsletterSection brandId={getBrandIdBySlug('sacred-hands')} colorScheme="hands" />
     </>
+  )
+
+  if (!editablePage || !initialSections) {
+    return content
+  }
+
+  return (
+    <PageEditorProvider page={editablePage} initialSections={initialSections}>
+      {content}
+      <PageEditorToolbar />
+    </PageEditorProvider>
   )
 }

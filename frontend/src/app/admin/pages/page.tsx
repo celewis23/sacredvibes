@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, X, Layout } from 'lucide-react'
 import { pagesApi } from '@/lib/api'
-import { getBrandBasePath } from '@/lib/brand/resolution'
+import { toBrandPath } from '@/lib/brand/resolution'
 import type { SitePage } from '@/types'
 
 type FormState = {
@@ -332,10 +332,10 @@ export default function AdminPagesPage() {
 }
 
 function getInlineEditHref(page: SitePage) {
-  const basePath = getBrandBasePath(page.brandSlug as Parameters<typeof getBrandBasePath>[0]) || ''
-  const pathname = page.slug === 'home'
-    ? (basePath || '/')
-    : `${basePath}/${page.slug}`.replace(/\/+/g, '/')
+  const normalizedSlug = page.slug.replace(/^\/+/, '')
+  const pathname = normalizedSlug === 'home'
+    ? toBrandPath(page.brandSlug as Parameters<typeof toBrandPath>[0], '/')
+    : toBrandPath(page.brandSlug as Parameters<typeof toBrandPath>[0], `/${normalizedSlug}`)
 
   return `${pathname}?edit=1&pageId=${page.id}`
 }

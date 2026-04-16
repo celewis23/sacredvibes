@@ -33,31 +33,36 @@ const PageEditorContext = createContext<PageEditorContextValue | null>(null)
 
 export default function PageEditorProvider({
   page,
+  initialSections,
   liveData,
   children,
 }: {
   page: SitePage
+  initialSections?: Section[]
   liveData?: PageBuilderLiveData
   children: React.ReactNode
 }) {
-  const initialSections = useMemo(() => resolveInitialSections(page), [page])
-  const [sections, setSections] = useState<Section[]>(initialSections)
+  const resolvedInitialSections = useMemo(
+    () => initialSections ?? resolveInitialSections(page),
+    [initialSections, page],
+  )
+  const [sections, setSections] = useState<Section[]>(resolvedInitialSections)
   const [selectedField, setSelectedField] = useState<BuilderFieldSelection | null>(null)
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null)
   const [changedFields, setChangedFields] = useState<string[]>([])
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
 
-  const latestSectionsRef = useRef<Section[]>(initialSections)
-  const savedSectionsRef = useRef<Section[]>(initialSections)
+  const latestSectionsRef = useRef<Section[]>(resolvedInitialSections)
+  const savedSectionsRef = useRef<Section[]>(resolvedInitialSections)
 
   useEffect(() => {
-    setSections(initialSections)
+    setSections(resolvedInitialSections)
     setSelectedField(null)
     setEditingFieldKey(null)
     setChangedFields([])
-    latestSectionsRef.current = initialSections
-    savedSectionsRef.current = initialSections
-  }, [initialSections])
+    latestSectionsRef.current = resolvedInitialSections
+    savedSectionsRef.current = resolvedInitialSections
+  }, [resolvedInitialSections])
 
   useEffect(() => {
     latestSectionsRef.current = sections

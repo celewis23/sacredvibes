@@ -105,8 +105,10 @@ export default function EditableText({
       }
     },
     className: `outline-none transition-shadow empty:before:content-[attr(data-placeholder)] empty:before:text-current empty:before:opacity-35 ${
-      isSelected ? 'ring-2 ring-yoga-400 ring-offset-2 ring-offset-white/0' : 'hover:ring-1 hover:ring-yoga-200'
-    } ${isEditing ? 'cursor-text' : 'cursor-pointer'} ${className}`,
+      isSelected
+        ? 'bg-yoga-50/70 ring-2 ring-yoga-500 ring-offset-2 ring-offset-white/0'
+        : 'hover:bg-yoga-50/40 hover:ring-1 hover:ring-yoga-300'
+    } ${isEditing ? 'cursor-text' : 'cursor-pointer'} rounded-[0.35rem] ${className}`,
   })
 }
 

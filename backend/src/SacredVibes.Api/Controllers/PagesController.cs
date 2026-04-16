@@ -29,11 +29,18 @@ public class PagesController : ControllerBase
     [HttpGet("public")]
     [AllowAnonymous]
     public async Task<ActionResult<ApiResponse<PageDto>>> GetPublicPage(
-        [FromQuery] string slug, CancellationToken ct = default)
+        [FromQuery] string slug, [FromQuery] string? brandSlug, CancellationToken ct = default)
     {
-        var page = await _db.Pages
+        var query = _db.Pages
             .Include(p => p.Brand)
-            .FirstOrDefaultAsync(p => p.Slug == slug, ct);
+            .Where(p => p.Slug == slug);
+
+        if (!string.IsNullOrWhiteSpace(brandSlug))
+            query = query.Where(p => p.Brand != null && p.Brand.Slug == brandSlug);
+
+        var page = await query
+            .OrderBy(p => p.BrandId)
+            .FirstOrDefaultAsync(ct);
         return page is null ? NotFound() : Ok(ApiResponse<PageDto>.Ok(MapToDto(page)));
     }
 

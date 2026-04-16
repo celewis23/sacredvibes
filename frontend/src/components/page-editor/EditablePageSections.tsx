@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import PageEditorProvider from '@/components/page-editor/PageEditorProvider'
 import PageEditorToolbar from '@/components/page-editor/PageEditorToolbar'
 import PageSectionRenderer from '@/components/sections/PageSectionRenderer'
+import { pageDefaultSections } from '@/lib/page-builder/defaults'
 import type { PageBuilderLiveData } from '@/lib/page-builder/types'
 import type { SitePage } from '@/types'
 
@@ -18,7 +19,8 @@ export default function EditablePageSections({
   const isEditMode = searchParams.get('edit') === '1' && searchParams.get('pageId') === page.id
 
   if (!isEditMode) {
-    return <PageSectionRenderer contentJson={page.contentJson} liveData={liveData} />
+    const defaultSections = !page.contentJson?.trim() ? pageDefaultSections(page.slug, page.template) : undefined
+    return <PageSectionRenderer contentJson={page.contentJson} sections={defaultSections} liveData={liveData} />
   }
 
   return (

@@ -211,9 +211,15 @@ export const brandsApi = {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 
-export async function getPublicPageBySlug(slug: string) {
+export async function getPublicPageBySlug(slug: string, brandSlug?: string) {
   try {
-    const res = await fetch(`${API_BASE}/api/pages/public?slug=${encodeURIComponent(slug)}`, {
+    const url = new URL(`${API_BASE}/api/pages/public`)
+    url.searchParams.set('slug', slug)
+    if (brandSlug) {
+      url.searchParams.set('brandSlug', brandSlug)
+    }
+
+    const res = await fetch(url.toString(), {
       next: { revalidate: 60 },
     })
     if (!res.ok) return null

@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ContactPage() {
   const headersList = await headers()
   const brand = getCurrentBrand(headersList)
-  const cmsPage = await getPublicPageBySlug('contact')
+  const cmsPage = await getPublicPageBySlug('contact', brand.slug)
 
   // Extract editable heading/body from CMS if available
   let heading = "Let's Connect"

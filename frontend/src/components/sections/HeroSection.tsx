@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { clsx } from 'clsx'
+import PageEditorTextField from '@/components/page-editor/PageEditorTextField'
 
 interface HeroSectionProps {
   eyebrow?: string
@@ -14,6 +15,12 @@ interface HeroSectionProps {
   variant?: 'centered' | 'left'
   videoUrl?: string
   imageUrl?: string
+  editable?: {
+    sectionId: string
+    eyebrowField?: string
+    headingField: string
+    subheadingField?: string
+  }
 }
 
 const PARTICLES = [
@@ -37,6 +44,7 @@ export default function HeroSection({
   variant = 'centered',
   videoUrl,
   imageUrl,
+  editable,
 }: HeroSectionProps) {
   const [mounted, setMounted] = useState(false)
 
@@ -122,20 +130,49 @@ export default function HeroSection({
               mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             )}>
               <span className="w-8 h-px bg-yoga-400/70" />
-              <span className="eyebrow text-yoga-300">{eyebrow}</span>
+              {editable?.eyebrowField ? (
+                <PageEditorTextField
+                  sectionId={editable.sectionId}
+                  field={editable.eyebrowField}
+                  fallback={eyebrow}
+                  as="span"
+                  multiline={false}
+                  label="Hero eyebrow"
+                  className="eyebrow text-yoga-300"
+                />
+              ) : (
+                <span className="eyebrow text-yoga-300">{eyebrow}</span>
+              )}
               <span className="w-8 h-px bg-yoga-400/70" />
             </div>
           )}
 
           {/* Main heading */}
-          <h1 className={clsx(
-            'font-heading text-display-xl md:text-display-2xl lg:text-display-3xl',
-            'text-white leading-[1.02] mb-8 text-balance',
-            'transition-all duration-1000 delay-150',
-            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
-          )}>
-            {heading}
-          </h1>
+          {editable ? (
+            <PageEditorTextField
+              sectionId={editable.sectionId}
+              field={editable.headingField}
+              fallback={heading}
+              as="h1"
+              multiline={false}
+              label="Hero heading"
+              className={clsx(
+                'font-heading text-display-xl md:text-display-2xl lg:text-display-3xl',
+                'text-white leading-[1.02] mb-8 text-balance',
+                'transition-all duration-1000 delay-150',
+                mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+              )}
+            />
+          ) : (
+            <h1 className={clsx(
+              'font-heading text-display-xl md:text-display-2xl lg:text-display-3xl',
+              'text-white leading-[1.02] mb-8 text-balance',
+              'transition-all duration-1000 delay-150',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
+            )}>
+              {heading}
+            </h1>
+          )}
 
           {/* Gold accent line */}
           <div className={clsx(
@@ -148,15 +185,32 @@ export default function HeroSection({
 
           {/* Subheading */}
           {subheading && (
-            <p className={clsx(
-              'text-base md:text-lg text-white/75 leading-relaxed mb-12',
-              'font-body font-light tracking-widest uppercase',
-              variant === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-sm',
-              'transition-all duration-1000 delay-400',
-              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-            )}>
-              {subheading}
-            </p>
+            editable?.subheadingField ? (
+              <PageEditorTextField
+                sectionId={editable.sectionId}
+                field={editable.subheadingField}
+                fallback={subheading}
+                as="p"
+                label="Hero subheading"
+                className={clsx(
+                  'text-base md:text-lg text-white/75 leading-relaxed mb-12',
+                  'font-body font-light tracking-widest uppercase',
+                  variant === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-sm',
+                  'transition-all duration-1000 delay-400',
+                  mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+                )}
+              />
+            ) : (
+              <p className={clsx(
+                'text-base md:text-lg text-white/75 leading-relaxed mb-12',
+                'font-body font-light tracking-widest uppercase',
+                variant === 'centered' ? 'max-w-2xl mx-auto' : 'max-w-sm',
+                'transition-all duration-1000 delay-400',
+                mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              )}>
+                {subheading}
+              </p>
+            )
           )}
 
           {/* CTAs */}
