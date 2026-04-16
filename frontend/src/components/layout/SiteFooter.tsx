@@ -67,7 +67,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
 
           {/* Brand column */}
           <div className="lg:col-span-5">
-            <Link href={toBrandPath(brand, '/')} className="inline-flex items-center gap-3 group mb-6">
+            <Link href="/" className="inline-flex items-center gap-3 group mb-6">
               <LotusMark
                 className="w-12"
                 gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"

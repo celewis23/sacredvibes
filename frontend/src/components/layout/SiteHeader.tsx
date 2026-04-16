@@ -98,7 +98,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
         <div className="flex items-center justify-between h-20 lg:h-24">
 
           {/* Logo */}
-          <Link href={toBrandPath(brand, '/')} className="flex items-center gap-3 group flex-shrink-0">
+          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
             <LotusMark
               className="w-12 transition-all duration-300 group-hover:scale-105"
               gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
