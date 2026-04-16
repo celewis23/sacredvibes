@@ -100,20 +100,20 @@ export default async function SoundOnTheRiverPage() {
         </div>
 
         <div className="relative z-10 mx-auto max-w-3xl px-6 pt-32 pb-20 text-center">
-          <p className="eyebrow text-sound-200 mb-5">
+          <p className="eyebrow text-sound-200 mb-8">
             Sacred Sound Presents
           </p>
-          <h1 className="font-heading text-5xl md:text-7xl text-white mb-5 leading-tight text-balance">
+          <h1 className="font-heading text-display-xl md:text-display-2xl lg:text-display-3xl text-white leading-[1.02] mb-8 text-balance">
             Sound on the River
           </h1>
-          <span className="gold-line w-16 block mx-auto mb-8" />
-          <p className="text-xl text-white/90 font-body leading-relaxed tracking-wide mb-10 md:text-2xl">
+          <span className="gold-line w-20 block mx-auto mb-8" />
+          <p className="text-base md:text-lg text-white/75 font-body font-light leading-relaxed tracking-widest uppercase mb-12 max-w-2xl mx-auto">
             An immersive outdoor sound healing experience where the music of crystal bowls,
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
           <Link
             href={events.length > 0 ? '#upcoming-events' : toBrandPath(brand, '/contact')}
-            className="inline-block rounded-full bg-white px-10 py-4 text-lg font-medium text-sound-950 shadow-lg transition-colors hover:bg-sound-50"
+            className="btn-gold"
           >
             {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
           </Link>
