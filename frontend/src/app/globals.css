@@ -92,6 +92,14 @@
     @apply hover:border-yoga-500 hover:text-yoga-400 transition-all duration-300;
   }
 
+  .btn-sound {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply bg-gradient-to-r from-sound-700 to-sound-500 text-white;
+    @apply shadow-sm hover:shadow-md transition-all duration-500;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+  }
+
   /* Eyebrow label */
   .eyebrow {
     @apply font-body font-semibold tracking-[0.25em] uppercase text-xs;

@@ -113,7 +113,7 @@ export default async function SoundOnTheRiverPage() {
           </p>
           <Link
             href={events.length > 0 ? '#upcoming-events' : toBrandPath(brand, '/contact')}
-            className="btn-gold"
+            className="btn-sound"
           >
             {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
           </Link>
