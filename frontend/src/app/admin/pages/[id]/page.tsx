@@ -1,27 +1,33 @@
 'use client'
 
-import { useReducer, useState, useCallback, useEffect, useRef, use } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { use, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Reorder } from 'framer-motion'
-import { ArrowLeft, Save, Globe, Undo2, Redo2 } from 'lucide-react'
-import { pagesApi } from '@/lib/api'
-import type { SitePage } from '@/types'
-
-import type { Section, SectionType, SectionStyle } from './_builder/types'
-import { makeSection, pageDefaultSections } from './_builder/defaults'
-import { uid } from './_builder/helpers'
-import SectionBlock from './_builder/SectionBlock'
-import AddSectionButton from './_builder/AddSectionButton'
-import InspectorPanel from './_builder/InspectorPanel'
-import RichTextToolbar from './_builder/RichTextToolbar'
-
-// ── History reducer ───────────────────────────────────────────────────────────
+import { ArrowLeft, CheckCircle2, Globe, Monitor, Redo2, Save, Smartphone, Tablet, Undo2 } from 'lucide-react'
+import BuilderAddSectionButton from '@/components/page-builder/BuilderAddSectionButton'
+import BuilderInspector from '@/components/page-builder/BuilderInspector'
+import { PageBuilderProvider } from '@/components/page-builder/PageBuilderProvider'
+import BuilderRichTextToolbar from '@/components/page-builder/BuilderRichTextToolbar'
+import PageSectionRenderer from '@/components/sections/PageSectionRenderer'
+import { apiClient } from '@/lib/api/client'
+import { pagesApi, offeringsApi } from '@/lib/api'
+import { pageDefaultSections } from '@/lib/page-builder/defaults'
+import { makeSection } from '@/lib/page-builder/defaults'
+import { parseSections, uid } from '@/lib/page-builder/helpers'
+import type {
+  BuilderFieldSelection,
+  BuilderViewport,
+  PageBuilderLiveData,
+  Section,
+  SectionStyle,
+  SectionType,
+} from '@/lib/page-builder/types'
+import { getBrandBasePath } from '@/lib/brand/resolution'
+import type { ApiResponse, Asset, EventOffering, Gallery, GalleryItem, ServiceOffering, SitePage } from '@/types'
 
 type HistoryAction =
   | { type: 'PUSH'; sections: Section[] }
-  | { type: 'REPLACE'; sections: Section[] }   // replace HEAD without creating a new entry
   | { type: 'UNDO' }
   | { type: 'REDO' }
   | { type: 'RESET'; sections: Section[] }
@@ -36,12 +42,10 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
   switch (action.type) {
     case 'PUSH':
       return {
-        past: [...state.past, state.present].slice(-50),
+        past: [...state.past, state.present].slice(-75),
         present: action.sections,
         future: [],
       }
-    case 'REPLACE':
-      return { ...state, present: action.sections }
     case 'UNDO':
       if (state.past.length === 0) return state
       return {
@@ -57,258 +61,509 @@ function historyReducer(state: HistoryState, action: HistoryAction): HistoryStat
         future: state.future.slice(1),
       }
     case 'RESET':
-      return { past: [], present: action.sections, future: [] }
+      return {
+        past: [],
+        present: action.sections,
+        future: [],
+      }
   }
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
-
-export default function PageEditorPage({ params }: { params: Promise<{ id: string }> }) {
+export default function PageEditorPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
   const { id } = use(params)
   const router = useRouter()
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   const [history, dispatch] = useReducer(historyReducer, {
-    past: [], present: [], future: [],
+    past: [],
+    present: [],
+    future: [],
   })
   const sections = history.present
 
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const editorRootRef = useRef<HTMLElement>(null)
+  const [viewport, setViewport] = useState<BuilderViewport>('desktop')
+  const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
+  const [selectedField, setSelectedField] = useState<BuilderFieldSelection | null>(null)
+  const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'dirty' | 'saving' | 'saved'>('idle')
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
 
-  // ── Data loading ──────────────────────────────────────────────────────────
+  const lastLoadedRef = useRef<string>('')
+  const lastSavedContentRef = useRef<string>('')
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const latestSectionsRef = useRef<Section[]>([])
+
   const { data: page, isLoading } = useQuery({
     queryKey: ['admin-page', id],
-    queryFn: (): Promise<SitePage> => pagesApi.getPage(id).then(r => r.data.data as SitePage),
+    queryFn: (): Promise<SitePage> => pagesApi.getPage(id).then((response) => response.data.data as SitePage),
+  })
+
+  const { data: services = [] } = useQuery({
+    queryKey: ['builder-services', page?.brandId],
+    enabled: Boolean(page?.brandId),
+    queryFn: () =>
+      offeringsApi.getServices({ brandId: page!.brandId, includeInactive: true }).then((response) => response.data.data ?? []),
+  })
+
+  const { data: events = [] } = useQuery({
+    queryKey: ['builder-events', page?.brandId],
+    enabled: Boolean(page?.brandId),
+    queryFn: () =>
+      offeringsApi.getEvents({ brandId: page!.brandId, includeInactive: true }).then((response) => response.data.data ?? []),
+  })
+
+  const { data: galleryAssets = [] } = useQuery({
+    queryKey: ['builder-gallery-assets', page?.brandId],
+    enabled: Boolean(page?.brandId),
+    queryFn: async () => {
+      const galleriesResponse = await apiClient.get<ApiResponse<Gallery[]>>('/galleries', {
+        params: { brandId: page!.brandId, isActive: true },
+      })
+
+      const galleries = galleriesResponse.data.data ?? []
+      const items = await Promise.all(
+        galleries.map((gallery) =>
+          apiClient.get<ApiResponse<GalleryItem[]>>(`/galleries/${gallery.id}/items`).then((response) => response.data.data ?? []),
+        ),
+      )
+
+      return items.flat().map((item) => item.asset).filter(Boolean)
+    },
   })
 
   useEffect(() => {
     if (!page) return
-    let initial: Section[]
-    if (page.contentJson) {
-      try { initial = JSON.parse(page.contentJson) }
-      catch { initial = pageDefaultSections(page.slug, page.template) }
-    } else {
-      initial = pageDefaultSections(page.slug, page.template)
-    }
+
+    const fromServer = page.contentJson?.trim()
+    const parsed = fromServer
+      ? parseSections(fromServer)
+      : pageDefaultSections(page.slug, page.template)
+    const initial = parsed.length > 0 ? parsed : pageDefaultSections(page.slug, page.template)
+    const serialized = JSON.stringify(initial)
+
+    if (serialized === lastLoadedRef.current) return
+
+    lastLoadedRef.current = serialized
+    lastSavedContentRef.current = serialized
+    latestSectionsRef.current = initial
     dispatch({ type: 'RESET', sections: initial })
+    setSaveState('idle')
+    setSelectedSectionId(null)
+    setSelectedField(null)
+    setEditingFieldKey(null)
   }, [page])
 
-  // ── Save mutation ─────────────────────────────────────────────────────────
-  const saveMutation = useMutation({
-    mutationFn: () => pagesApi.updatePage(id, { contentJson: JSON.stringify(sections) }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-page', id] })
-      toast.success('Page saved')
+  useEffect(() => {
+    latestSectionsRef.current = sections
+  }, [sections])
+
+  const previewHref = useMemo(() => {
+    if (!page) return '/'
+    const basePath = getBrandBasePath(page.brandSlug as Parameters<typeof getBrandBasePath>[0]) || ''
+    if (page.slug === 'home') return basePath || '/'
+    return `${basePath}/${page.slug}`.replace(/\/+/g, '/')
+  }, [page])
+
+  const liveData = useMemo<PageBuilderLiveData>(() => ({
+    services: services as ServiceOffering[],
+    events: events as EventOffering[],
+    galleryAssets: galleryAssets as Asset[],
+  }), [events, galleryAssets, services])
+
+  const persistMutation = useMutation({
+    mutationFn: async ({ nextStatus }: { nextStatus?: SitePage['status'] }) => {
+      const serialized = JSON.stringify(latestSectionsRef.current)
+      return pagesApi.updatePage(id, {
+        contentJson: serialized,
+        status: nextStatus ?? page?.status,
+      })
     },
-    onError: () => toast.error('Failed to save'),
+    onMutate: () => {
+      setSaveState('saving')
+    },
+    onSuccess: (_, variables) => {
+      const serialized = JSON.stringify(latestSectionsRef.current)
+      lastSavedContentRef.current = serialized
+      lastLoadedRef.current = serialized
+      setSaveState('saved')
+      setLastSavedAt(new Date())
+      queryClient.invalidateQueries({ queryKey: ['admin-page', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-pages'] })
+      toast.success(variables.nextStatus === 'Published' ? 'Page published' : 'Draft saved')
+    },
+    onError: () => {
+      setSaveState('dirty')
+      toast.error('Unable to save changes')
+    },
   })
 
-  // ── Debounced push timer ──────────────────────────────────────────────────
-  const pushTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function pushSections(nextSections: Section[]) {
+    latestSectionsRef.current = nextSections
+    dispatch({ type: 'PUSH', sections: nextSections })
+  }
 
-  // ── Section operations ────────────────────────────────────────────────────
+  function updateField(sectionId: string, field: string, value: unknown) {
+    pushSections(
+      sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, content: { ...section.content, [field]: value } }
+          : section,
+      ),
+    )
+  }
 
-  const updateContent = useCallback((sectionId: string, key: string, value: unknown) => {
-    dispatch({ type: 'REPLACE', sections: sections.map(s =>
-      s.id === sectionId ? { ...s, content: { ...s.content, [key]: value } } : s
-    )})
-    if (pushTimer.current) clearTimeout(pushTimer.current)
-    pushTimer.current = setTimeout(() => {
-      dispatch({ type: 'PUSH', sections: sections.map(s =>
-        s.id === sectionId ? { ...s, content: { ...s.content, [key]: value } } : s
-      )})
-    }, 800)
-  }, [sections])
+  function updateStyle(sectionId: string, patch: Partial<SectionStyle>) {
+    pushSections(
+      sections.map((section) =>
+        section.id === sectionId
+          ? { ...section, style: { ...section.style, ...patch } }
+          : section,
+      ),
+    )
+  }
 
-  const updateStyle = useCallback((sectionId: string, patch: Partial<SectionStyle>) => {
-    dispatch({ type: 'PUSH', sections: sections.map(s =>
-      s.id === sectionId ? { ...s, style: { ...s.style, ...patch } } : s
-    )})
-  }, [sections])
+  function reorderSections(nextSections: Section[]) {
+    pushSections(nextSections)
+  }
 
-  const addSection = useCallback((type: SectionType, afterId?: string) => {
-    const newSection = makeSection(type)
-    let next: Section[]
-    if (afterId) {
-      const idx = sections.findIndex(s => s.id === afterId)
-      next = [...sections.slice(0, idx + 1), newSection, ...sections.slice(idx + 1)]
+  function addSection(type: SectionType, afterId?: string) {
+    const createdSection = makeSection(type)
+    if (!afterId) {
+      pushSections([...sections, createdSection])
     } else {
-      next = [...sections, newSection]
+      const index = sections.findIndex((section) => section.id === afterId)
+      const nextSections = [
+        ...sections.slice(0, index + 1),
+        createdSection,
+        ...sections.slice(index + 1),
+      ]
+      pushSections(nextSections)
     }
-    dispatch({ type: 'PUSH', sections: next })
-    setSelectedId(newSection.id)
-  }, [sections])
+    setSelectedSectionId(createdSection.id)
+    setSelectedField(null)
+  }
 
-  const deleteSection = useCallback((sectionId: string) => {
-    dispatch({ type: 'PUSH', sections: sections.filter(s => s.id !== sectionId) })
-    if (selectedId === sectionId) setSelectedId(null)
-  }, [sections, selectedId])
+  function duplicateSection(sectionId: string) {
+    const index = sections.findIndex((section) => section.id === sectionId)
+    if (index === -1) return
+    const clone: Section = {
+      ...sections[index],
+      id: uid(),
+      content: { ...sections[index].content },
+      style: { ...sections[index].style },
+    }
+    pushSections([
+      ...sections.slice(0, index + 1),
+      clone,
+      ...sections.slice(index + 1),
+    ])
+    setSelectedSectionId(clone.id)
+    setSelectedField(null)
+  }
 
-  const duplicateSection = useCallback((sectionId: string) => {
-    const idx = sections.findIndex(s => s.id === sectionId)
-    if (idx === -1) return
-    const clone = { ...sections[idx], id: uid() }
-    const next = [...sections.slice(0, idx + 1), clone, ...sections.slice(idx + 1)]
-    dispatch({ type: 'PUSH', sections: next })
-    setSelectedId(clone.id)
-  }, [sections])
+  function deleteSection(sectionId: string) {
+    pushSections(sections.filter((section) => section.id !== sectionId))
+    if (selectedSectionId === sectionId) {
+      setSelectedSectionId(null)
+      setSelectedField(null)
+    }
+  }
 
-  const toggleHidden = useCallback((sectionId: string) => {
-    dispatch({ type: 'PUSH', sections: sections.map(s =>
-      s.id === sectionId ? { ...s, hidden: !s.hidden } : s
-    )})
-  }, [sections])
+  function toggleHidden(sectionId: string) {
+    pushSections(
+      sections.map((section) =>
+        section.id === sectionId ? { ...section, hidden: !section.hidden } : section,
+      ),
+    )
+  }
 
-  const moveSection = useCallback((sectionId: string, dir: 'up' | 'down') => {
-    const idx = sections.findIndex(s => s.id === sectionId)
-    if (idx === -1) return
-    if (dir === 'up' && idx === 0) return
-    if (dir === 'down' && idx === sections.length - 1) return
-    const next = [...sections]
-    const target = dir === 'up' ? idx - 1 : idx + 1
-    ;[next[idx], next[target]] = [next[target], next[idx]]
-    dispatch({ type: 'PUSH', sections: next })
-  }, [sections])
+  function moveSection(sectionId: string, dir: 'up' | 'down') {
+    const index = sections.findIndex((section) => section.id === sectionId)
+    if (index === -1) return
+    if (dir === 'up' && index === 0) return
+    if (dir === 'down' && index === sections.length - 1) return
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+    const nextSections = [...sections]
+    const targetIndex = dir === 'up' ? index - 1 : index + 1
+    ;[nextSections[index], nextSections[targetIndex]] = [nextSections[targetIndex], nextSections[index]]
+    pushSections(nextSections)
+  }
+
+  function replaceImage(sectionId: string, field: string, currentValue?: string) {
+    const nextValue = window.prompt('Enter an image URL', currentValue ?? '')
+    if (nextValue === null) return
+    updateField(sectionId, field, nextValue)
+  }
+
+  function selectSection(sectionId: string | null) {
+    setSelectedSectionId(sectionId)
+    if (!sectionId) {
+      setSelectedField(null)
+      setEditingFieldKey(null)
+    }
+  }
+
+  function selectField(selection: BuilderFieldSelection | null) {
+    setSelectedField(selection)
+    setSelectedSectionId(selection?.sectionId ?? null)
+  }
+
+  function beginEditingField(selection: BuilderFieldSelection) {
+    setSelectedField(selection)
+    setSelectedSectionId(selection.sectionId)
+    setEditingFieldKey(`${selection.sectionId}:${selection.field}`)
+  }
+
+  function endEditingField() {
+    setEditingFieldKey(null)
+  }
+
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey
-      if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); dispatch({ type: 'UNDO' }) }
-      if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); dispatch({ type: 'REDO' }) }
-      if (mod && e.key === 's') { e.preventDefault(); saveMutation.mutate() }
-      if (e.key === 'Escape') setSelectedId(null)
+    const serialized = JSON.stringify(sections)
+    if (!serialized || serialized === lastSavedContentRef.current) {
+      if (saveState !== 'saving') setSaveState(lastSavedContentRef.current ? 'saved' : 'idle')
+      return
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [saveMutation, setSelectedId])
 
-  const selectedSection = sections.find(s => s.id === selectedId) ?? null
+    setSaveState('dirty')
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      persistMutation.mutate({})
+    }, 1500)
 
-  if (isLoading) {
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    }
+  }, [persistMutation, saveState, sections])
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const mod = event.metaKey || event.ctrlKey
+
+      if (mod && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        persistMutation.mutate({})
+        return
+      }
+
+      if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        dispatch({ type: 'UNDO' })
+        return
+      }
+
+      if (mod && (event.key.toLowerCase() === 'y' || (event.key.toLowerCase() === 'z' && event.shiftKey))) {
+        event.preventDefault()
+        dispatch({ type: 'REDO' })
+        return
+      }
+
+      if (event.key === 'Escape') {
+        if (editingFieldKey) {
+          setEditingFieldKey(null)
+        } else {
+          setSelectedField(null)
+          setSelectedSectionId(null)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [editingFieldKey, persistMutation])
+
+  const viewportClassName = viewport === 'mobile'
+    ? 'max-w-[390px]'
+    : viewport === 'tablet'
+      ? 'max-w-[820px]'
+      : 'max-w-none'
+
+  if (isLoading || !page) {
     return (
-      <div className="h-screen flex items-center justify-center text-sm text-gray-400">
-        Loading page…
+      <div className="flex h-screen items-center justify-center bg-sacred-50 text-sm text-sacred-400">
+        Loading visual builder…
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
-      {/* ── Top bar ── */}
-      <header className="bg-white border-b border-gray-200 px-4 h-12 flex items-center gap-3 shrink-0 z-20">
-        <button
-          onClick={() => router.push('/admin/pages')}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Pages
-        </button>
-
-        <div className="flex-1 min-w-0">
-          <span className="text-sm font-medium text-gray-800 truncate">{page?.title}</span>
-          <span className="ml-2 text-xs text-gray-400 font-mono">/{page?.slug}</span>
-        </div>
-
-        {/* Undo / Redo */}
-        <div className="flex items-center gap-1">
+    <PageBuilderProvider
+      value={{
+        enabled: true,
+        sections,
+        liveData,
+        viewport,
+        selectedSectionId,
+        selectedField,
+        editingFieldKey,
+        selectSection,
+        selectField,
+        beginEditingField,
+        endEditingField,
+        updateField,
+        updateStyle,
+        reorderSections,
+        addSection,
+        duplicateSection,
+        deleteSection,
+        toggleHidden,
+        moveSection,
+        replaceImage,
+      }}
+    >
+      <div className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-sacred-100">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-sacred-200 bg-white px-4">
           <button
-            onClick={() => dispatch({ type: 'UNDO' })}
-            disabled={history.past.length === 0}
-            title="Undo (Ctrl+Z)"
-            className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 transition-colors"
+            type="button"
+            onClick={() => router.push('/admin/pages')}
+            className="flex items-center gap-1.5 text-sm text-sacred-500 transition-colors hover:text-sacred-800"
           >
-            <Undo2 size={15} />
+            <ArrowLeft size={15} />
+            Pages
           </button>
-          <button
-            onClick={() => dispatch({ type: 'REDO' })}
-            disabled={history.future.length === 0}
-            title="Redo (Ctrl+Y)"
-            className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 transition-colors"
-          >
-            <Redo2 size={15} />
-          </button>
-        </div>
 
-        <div className="w-px h-5 bg-gray-200" />
+          <div className="h-5 w-px bg-sacred-200" />
 
-        <a
-          href={`/${page?.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <Globe size={13} />
-          Preview
-        </a>
-
-        <button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="flex items-center gap-1.5 px-4 py-1.5 bg-yoga-700 text-white text-xs font-medium rounded-lg hover:bg-yoga-800 transition-colors disabled:opacity-60"
-        >
-          <Save size={13} />
-          {saveMutation.isPending ? 'Saving…' : 'Save'}
-        </button>
-      </header>
-
-      {/* ── Body: canvas + inspector ── */}
-      <div className="flex flex-1 min-h-0">
-        {/* Canvas */}
-        <main
-          ref={editorRootRef as React.RefObject<HTMLDivElement>}
-          className="flex-1 overflow-y-auto"
-          onClick={e => { if (e.target === e.currentTarget) setSelectedId(null) }}
-        >
-          <RichTextToolbar editorRoot={editorRootRef} />
-
-          {/* Page canvas */}
-          <div className="min-h-full bg-white shadow-lg mx-auto max-w-5xl my-4">
-            {sections.length === 0 && (
-              <div className="py-16 text-center">
-                <AddSectionButton onAdd={type => addSection(type)} primary />
-              </div>
-            )}
-
-            <Reorder.Group
-              axis="y"
-              values={sections}
-              onReorder={next => dispatch({ type: 'PUSH', sections: next })}
-              className="outline-none"
-            >
-              {sections.map((section, i) => (
-                <SectionBlock
-                  key={section.id}
-                  section={section}
-                  selected={selectedId === section.id}
-                  onSelect={() => setSelectedId(section.id)}
-                  onUpdate={(key, value) => updateContent(section.id, key, value)}
-                  onDuplicate={() => duplicateSection(section.id)}
-                  onDelete={() => deleteSection(section.id)}
-                  onToggleHidden={() => toggleHidden(section.id)}
-                  onMoveUp={() => moveSection(section.id, 'up')}
-                  onMoveDown={() => moveSection(section.id, 'down')}
-                  onAddAfter={type => addSection(type, section.id)}
-                  isFirst={i === 0}
-                  isLast={i === sections.length - 1}
-                />
-              ))}
-            </Reorder.Group>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-sacred-900">{page.title}</p>
+            <p className="truncate text-xs text-sacred-400">/{page.slug}</p>
           </div>
-        </main>
 
-        {/* Inspector */}
-        <InspectorPanel
-          section={selectedSection}
-          onUpdate={(key, value) => selectedId && updateContent(selectedId, key, value)}
-          onUpdateStyle={patch => selectedId && updateStyle(selectedId, patch)}
-          onDuplicate={() => selectedId && duplicateSection(selectedId)}
-          onDelete={() => selectedId && deleteSection(selectedId)}
-          onToggleHidden={() => selectedId && toggleHidden(selectedId)}
-        />
+          <div className="hidden items-center gap-1 rounded-full border border-sacred-200 bg-sacred-50 p-1 md:flex">
+            <ViewportButton label="Desktop" active={viewport === 'desktop'} onClick={() => setViewport('desktop')} icon={<Monitor size={14} />} />
+            <ViewportButton label="Tablet" active={viewport === 'tablet'} onClick={() => setViewport('tablet')} icon={<Tablet size={14} />} />
+            <ViewportButton label="Mobile" active={viewport === 'mobile'} onClick={() => setViewport('mobile')} icon={<Smartphone size={14} />} />
+          </div>
+
+          <div className="hidden items-center gap-1 md:flex">
+            <ToolbarButton disabled={history.past.length === 0} onClick={() => dispatch({ type: 'UNDO' })} title="Undo">
+              <Undo2 size={15} />
+            </ToolbarButton>
+            <ToolbarButton disabled={history.future.length === 0} onClick={() => dispatch({ type: 'REDO' })} title="Redo">
+              <Redo2 size={15} />
+            </ToolbarButton>
+          </div>
+
+          <div className="hidden text-xs text-sacred-500 lg:block">
+            {saveState === 'saving' && 'Saving draft…'}
+            {saveState === 'dirty' && 'Unsaved changes'}
+            {saveState === 'saved' && lastSavedAt && `Saved ${lastSavedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`}
+          </div>
+
+          <a
+            href={previewHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-lg border border-sacred-200 px-3 py-1.5 text-xs font-medium text-sacred-600 transition-colors hover:bg-sacred-50"
+          >
+            <Globe size={13} />
+            Preview
+          </a>
+
+          <button
+            type="button"
+            onClick={() => persistMutation.mutate({})}
+            disabled={persistMutation.isPending}
+            className="flex items-center gap-1.5 rounded-lg border border-yoga-200 bg-yoga-50 px-3 py-1.5 text-xs font-medium text-yoga-700 transition-colors hover:bg-yoga-100 disabled:opacity-60"
+          >
+            <Save size={13} />
+            Save Draft
+          </button>
+
+          <button
+            type="button"
+            onClick={() => persistMutation.mutate({ nextStatus: 'Published' })}
+            disabled={persistMutation.isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-yoga-700 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-yoga-800 disabled:opacity-60"
+          >
+            <CheckCircle2 size={13} />
+            Publish
+          </button>
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          <main
+            className="min-h-0 flex-1 overflow-y-auto"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) {
+                selectSection(null)
+              }
+            }}
+          >
+            <BuilderRichTextToolbar editorRoot={canvasRef} />
+
+            <div className="min-h-full p-4 md:p-6">
+              <div className={`mx-auto transition-all duration-300 ${viewportClassName}`} ref={canvasRef}>
+                {sections.length === 0 ? (
+                  <div className="rounded-[2rem] bg-white p-10 shadow-soft">
+                    <BuilderAddSectionButton primary onAdd={addSection} />
+                  </div>
+                ) : (
+                  <PageSectionRenderer sections={sections} liveData={liveData} />
+                )}
+              </div>
+            </div>
+          </main>
+
+          <BuilderInspector />
+        </div>
       </div>
-    </div>
+    </PageBuilderProvider>
   )
 }
 
+function ToolbarButton({
+  disabled,
+  onClick,
+  title,
+  children,
+}: {
+  disabled?: boolean
+  onClick: () => void
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      disabled={disabled}
+      className="rounded-lg p-2 text-sacred-500 transition-colors hover:bg-sacred-100 hover:text-sacred-800 disabled:cursor-not-allowed disabled:opacity-35"
+    >
+      {children}
+    </button>
+  )
+}
+
+function ViewportButton({
+  label,
+  active,
+  icon,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  icon: React.ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+        active
+          ? 'bg-white text-yoga-700 shadow-sm'
+          : 'text-sacred-500 hover:text-sacred-800'
+      }`}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
