@@ -260,6 +260,9 @@ export const usersApi = {
 
   setActive: (userId: string, isActive: boolean) =>
     apiClient.patch(`/auth/users/${userId}/active`, { isActive }),
+
+  updateUser: (userId: string, data: { firstName: string; lastName: string; email: string; role: string; password?: string }) =>
+    apiClient.put<ApiResponse<AdminUser>>(`/auth/users/${userId}`, data),
 }
 
 // ── Import Jobs ───────────────────────────────────────────────────────────────
