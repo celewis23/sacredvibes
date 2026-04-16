@@ -37,25 +37,57 @@ export default function SectionContent({ section, selected, onUpdate, onSelect }
   // ── HERO ──────────────────────────────────────────────────────────────────────
   if (type === 'hero') {
     return (
-      <div className="relative min-h-[480px] flex items-center overflow-hidden" onClick={onSelect}>
-        {/* Background orbs */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="orb w-96 h-96 bg-yoga-700/20 -top-20 -right-20" />
-          <div className="orb w-64 h-64 bg-sacred-700/20 bottom-0 left-0" />
+      <div
+        className="relative min-h-[75vh] flex items-center overflow-hidden bg-sacred-900"
+        onClick={onSelect}
+      >
+        {/* Exact gradient + orbs from public page */}
+        <div className="absolute inset-0">
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(135deg, #1c1714 0%, #2a1e18 35%, #1f1a16 65%, #161210 100%)' }}
+          />
+          <div className="orb w-[700px] h-[700px] bg-yoga-700" style={{ top: '-150px', right: '-180px', opacity: 0.12 }} />
+          <div className="orb w-[500px] h-[500px] bg-yoga-600" style={{ bottom: '-100px', left: '-120px', opacity: 0.09 }} />
         </div>
-        <div className="relative z-10 container-sacred py-16 text-center">
-          {text('eyebrow', { as: 'p', className: eyebrowCls, placeholder: 'Eyebrow label', multiline: false })}
-          {text('headline', { as: 'h1', className: `font-heading text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 ${dark ? 'text-white' : 'text-sacred-900'}`, placeholder: 'Hero headline', multiline: false })}
-          {text('subheading', { as: 'p', className: subCls, placeholder: 'Hero subheading', richText: true })}
-          <div className="flex flex-wrap gap-4 justify-center mt-2">
-            <span className="btn-gold text-sm px-6 py-2.5 rounded-full inline-block">
-              {text('ctaText', { as: 'span', placeholder: 'Button text', multiline: false })}
-            </span>
-            {str(content, 'ctaSecondaryText') !== '' && (
-              <span className={`btn-ghost-light text-sm px-6 py-2.5 rounded-full inline-block ${dark ? '' : 'border-sacred-300 text-sacred-700'}`}>
-                {text('ctaSecondaryText', { as: 'span', placeholder: 'Secondary button', multiline: false })}
-              </span>
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.05) 40%, rgba(0,0,0,0.4) 100%)' }}
+        />
+        <div className="relative z-10 container-sacred w-full pt-32 pb-20">
+          <div className="max-w-3xl mx-auto text-center">
+            {str(content, 'eyebrow') && (
+              <div className="inline-flex items-center gap-3 mb-8 pointer-events-none">
+                <span className="w-8 h-px bg-yoga-400/70" />
+                {text('eyebrow', { as: 'span', className: 'eyebrow text-yoga-300', placeholder: 'Eyebrow', multiline: false })}
+                <span className="w-8 h-px bg-yoga-400/70" />
+              </div>
             )}
+            {text('headline', {
+              as: 'h1',
+              className: 'font-heading text-display-xl md:text-display-2xl text-white leading-tight mb-6 text-balance',
+              placeholder: 'Hero headline',
+              multiline: false,
+            })}
+            <span className="gold-line w-20 block mx-auto mb-8 pointer-events-none" />
+            {text('subheading', {
+              as: 'p',
+              className: 'text-lg text-white/70 leading-relaxed mb-12 font-body font-light tracking-wide max-w-2xl mx-auto',
+              placeholder: 'Hero subheading…',
+              richText: true,
+            })}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {str(content, 'ctaText') && (
+                <span className="btn-gold">
+                  {text('ctaText', { as: 'span', placeholder: 'Button text', multiline: false })}
+                </span>
+              )}
+              {str(content, 'ctaSecondaryText') && (
+                <span className="btn-ghost-light">
+                  {text('ctaSecondaryText', { as: 'span', placeholder: 'Secondary button', multiline: false })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

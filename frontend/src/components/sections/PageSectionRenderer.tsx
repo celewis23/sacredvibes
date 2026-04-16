@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Reorder } from 'framer-motion'
 import type { JSX as ReactJSX } from 'react'
+import EditableText from '@/components/page-editor/EditableText'
+import { useOptionalPageEditor } from '@/components/page-editor/PageEditorProvider'
 import BuilderEditableImage from '@/components/page-builder/BuilderEditableImage'
 import BuilderEditableText from '@/components/page-builder/BuilderEditableText'
 import BuilderSectionShell from '@/components/page-builder/BuilderSectionShell'
@@ -32,7 +34,8 @@ export default function PageSectionRenderer({
   liveData?: PageBuilderLiveData
 }) {
   const builder = useOptionalPageBuilder()
-  const resolvedSections = sections ?? parseSections(contentJson)
+  const editor = useOptionalPageEditor()
+  const resolvedSections = editor?.sections ?? sections ?? parseSections(contentJson)
   const visibleSections = builder ? resolvedSections : resolvedSections.filter((section) => !section.hidden)
 
   if (builder) {
@@ -637,21 +640,17 @@ function EditableTextOrView({
     )
   }
 
-  if (!value) return null
-
-  if (richText) {
-    const isHtml = value.startsWith('<') && value.includes('</')
-    const Tag = as
-
-    return isHtml ? (
-      <Tag className={className} dangerouslySetInnerHTML={{ __html: value }} />
-    ) : (
-      <Tag className={`${className} whitespace-pre-wrap`}>{value}</Tag>
-    )
-  }
-
-  const Tag = as
-  return <Tag className={className}>{value}</Tag>
+  return (
+    <EditableText
+      sectionId={sectionId}
+      field={field}
+      value={value}
+      as={as}
+      richText={richText}
+      label={label}
+      className={className}
+    />
+  )
 }
 
 function CtaButton({

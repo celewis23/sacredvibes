@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { Plus, Pencil, Trash2, X, Layout } from 'lucide-react'
 import { pagesApi } from '@/lib/api'
+import { getBrandBasePath } from '@/lib/brand/resolution'
 import type { SitePage } from '@/types'
 
 type FormState = {
@@ -183,8 +184,8 @@ export default function AdminPagesPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Link href={`/admin/pages/${p.id}`}
-                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-yoga-700 border border-yoga-200 rounded-lg hover:bg-yoga-50 transition-colors font-medium" title="Open page builder">
+                      <Link href={getInlineEditHref(p)}
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs text-yoga-700 border border-yoga-200 rounded-lg hover:bg-yoga-50 transition-colors font-medium" title="Open inline page editor">
                         <Layout size={12} /> Edit
                       </Link>
                       <button onClick={() => openEdit(p)}
@@ -328,4 +329,13 @@ export default function AdminPagesPage() {
       )}
     </div>
   )
+}
+
+function getInlineEditHref(page: SitePage) {
+  const basePath = getBrandBasePath(page.brandSlug as Parameters<typeof getBrandBasePath>[0]) || ''
+  const pathname = page.slug === 'home'
+    ? (basePath || '/')
+    : `${basePath}/${page.slug}`.replace(/\/+/g, '/')
+
+  return `${pathname}?edit=1&pageId=${page.id}`
 }

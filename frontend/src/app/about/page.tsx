@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import EditablePageSections from '@/components/page-editor/EditablePageSections'
 import { getPublicPageBySlug } from '@/lib/api'
-import PageSectionRenderer from '@/components/sections/PageSectionRenderer'
 
 export const metadata: Metadata = {
   title: 'About — Sacred Vibes',
@@ -15,7 +15,7 @@ export default async function AboutPage() {
   if (page?.contentJson) {
     return (
       <main>
-        <PageSectionRenderer contentJson={page.contentJson} />
+        <EditablePageSections page={page} />
       </main>
     )
   }

@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { servicesApi, getPublicPageBySlug } from '@/lib/api'
+import EditablePageSections from '@/components/page-editor/EditablePageSections'
 import { getBrandConfigBySlug, toBrandPath } from '@/lib/brand/resolution'
-import PageSectionRenderer from '@/components/sections/PageSectionRenderer'
 import type { EventOffering } from '@/types'
 
 export const revalidate = 300
@@ -30,7 +30,7 @@ export default async function SoundOnTheRiverPage() {
   if (cmsPage?.contentJson) {
     return (
       <main>
-        <PageSectionRenderer contentJson={cmsPage.contentJson} />
+        <EditablePageSections page={cmsPage} />
 
         {/* Live events list — always rendered dynamically */}
         <section id="upcoming-events" className="section bg-white">
