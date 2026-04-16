@@ -137,6 +137,23 @@ export function stripBrandPrefix(pathname: string): {
   }
 }
 
+export function resolveDisplayBrand(brand: BrandContext, pathname: string): BrandContext {
+  const normalizedPathname = pathname && pathname !== '/' && pathname.endsWith('/')
+    ? pathname.slice(0, -1)
+    : (pathname || '/')
+
+  const brandSlugFromPath = getBrandSlugFromPathname(normalizedPathname)
+  if (brandSlugFromPath) {
+    return getBrandConfigBySlug(brandSlugFromPath)
+  }
+
+  if (normalizedPathname === '/' || normalizedPathname === '/home') {
+    return getBrandConfigBySlug('sacred-vibes-yoga')
+  }
+
+  return brand
+}
+
 export function toBrandPath(brand: BrandContext | BrandSlug, href: string): string {
   if (!href) return getBrandBasePath(brand) || '/'
   if (/^(https?:)?\/\//.test(href) || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) {

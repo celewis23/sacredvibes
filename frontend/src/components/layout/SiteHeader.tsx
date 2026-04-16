@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { toBrandPath, type BrandContext } from '@/lib/brand/resolution'
+import { resolveDisplayBrand, toBrandPath, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
 
 interface SiteHeaderProps {
@@ -13,9 +13,51 @@ interface SiteHeaderProps {
 }
 
 const subBrandSchemes = {
-  yoga:  { ctaGradient: 'from-yoga-700 to-yoga-500',  hoverText: 'hover:text-yoga-600',  activeBg: 'hover:bg-yoga-50' },
-  hands: { ctaGradient: 'from-hands-700 to-hands-500', hoverText: 'hover:text-hands-600', activeBg: 'hover:bg-hands-50' },
-  sound: { ctaGradient: 'from-sound-700 to-sound-500', hoverText: 'hover:text-sound-600', activeBg: 'hover:bg-sound-50' },
+  yoga: {
+    ctaGradient: 'from-yoga-700 to-yoga-500',
+    hoverText: 'hover:text-yoga-600',
+    activeText: 'text-yoga-700',
+    activeBg: 'bg-yoga-50 text-yoga-700',
+    hoverBg: 'hover:bg-yoga-50',
+    subtitleLight: 'text-yoga-600',
+    subtitleDark: 'text-yoga-300',
+    dropdownHoverText: 'hover:text-yoga-700',
+    dropdownHoverBg: 'hover:bg-yoga-50/70',
+    dropdownActiveText: 'text-yoga-700',
+    dropdownActiveBg: 'bg-yoga-50/80',
+    contactHoverBorder: 'hover:border-yoga-400',
+    contactHoverText: 'hover:text-yoga-700',
+  },
+  hands: {
+    ctaGradient: 'from-hands-700 to-hands-500',
+    hoverText: 'hover:text-hands-600',
+    activeText: 'text-hands-700',
+    activeBg: 'bg-hands-50 text-hands-700',
+    hoverBg: 'hover:bg-hands-50',
+    subtitleLight: 'text-hands-600',
+    subtitleDark: 'text-hands-300',
+    dropdownHoverText: 'hover:text-hands-700',
+    dropdownHoverBg: 'hover:bg-hands-50/70',
+    dropdownActiveText: 'text-hands-700',
+    dropdownActiveBg: 'bg-hands-50/80',
+    contactHoverBorder: 'hover:border-hands-400',
+    contactHoverText: 'hover:text-hands-700',
+  },
+  sound: {
+    ctaGradient: 'from-sound-700 to-sound-500',
+    hoverText: 'hover:text-sound-600',
+    activeText: 'text-sound-700',
+    activeBg: 'bg-sound-50 text-sound-700',
+    hoverBg: 'hover:bg-sound-50',
+    subtitleLight: 'text-sound-600',
+    subtitleDark: 'text-sound-300',
+    dropdownHoverText: 'hover:text-sound-700',
+    dropdownHoverBg: 'hover:bg-sound-50/70',
+    dropdownActiveText: 'text-sound-700',
+    dropdownActiveBg: 'bg-sound-50/80',
+    contactHoverBorder: 'hover:border-sound-400',
+    contactHoverText: 'hover:text-sound-700',
+  },
 }
 
 export default function SiteHeader({ brand }: SiteHeaderProps) {
@@ -24,8 +66,9 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   const [canHover, setCanHover] = useState(false)
   const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null)
   const [openMobileMenu, setOpenMobileMenu] = useState<string | null>(null)
-  const scheme = subBrandSchemes[brand.colorScheme]
   const pathname = usePathname()
+  const displayBrand = resolveDisplayBrand(brand, pathname)
+  const scheme = subBrandSchemes[displayBrand.colorScheme]
   const router = useRouter()
   const rafRef = useRef<number | null>(null)
 
@@ -78,13 +121,46 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
     }
   }, [pathname]) // re-run the observer whenever the page changes
 
-  const isYoga = brand.slug === 'sacred-vibes-yoga'
+  const isYoga = displayBrand.slug === 'sacred-vibes-yoga'
 
   function navigateTo(href: string) {
     setOpenDesktopMenu(null)
     setOpenMobileMenu(null)
     setIsOpen(false)
     router.push(href)
+  }
+
+  function normalizePath(value: string) {
+    if (!value) return '/'
+    if (value.length > 1 && value.endsWith('/')) return value.slice(0, -1)
+    return value
+  }
+
+  function isPathActive(href: string) {
+    if (!href || /^(https?:)?\/\//.test(href) || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) {
+      return false
+    }
+
+    const currentPath = normalizePath(pathname)
+    const targetPath = normalizePath(href)
+
+    if (targetPath === '/') {
+      return currentPath === '/' || currentPath === '/home'
+    }
+
+    if (targetPath === '/sound') {
+      return currentPath === '/sound' || currentPath === '/sound/home'
+    }
+
+    if (targetPath === '/hands') {
+      return currentPath === '/hands' || currentPath === '/hands/home'
+    }
+
+    return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
+  }
+
+  function isNavLinkActive(link: BrandContext['navLinks'][number]) {
+    return isPathActive(link.href) || Boolean(link.children?.some((child) => isPathActive(child.href)))
   }
 
   return (
@@ -112,7 +188,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               </p>
               <p className={clsx(
                 'text-[8px] sm:text-[9px] tracking-[0.18em] sm:tracking-[0.22em] uppercase font-body font-medium transition-colors duration-300',
-                onDark ? 'text-yoga-300' : 'text-yoga-600'
+                onDark ? scheme.subtitleDark : scheme.subtitleLight
               )}>
                 Healing &amp; Wellness
               </p>
@@ -121,7 +197,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-0.5">
-            {brand.navLinks.map((link) => (
+            {displayBrand.navLinks.map((link) => (
               <div
                 key={link.href}
                 className="relative pb-2 -mb-2"
@@ -132,7 +208,10 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                   if (link.children && canHover) setOpenDesktopMenu((current) => current === link.href ? null : current)
                 }}
               >
-                {link.children ? (
+                {(() => {
+                  const isActive = isNavLinkActive(link)
+
+                  return link.children ? (
                   <button
                     type="button"
                     aria-haspopup="menu"
@@ -149,8 +228,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     className={clsx(
                       'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
                       onDark
-                        ? 'text-white/85 hover:text-white hover:bg-white/10'
-                        : `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
+                        ? (isActive ? 'bg-white/12 text-white' : 'text-white/85 hover:text-white hover:bg-white/10')
+                        : (isActive ? scheme.activeBg : `text-sacred-700 ${scheme.hoverText} ${scheme.hoverBg}`)
                     )}
                   >
                     {link.label}
@@ -158,19 +237,20 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       <path d="M6 8L2 4h8z"/>
                     </svg>
                   </button>
-                ) : (
+                  ) : (
                   <Link
                     href={link.href}
                     className={clsx(
                       'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
                       onDark
-                        ? 'text-white/85 hover:text-white hover:bg-white/10'
-                        : `text-sacred-700 ${scheme.hoverText} ${scheme.activeBg}`
+                        ? (isActive ? 'bg-white/12 text-white' : 'text-white/85 hover:text-white hover:bg-white/10')
+                        : (isActive ? scheme.activeBg : `text-sacred-700 ${scheme.hoverText} ${scheme.hoverBg}`)
                     )}
                   >
                     {link.label}
                   </Link>
-                )}
+                  )
+                })()}
 
                 {link.children && openDesktopMenu === link.href && (
                   <div className="absolute top-full left-0 w-56 pt-2">
@@ -178,16 +258,25 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       'rounded-2xl border shadow-luxury',
                       'bg-white border-sacred-100/80 overflow-hidden opacity-100 visible translate-y-0'
                     )}>
-                      {link.children.map((child) => (
+                      {link.children.map((child) => {
+                        const isChildActive = isPathActive(child.href)
+
+                        return (
                         <button
                           key={child.href}
                           type="button"
                           onClick={() => navigateTo(child.href)}
-                          className="block w-full text-left px-5 py-3.5 text-sm text-sacred-700 hover:text-yoga-700 hover:bg-yoga-50/70 transition-colors border-b border-sacred-50 last:border-0"
+                          className={clsx(
+                            'block w-full border-b border-sacred-50 px-5 py-3.5 text-left text-sm transition-colors last:border-0',
+                            isChildActive
+                              ? `${scheme.dropdownActiveText} ${scheme.dropdownActiveBg}`
+                              : `text-sacred-700 ${scheme.dropdownHoverText} ${scheme.dropdownHoverBg}`
+                          )}
                         >
                           {child.label}
                         </button>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 )}
@@ -199,19 +288,19 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
           <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
             {!isYoga && (
               <Link
-                href={toBrandPath(brand, '/contact')}
+                href={toBrandPath(displayBrand, '/contact')}
                 className={clsx(
                   'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
                   onDark
                     ? 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
-                    : 'border-sacred-300 text-sacred-700 hover:border-yoga-400 hover:text-yoga-700'
+                    : `border-sacred-300 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
                 )}
               >
                 Contact
               </Link>
             )}
             <Link
-              href={toBrandPath(brand, '/booking')}
+              href={toBrandPath(displayBrand, '/booking')}
               className={clsx(
                 'px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase',
                 `bg-gradient-to-r ${scheme.ctaGradient} text-white`,
@@ -245,9 +334,12 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             : 'border-sacred-100/80 bg-white/98'
         )}>
           <nav className="max-w-7xl mx-auto px-4 py-6 flex flex-col gap-1">
-            {brand.navLinks.map((link) => (
+            {displayBrand.navLinks.map((link) => (
               <div key={link.href}>
-                {link.children ? (
+                {(() => {
+                  const isActive = isNavLinkActive(link)
+
+                  return link.children ? (
                   <>
                     <button
                       type="button"
@@ -255,8 +347,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                       className={clsx(
                         'w-full flex items-center justify-between px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
                         onDark
-                          ? 'text-white/90 hover:text-white hover:bg-white/10'
-                          : `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                          ? (isActive ? 'bg-white/12 text-white' : 'text-white/90 hover:text-white hover:bg-white/10')
+                          : (isActive ? scheme.activeBg : `text-sacred-800 ${scheme.hoverText} ${scheme.hoverBg}`)
                       )}
                     >
                       <span>{link.label}</span>
@@ -264,7 +356,10 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                         <path d="M6 8L2 4h8z"/>
                       </svg>
                     </button>
-                    {openMobileMenu === link.href && link.children.map((child) => (
+                    {openMobileMenu === link.href && link.children.map((child) => {
+                      const isChildActive = isPathActive(child.href)
+
+                      return (
                       <button
                         key={child.href}
                         type="button"
@@ -272,13 +367,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                         className={clsx(
                           'block w-full text-left px-8 py-2.5 text-sm rounded-2xl transition-colors',
                           onDark
-                            ? 'text-white/70 hover:text-white hover:bg-white/10'
-                            : 'text-sacred-500 hover:text-yoga-700 hover:bg-yoga-50'
+                            ? (isChildActive ? 'bg-white/12 text-white' : 'text-white/70 hover:text-white hover:bg-white/10')
+                            : (isChildActive ? scheme.activeBg : `text-sacred-500 ${scheme.dropdownHoverText} ${scheme.dropdownHoverBg}`)
                         )}
                       >
                         {child.label}
                       </button>
-                    ))}
+                      )
+                    })}
                   </>
                 ) : (
                   <Link
@@ -287,13 +383,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                     className={clsx(
                       'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
                       onDark
-                        ? 'text-white/90 hover:text-white hover:bg-white/10'
-                        : `text-sacred-800 ${scheme.hoverText} ${scheme.activeBg}`
+                        ? (isActive ? 'bg-white/12 text-white' : 'text-white/90 hover:text-white hover:bg-white/10')
+                        : (isActive ? scheme.activeBg : `text-sacred-800 ${scheme.hoverText} ${scheme.hoverBg}`)
                     )}
                   >
                     {link.label}
                   </Link>
-                )}
+                )
+                })()}
               </div>
             ))}
             <div className={clsx(
@@ -301,7 +398,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               onDark ? 'border-white/10' : 'border-sacred-100'
             )}>
               <Link
-                href={toBrandPath(brand, '/booking')}
+                href={toBrandPath(displayBrand, '/booking')}
                 onClick={() => setIsOpen(false)}
                 className={clsx(
                   'block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase',
@@ -311,13 +408,13 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 Book Now
               </Link>
               <Link
-                href={toBrandPath(brand, '/contact')}
+                href={toBrandPath(displayBrand, '/contact')}
                 onClick={() => setIsOpen(false)}
                 className={clsx(
                   'block text-center px-6 py-3 rounded-full text-sm font-medium border transition-colors',
                   onDark
                     ? 'border-white/25 text-white/90 hover:border-white/45 hover:text-white'
-                    : 'border-sacred-200 text-sacred-700 hover:border-yoga-300 hover:text-yoga-700'
+                    : `border-sacred-200 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
                 )}
               >
                 Contact

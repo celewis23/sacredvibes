@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
-import { toBrandPath, type BrandContext } from '@/lib/brand/resolution'
+import { usePathname } from 'next/navigation'
+import { resolveDisplayBrand, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
 
 interface SiteFooterProps {
@@ -40,14 +43,16 @@ const SOCIAL_LINKS = [
 ]
 
 export default function SiteFooter({ brand }: SiteFooterProps) {
+  const pathname = usePathname()
+  const displayBrand = resolveDisplayBrand(brand, pathname)
   const year = new Date().getFullYear()
-  const isYoga = brand.slug === 'sacred-vibes-yoga'
+  const isYoga = displayBrand.slug === 'sacred-vibes-yoga'
 
   const brandDescription = {
     'sacred-vibes-yoga': 'Merging ancient sacred wellness practices with modern life — helping people regulate their nervous systems, reconnect to their true selves, and elevate their frequency.',
     'sacred-hands':      'Transformative massage therapy designed to melt tension, restore balance, and return you to yourself. Every touch carries intention.',
     'sacred-sound':      'A portal into vibrational healing through sound baths, singing bowls, gong immersions, and our signature Sound on the River experience.',
-  }[brand.slug]
+  }[displayBrand.slug]
 
   return (
     <footer className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1c1714 0%, #231a15 50%, #1c1714 100%)' }}>
@@ -105,7 +110,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
           <div className="lg:col-span-3">
             <p className="eyebrow text-white/60 mb-6">Navigate</p>
             <ul className="space-y-3">
-              {brand.navLinks.slice(0, 7).map((link) => (
+              {displayBrand.navLinks.slice(0, 7).map((link) => (
                 <li key={link.href}>
                   <Link
                     href={link.href}
