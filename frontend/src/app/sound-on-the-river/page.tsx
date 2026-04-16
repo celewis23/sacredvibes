@@ -106,7 +106,7 @@ export default async function SoundOnTheRiverPage() {
           <h1 className="font-heading text-5xl md:text-7xl text-white mb-6 leading-tight">
             Sound on the River
           </h1>
-          <p className="text-xl text-white/88 leading-relaxed mb-10 md:text-2xl">
+          <p className="text-xl text-white leading-relaxed mb-10 md:text-2xl">
             An immersive outdoor sound healing experience where the music of crystal bowls,
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
