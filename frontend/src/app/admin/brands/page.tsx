@@ -7,14 +7,45 @@ import { Pencil, X, Globe, Palette } from 'lucide-react'
 import { brandsApi } from '@/lib/api'
 import type { Brand } from '@/types'
 
+type ThemeFields = {
+  primaryColor: string
+  accentColor: string
+  backgroundColor: string
+  textColor: string
+  fontHeading: string
+  fontBody: string
+}
+
 type FormState = {
   name: string
   description: string
   tagline: string
-  themeSettingsJson: string
+  theme: ThemeFields
   seoSettingsJson: string
   isActive: boolean
   sortOrder: string
+}
+
+const DEFAULT_THEME: ThemeFields = {
+  primaryColor: '#7B6E5D',
+  accentColor: '#C4A882',
+  backgroundColor: '#FAF7F4',
+  textColor: '#3D3530',
+  fontHeading: 'Cormorant Garamond',
+  fontBody: 'Lato',
+}
+
+function parseTheme(json: string): ThemeFields {
+  try {
+    const parsed = JSON.parse(json) as Partial<ThemeFields>
+    return { ...DEFAULT_THEME, ...parsed }
+  } catch {
+    return { ...DEFAULT_THEME }
+  }
+}
+
+function serializeTheme(theme: ThemeFields): string {
+  return JSON.stringify(theme, null, 2)
 }
 
 export default function AdminBrandsPage() {
@@ -47,7 +78,7 @@ export default function AdminBrandsPage() {
       name: b.name,
       description: b.description ?? '',
       tagline: b.tagline ?? '',
-      themeSettingsJson: b.themeSettingsJson,
+      theme: parseTheme(b.themeSettingsJson),
       seoSettingsJson: b.seoSettingsJson,
       isActive: b.isActive,
       sortOrder: b.sortOrder.toString(),
@@ -69,11 +100,6 @@ export default function AdminBrandsPage() {
   function handleSave() {
     if (!form || !editing) return
 
-    if (!validateJson(form.themeSettingsJson)) {
-      setThemeError('Invalid JSON')
-      setActiveTab('theme')
-      return
-    }
     if (!validateJson(form.seoSettingsJson)) {
       setSeoError('Invalid JSON')
       setActiveTab('seo')
@@ -86,7 +112,7 @@ export default function AdminBrandsPage() {
         name: form.name,
         description: form.description || undefined,
         tagline: form.tagline || undefined,
-        themeSettingsJson: form.themeSettingsJson,
+        themeSettingsJson: serializeTheme(form.theme),
         seoSettingsJson: form.seoSettingsJson,
         isActive: form.isActive,
         sortOrder: parseInt(form.sortOrder) || 0,
@@ -221,22 +247,70 @@ export default function AdminBrandsPage() {
               )}
 
               {activeTab === 'theme' && (
-                <div className="space-y-4">
-                  <p className="text-xs text-gray-500">Edit the theme JSON to update colors and fonts for this brand.</p>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Theme Settings (JSON)</label>
-                    <textarea
-                      value={form.themeSettingsJson}
-                      onChange={e => { set('themeSettingsJson', e.target.value); setThemeError('') }}
-                      rows={14}
-                      spellCheck={false}
-                      className={`w-full border rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-yoga-500 resize-none ${themeError ? 'border-red-400' : 'border-gray-200'}`}
-                    />
-                    {themeError && <p className="text-xs text-red-500 mt-1">{themeError}</p>}
+                <div className="space-y-5">
+                  {/* Live preview swatch */}
+                  <div className="rounded-xl p-4 flex items-center gap-4 border border-gray-100"
+                    style={{ backgroundColor: form.theme.backgroundColor }}>
+                    <div className="w-10 h-10 rounded-full shadow-sm flex-shrink-0"
+                      style={{ background: `linear-gradient(135deg, ${form.theme.primaryColor}, ${form.theme.accentColor})` }} />
+                    <div>
+                      <p className="font-semibold text-sm" style={{ color: form.theme.textColor }}>
+                        {form.name}
+                      </p>
+                      <p className="text-xs" style={{ color: form.theme.primaryColor }}>
+                        Preview — colors update as you edit
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-xs text-gray-400 space-y-1">
-                    <p className="font-medium text-gray-500">Expected keys:</p>
-                    <p>primaryColor, accentColor, backgroundColor, textColor, fontHeading, fontBody</p>
+
+                  {/* Colors */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { key: 'primaryColor',   label: 'Primary Color' },
+                      { key: 'accentColor',    label: 'Accent Color' },
+                      { key: 'backgroundColor', label: 'Background' },
+                      { key: 'textColor',      label: 'Text Color' },
+                    ] as { key: keyof ThemeFields; label: string }[]).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+                        <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-2 py-1.5">
+                          <input
+                            type="color"
+                            value={form.theme[key]}
+                            onChange={e => set('theme', { ...form.theme, [key]: e.target.value })}
+                            className="w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0"
+                          />
+                          <input
+                            type="text"
+                            value={form.theme[key]}
+                            onChange={e => set('theme', { ...form.theme, [key]: e.target.value })}
+                            className="flex-1 text-xs font-mono focus:outline-none text-gray-700 min-w-0"
+                            maxLength={7}
+                            placeholder="#000000"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Fonts */}
+                  <div className="space-y-3 pt-2 border-t border-gray-100">
+                    <p className="text-xs font-medium text-gray-500">Typography</p>
+                    {([
+                      { key: 'fontHeading', label: 'Heading Font' },
+                      { key: 'fontBody',    label: 'Body Font' },
+                    ] as { key: keyof ThemeFields; label: string }[]).map(({ key, label }) => (
+                      <div key={key}>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
+                        <input
+                          type="text"
+                          value={form.theme[key]}
+                          onChange={e => set('theme', { ...form.theme, [key]: e.target.value })}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500"
+                          placeholder="e.g. Cormorant Garamond"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

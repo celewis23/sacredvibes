@@ -306,11 +306,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             <Link
               href={toBrandPath(displayBrand, '/booking')}
               onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/booking'), closeMenus)}
-              className={clsx(
-                'px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase',
-                `bg-gradient-to-r ${scheme.ctaGradient} text-white`,
-                'shadow-glow hover:shadow-gold hover:scale-[1.02] transition-all duration-300'
-              )}
+              className="px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase text-white shadow-glow hover:shadow-gold hover:scale-[1.02] transition-all duration-300"
+              style={{ background: 'linear-gradient(to right, var(--brand-primary), var(--brand-accent))' }}
             >
               Book Now
             </Link>
@@ -405,10 +402,8 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               <Link
                 href={toBrandPath(displayBrand, '/booking')}
                 onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/booking'), closeMenus)}
-                className={clsx(
-                  'block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase',
-                  `bg-gradient-to-r ${scheme.ctaGradient} text-white shadow-glow`
-                )}
+                className="block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase text-white shadow-glow"
+                style={{ background: 'linear-gradient(to right, var(--brand-primary), var(--brand-accent))' }}
               >
                 Book Now
               </Link>

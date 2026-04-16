@@ -100,6 +100,22 @@
     @apply hover:scale-[1.02] active:scale-[0.98];
   }
 
+  /* Brand-aware button — uses CSS variables injected from themeSettingsJson */
+  .btn-brand {
+    @apply inline-flex items-center justify-center gap-2;
+    @apply px-8 py-4 rounded-full font-body font-medium tracking-[0.12em] text-sm uppercase;
+    @apply text-white shadow-glow transition-all duration-500;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+    background: linear-gradient(to right, var(--brand-primary), var(--brand-accent));
+  }
+
+  /* Brand CSS variable utility classes */
+  .text-brand-primary  { color: var(--brand-primary); }
+  .text-brand-accent   { color: var(--brand-accent); }
+  .bg-brand-primary    { background-color: var(--brand-primary); }
+  .bg-brand-accent     { background-color: var(--brand-accent); }
+  .border-brand-primary { border-color: var(--brand-primary); }
+
   /* Eyebrow label */
   .eyebrow {
     @apply font-body font-semibold tracking-[0.25em] uppercase text-xs;
