@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { resolveDisplayBrand, toBrandPath, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
+import { useSiteNavigation } from '@/components/layout/useSiteNavigation'
 
 interface SiteHeaderProps {
   brand: BrandContext
@@ -69,7 +70,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   const pathname = usePathname()
   const displayBrand = resolveDisplayBrand(brand, pathname)
   const scheme = subBrandSchemes[displayBrand.colorScheme]
-  const router = useRouter()
+  const { navigate, handleNavigationClick, normalizePath } = useSiteNavigation()
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -123,17 +124,14 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
   const isYoga = displayBrand.slug === 'sacred-vibes-yoga'
 
-  function navigateTo(href: string) {
+  function closeMenus() {
     setOpenDesktopMenu(null)
     setOpenMobileMenu(null)
     setIsOpen(false)
-    router.push(href)
   }
 
-  function normalizePath(value: string) {
-    if (!value) return '/'
-    if (value.length > 1 && value.endsWith('/')) return value.slice(0, -1)
-    return value
+  function navigateTo(href: string) {
+    navigate(href, closeMenus)
   }
 
   function isPathActive(href: string) {
@@ -174,7 +172,11 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
         <div className="flex items-center justify-between h-20 lg:h-24">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group flex-shrink-0">
+          <Link
+            href="/"
+            onClick={(event) => handleNavigationClick(event, '/', closeMenus)}
+            className="flex items-center gap-3 group flex-shrink-0"
+          >
             <LotusMark
               className="w-12 transition-all duration-300 group-hover:scale-105"
               gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
@@ -240,6 +242,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                   ) : (
                   <Link
                     href={link.href}
+                    onClick={(event) => handleNavigationClick(event, link.href, closeMenus)}
                     className={clsx(
                       'flex items-center gap-1 px-4 py-2.5 rounded-full text-sm font-body font-medium tracking-wide transition-all duration-200',
                       onDark
@@ -289,6 +292,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             {!isYoga && (
               <Link
                 href={toBrandPath(displayBrand, '/contact')}
+                onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/contact'), closeMenus)}
                 className={clsx(
                   'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
                   onDark
@@ -301,6 +305,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             )}
             <Link
               href={toBrandPath(displayBrand, '/booking')}
+              onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/booking'), closeMenus)}
               className={clsx(
                 'px-7 py-2.5 rounded-full text-sm font-body font-medium tracking-[0.1em] uppercase',
                 `bg-gradient-to-r ${scheme.ctaGradient} text-white`,
@@ -379,7 +384,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
                 ) : (
                   <Link
                     href={link.href}
-                    onClick={() => setIsOpen(false)}
+                    onClick={(event) => handleNavigationClick(event, link.href, closeMenus)}
                     className={clsx(
                       'block px-4 py-3 rounded-2xl text-sm font-medium transition-colors',
                       onDark
@@ -399,7 +404,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
             )}>
               <Link
                 href={toBrandPath(displayBrand, '/booking')}
-                onClick={() => setIsOpen(false)}
+                onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/booking'), closeMenus)}
                 className={clsx(
                   'block text-center px-6 py-3.5 rounded-full text-sm font-medium tracking-[0.1em] uppercase',
                   `bg-gradient-to-r ${scheme.ctaGradient} text-white shadow-glow`
@@ -409,7 +414,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               </Link>
               <Link
                 href={toBrandPath(displayBrand, '/contact')}
-                onClick={() => setIsOpen(false)}
+                onClick={(event) => handleNavigationClick(event, toBrandPath(displayBrand, '/contact'), closeMenus)}
                 className={clsx(
                   'block text-center px-6 py-3 rounded-full text-sm font-medium border transition-colors',
                   onDark

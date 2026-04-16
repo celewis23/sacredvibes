@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { resolveDisplayBrand, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
+import { useSiteNavigation } from '@/components/layout/useSiteNavigation'
 
 interface SiteFooterProps {
   brand: BrandContext
@@ -45,6 +46,7 @@ const SOCIAL_LINKS = [
 export default function SiteFooter({ brand }: SiteFooterProps) {
   const pathname = usePathname()
   const displayBrand = resolveDisplayBrand(brand, pathname)
+  const { handleNavigationClick } = useSiteNavigation()
   const year = new Date().getFullYear()
   const isYoga = displayBrand.slug === 'sacred-vibes-yoga'
 
@@ -72,7 +74,11 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
 
           {/* Brand column */}
           <div className="lg:col-span-5">
-            <Link href="/" className="inline-flex items-center gap-3 group mb-6">
+            <Link
+              href="/"
+              onClick={(event) => handleNavigationClick(event, '/')}
+              className="inline-flex items-center gap-3 group mb-6"
+            >
               <LotusMark
                 className="w-12"
                 gradientClassName="drop-shadow-[0_10px_24px_rgba(176,130,86,0.35)]"
@@ -114,6 +120,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
                 <li key={link.href}>
                   <Link
                     href={link.href}
+                    onClick={(event) => handleNavigationClick(event, link.href)}
                     className="text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors duration-200 font-body tracking-wide"
                   >
                     {link.label}
@@ -145,6 +152,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
                 <ul className="space-y-3">
                   <li>
                     <Link href="/hands"
+                       onClick={(event) => handleNavigationClick(event, '/hands')}
                        className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                       Sacred Hands — Healing Touch
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>
@@ -152,6 +160,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
                   </li>
                   <li>
                     <Link href="/sound"
+                       onClick={(event) => handleNavigationClick(event, '/sound')}
                        className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                       Sacred Sound — Vibrational Healing
                       <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>
@@ -164,6 +173,7 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
             {!isYoga && (
               <div>
                 <Link href="/"
+                   onClick={(event) => handleNavigationClick(event, '/')}
                    className="group inline-flex items-center gap-2 text-sm text-sacred-400/70 hover:text-yoga-300 transition-colors font-body tracking-wide">
                   Sacred Vibes Healing & Wellness
                   <span className="opacity-0 group-hover:opacity-100 transition-opacity text-yoga-400">→</span>

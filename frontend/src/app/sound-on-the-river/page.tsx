@@ -78,12 +78,12 @@ export default async function SoundOnTheRiverPage() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
+      <section data-header="dark" className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: "url('/images/sound-on-river.jpg')" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-sound-950/85 via-sound-800/70 to-indigo-900/85" />
+        <div className="absolute inset-0 bg-gradient-to-br from-sound-950/92 via-sound-900/82 to-indigo-950/90" />
         {/* Decorative rings */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           {[1, 2, 3, 4].map(i => (
@@ -99,23 +99,25 @@ export default async function SoundOnTheRiverPage() {
           ))}
         </div>
 
-        <div className="relative z-10 text-center px-6 max-w-3xl mx-auto">
-          <p className="text-xs font-medium uppercase tracking-[0.3em] text-sound-300 mb-6">
+        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center">
+          <div className="rounded-[2rem] border border-white/12 bg-black/20 px-6 py-10 shadow-[0_24px_80px_rgba(5,10,20,0.45)] backdrop-blur-sm md:px-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sound-100/90 mb-6">
             Sacred Sound Presents
           </p>
           <h1 className="font-heading text-5xl md:text-7xl text-white mb-6 leading-tight">
             Sound on the River
           </h1>
-          <p className="text-xl text-sound-200 leading-relaxed mb-10">
+          <p className="text-xl text-white/88 leading-relaxed mb-10 md:text-2xl">
             An immersive outdoor sound healing experience where the music of crystal bowls,
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
           <Link
             href={events.length > 0 ? '#upcoming-events' : toBrandPath(brand, '/contact')}
-            className="inline-block px-10 py-4 bg-white text-sound-900 rounded-full font-medium text-lg hover:bg-sound-50 transition-colors"
+            className="inline-block rounded-full bg-white px-10 py-4 text-lg font-medium text-sound-950 shadow-lg transition-colors hover:bg-sound-50"
           >
             {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
           </Link>
+          </div>
         </div>
       </section>
 
@@ -124,15 +126,15 @@ export default async function SoundOnTheRiverPage() {
         <div className="container-sacred max-w-4xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-sound-400 mb-4">The Experience</p>
-              <h2 className="font-heading text-3xl md:text-4xl mb-5">Where Water Meets Vibration</h2>
-              <p className="text-sound-300 leading-relaxed mb-4">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-widest text-sound-100/80">The Experience</p>
+              <h2 className="mb-5 font-heading text-3xl text-white md:text-4xl">Where Water Meets Vibration</h2>
+              <p className="mb-4 leading-relaxed text-white/82">
                 Sound on the River is our signature outdoor event — a deeply immersive sound journey
                 held at the water&apos;s edge at sunrise or twilight. The natural acoustic environment
                 of the river amplifies and complements every tone, creating an experience unlike
                 anything found in a studio.
               </p>
-              <p className="text-sound-300 leading-relaxed">
+              <p className="leading-relaxed text-white/82">
                 Participants lie on comfortable mats surrounded by the instruments and the natural
                 soundscape. There is nothing to do — only receive.
               </p>
@@ -145,9 +147,9 @@ export default async function SoundOnTheRiverPage() {
                 { label: 'What to bring', value: 'Yoga mat, blanket, layers for temperature changes' },
                 { label: 'Experience required', value: 'None — open to all' },
               ].map(item => (
-                <div key={item.label} className="flex items-start gap-4 text-sm">
-                  <span className="text-sound-500 w-32 shrink-0">{item.label}</span>
-                  <span className="text-sound-200">{item.value}</span>
+                <div key={item.label} className="flex items-start gap-4 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm">
+                  <span className="w-32 shrink-0 text-sound-100/75">{item.label}</span>
+                  <span className="text-white/88">{item.value}</span>
                 </div>
               ))}
             </div>
@@ -238,14 +240,14 @@ export default async function SoundOnTheRiverPage() {
       {/* Testimonial / closer */}
       <section className="section bg-sound-950 text-center">
         <div className="container-sacred max-w-2xl mx-auto">
-          <p className="font-heading text-2xl md:text-3xl text-white italic leading-relaxed mb-6">
+          <p className="mb-6 font-heading text-2xl italic leading-relaxed text-white md:text-3xl">
             &ldquo;I came in carrying the week in my shoulders. I left feeling like I had been rinsed clean by the river itself.&rdquo;
           </p>
-          <p className="text-sound-400 text-sm">— Sarah M., Sound on the River attendee</p>
+          <p className="text-sm text-sound-100/75">— Sarah M., Sound on the River attendee</p>
           <div className="mt-10">
             <Link
               href={toBrandPath(brand, '/contact')}
-              className="inline-block px-8 py-3 border border-white/30 text-white rounded-full text-sm hover:bg-white/10 transition-colors"
+              className="inline-block rounded-full border border-white/40 px-8 py-3 text-sm text-white transition-colors hover:bg-white/12"
             >
               Questions? Get in Touch
             </Link>
