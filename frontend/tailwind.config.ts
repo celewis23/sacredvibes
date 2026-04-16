@@ -47,6 +47,7 @@ const config: Config = {
           700: '#634f96',
           800: '#52427b',
           900: '#453866',
+          950: '#2a2040',
         },
         // Shared sacred neutrals
         sacred: {
