@@ -12,6 +12,7 @@ interface Section {
   type: string
   content: Record<string, unknown>
   style: SectionStyle
+  hidden?: boolean
 }
 
 // ── Style helpers ─────────────────────────────────────────────────────────────
@@ -86,6 +87,14 @@ function HeadingBlock({ c, dark }: { c: Record<string, unknown>; dark: boolean }
   )
 }
 
+function renderBody(text: string, dark: boolean) {
+  const cls = `leading-relaxed ${dark ? 'text-white/70' : 'text-sacred-600'}`
+  if (text.startsWith('<') && text.includes('</')) {
+    return <div className={cls} dangerouslySetInnerHTML={{ __html: text }} />
+  }
+  return <p className={`${cls} whitespace-pre-wrap`}>{text}</p>
+}
+
 function TwoColumnBlock({ c, dark }: { c: Record<string, unknown>; dark: boolean }) {
   return (
     <div className="grid md:grid-cols-2 gap-12 items-start">
@@ -93,13 +102,13 @@ function TwoColumnBlock({ c, dark }: { c: Record<string, unknown>; dark: boolean
         {str(c.leftHeadline) && (
           <h3 className={`font-heading text-2xl mb-4 ${dark ? 'text-white' : 'text-sacred-900'}`}>{str(c.leftHeadline)}</h3>
         )}
-        <p className={`leading-relaxed whitespace-pre-wrap ${dark ? 'text-white/70' : 'text-sacred-600'}`}>{str(c.leftBody)}</p>
+        {renderBody(str(c.leftBody), dark)}
       </div>
       <div>
         {str(c.rightHeadline) && (
           <h3 className={`font-heading text-2xl mb-4 ${dark ? 'text-white' : 'text-sacred-900'}`}>{str(c.rightHeadline)}</h3>
         )}
-        <p className={`leading-relaxed whitespace-pre-wrap ${dark ? 'text-white/70' : 'text-sacred-600'}`}>{str(c.rightBody)}</p>
+        {renderBody(str(c.rightBody), dark)}
       </div>
     </div>
   )
@@ -156,16 +165,20 @@ function SectionBlock({ section }: { section: Section }) {
         </section>
       )
 
-    case 'text':
+    case 'text': {
+      const body = str(c.body)
+      const isHtml = body.startsWith('<') && body.includes('</')
       return (
         <section className={cls}>
           <div className="container-sacred max-w-3xl mx-auto">
-            <p className={`leading-relaxed whitespace-pre-wrap text-base ${dark ? 'text-white/70' : 'text-sacred-700'}`}>
-              {str(c.body)}
-            </p>
+            {isHtml
+              ? <div className={`leading-relaxed text-base ${dark ? 'text-white/70' : 'text-sacred-700'}`} dangerouslySetInnerHTML={{ __html: body }} />
+              : <p className={`leading-relaxed whitespace-pre-wrap text-base ${dark ? 'text-white/70' : 'text-sacred-700'}`}>{body}</p>
+            }
           </div>
         </section>
       )
+    }
 
     case 'image':
       return str(c.src) ? (
@@ -231,7 +244,7 @@ export default function PageSectionRenderer({ contentJson }: { contentJson: stri
 
   return (
     <>
-      {sections.map(section => (
+      {sections.filter(s => !s.hidden).map(section => (
         <SectionBlock key={section.id} section={section} />
       ))}
     </>
