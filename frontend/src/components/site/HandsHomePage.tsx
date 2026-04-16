@@ -105,13 +105,18 @@ export default async function HandsHomePage({ brand, editablePage }: Props) {
                 } : undefined}
               />
               <ul className="mt-8 space-y-4 text-sacred-600 text-sm leading-relaxed">
-                {['item1', 'item2', 'item3', 'item4'].map((field) => (
+                {[
+                  { field: 'item1', fallback: 'Every session is personalized to your body, goals, and comfort level.' },
+                  { field: 'item2', fallback: 'We blend proven therapeutic technique with intuitive, healing touch.' },
+                  { field: 'item3', fallback: 'A safe, grounded space for deep release and genuine restoration.' },
+                  { field: 'item4', fallback: 'Rooted in care — not just for the session, but for your long-term wellbeing.' },
+                ].map(({ field, fallback }) => (
                   <li key={field} className="flex items-start gap-3">
                     <span className="w-1.5 h-1.5 rounded-full bg-hands-400 mt-2 shrink-0" />
                     <PageEditorTextField
                       sectionId="hands-home-philosophy"
                       field={field}
-                      fallback=""
+                      fallback={fallback}
                       as="span"
                       label="Philosophy item"
                     />
