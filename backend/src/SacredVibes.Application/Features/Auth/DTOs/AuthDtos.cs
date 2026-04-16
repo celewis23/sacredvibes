@@ -84,3 +84,20 @@ public class CreateAdminUserRequest
 
     public string Role { get; set; } = "Editor";
 }
+
+public class UpdateAdminUserRequest
+{
+    [Required]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required]
+    public string LastName { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    public string Role { get; set; } = "Editor";
+
+    [MinLength(8)]
+    public string? Password { get; set; }
+}

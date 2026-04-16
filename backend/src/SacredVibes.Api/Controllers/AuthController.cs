@@ -176,6 +176,57 @@ public class AuthController : ControllerBase
         await userManager.UpdateAsync(user);
         return Ok(new { message = req.IsActive ? "User activated" : "User deactivated" });
     }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("users/{userId}")]
+    public async Task<ActionResult<ApiResponse<AdminUserDto>>> UpdateAdminUser(
+        string userId, [FromBody] UpdateAdminUserRequest req, CancellationToken ct)
+    {
+        var userManager = HttpContext.RequestServices
+            .GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<SacredVibes.Domain.Entities.ApplicationUser>>();
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound(ApiResponse<AdminUserDto>.Fail("User not found"));
+
+        user.FirstName = req.FirstName;
+        user.LastName = req.LastName;
+        user.Email = req.Email;
+        user.UserName = req.Email;
+        user.NormalizedEmail = req.Email.ToUpperInvariant();
+        user.NormalizedUserName = req.Email.ToUpperInvariant();
+
+        if (Enum.TryParse<SacredVibes.Domain.Enums.UserRole>(req.Role, ignoreCase: true, out var role))
+            user.Role = role;
+
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return BadRequest(ApiResponse<AdminUserDto>.Fail(
+                updateResult.Errors.Select(e => e.Description)));
+
+        if (!string.IsNullOrWhiteSpace(req.Password))
+        {
+            await userManager.RemovePasswordAsync(user);
+            var pwResult = await userManager.AddPasswordAsync(user, req.Password);
+            if (!pwResult.Succeeded)
+                return BadRequest(ApiResponse<AdminUserDto>.Fail(
+                    pwResult.Errors.Select(e => e.Description)));
+        }
+
+        var dto = new AdminUserDto
+        {
+            Id = user.Id,
+            Email = user.Email ?? "",
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            FullName = user.FullName,
+            Role = user.Role.ToString(),
+            IsActive = user.IsActive,
+            LastLoginAt = user.LastLoginAt,
+            CreatedAt = user.CreatedAt,
+        };
+
+        return Ok(ApiResponse<AdminUserDto>.Ok(dto));
+    }
 }
 
 public class AdminUserDto
