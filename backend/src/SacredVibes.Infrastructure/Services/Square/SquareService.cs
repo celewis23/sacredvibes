@@ -347,6 +347,7 @@ public class SquareService : ISquareService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogError("Square customer list failed: {Status} {Body}", response.StatusCode, body);
+                result.Errors++;
                 result.ErrorMessages.Add($"HTTP {response.StatusCode}: {body}");
                 break;
             }
@@ -355,6 +356,12 @@ public class SquareService : ISquareService
 
             if (!doc.RootElement.TryGetProperty("customers", out var customers))
                 break;
+
+            if (customers.ValueKind != JsonValueKind.Array)
+            {
+                _logger.LogInformation("Square customer list returned no importable customers");
+                break;
+            }
 
             foreach (var customer in customers.EnumerateArray())
             {

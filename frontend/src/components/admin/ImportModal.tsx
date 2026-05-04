@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Upload, X, CheckCircle2, AlertCircle } from 'lucide-react'
+import type { AxiosError } from 'axios'
 import { subscribersApi } from '@/lib/api'
 import Button from '@/components/ui/button'
 
@@ -53,7 +54,9 @@ export default function ImportModal({ type, onClose, onSuccess }: Props) {
       setResult(data)
     },
     onError: (err) => {
-      toast.error((err as Error).message || 'Import failed')
+      const axiosError = err as AxiosError<{ errors?: string[]; message?: string }>
+      const apiError = axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message
+      toast.error(apiError ?? (err as Error).message ?? 'Import failed')
     },
   })
 

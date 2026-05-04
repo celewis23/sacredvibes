@@ -55,8 +55,9 @@ export default function AdminIntegrationsPage() {
   const squareMutation = useMutation({
     mutationFn: () => subscribersApi.importFromSquare(),
     onSuccess: (res) => {
-      const d = (res as { data?: { data?: { inserted?: number; updated?: number; skipped?: number } } }).data?.data
-      toast.success(`Square import complete: ${d?.inserted ?? 0} added, ${d?.updated ?? 0} updated`)
+      const d = (res as { data?: { data?: { insertedCount?: number; updatedCount?: number; skippedCount?: number; errorCount?: number } } }).data?.data
+      const status = d?.errorCount ? 'completed with errors' : 'complete'
+      toast.success(`Square import ${status}: ${d?.insertedCount ?? 0} added, ${d?.updatedCount ?? 0} updated`)
       queryClient.invalidateQueries({ queryKey: ['admin-subscribers'] })
     },
     onError: () => toast.error('Square import failed'),
@@ -65,8 +66,8 @@ export default function AdminIntegrationsPage() {
   const stripeMutation = useMutation({
     mutationFn: () => subscribersApi.importFromStripe(),
     onSuccess: (res) => {
-      const d = (res as { data?: { data?: { inserted?: number; updated?: number; skipped?: number } } }).data?.data
-      toast.success(`Stripe import complete: ${d?.inserted ?? 0} added, ${d?.updated ?? 0} updated`)
+      const d = (res as { data?: { data?: { insertedCount?: number; updatedCount?: number; skippedCount?: number } } }).data?.data
+      toast.success(`Stripe import complete: ${d?.insertedCount ?? 0} added, ${d?.updatedCount ?? 0} updated`)
       queryClient.invalidateQueries({ queryKey: ['admin-subscribers'] })
     },
     onError: () => toast.error('Stripe import failed'),
