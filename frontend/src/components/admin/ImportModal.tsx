@@ -20,8 +20,22 @@ interface ImportResult {
   skippedCount: number
   errorCount: number
   totalRows: number
-  status: string
+  status: string | number
   errorSummary?: string
+}
+
+function formatImportStatus(status: ImportResult['status']) {
+  if (typeof status === 'string') return status.toLowerCase()
+
+  const labels: Record<number, string> = {
+    0: 'pending',
+    1: 'processing',
+    2: 'completed',
+    3: 'failed',
+    4: 'partially completed',
+  }
+
+  return labels[status] ?? 'completed'
 }
 
 export default function ImportModal({ type, onClose, onSuccess }: Props) {
@@ -76,7 +90,7 @@ export default function ImportModal({ type, onClose, onSuccess }: Props) {
           <div className="space-y-4">
             <div className="flex items-center gap-3 p-4 bg-green-50 rounded-xl border border-green-200">
               <CheckCircle2 size={20} className="text-green-600 shrink-0" />
-              <p className="text-sm text-green-800 font-medium">Import {result.status.toLowerCase()}</p>
+              <p className="text-sm text-green-800 font-medium">Import {formatImportStatus(result.status)}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {[

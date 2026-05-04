@@ -265,7 +265,7 @@ export default function AdminServicesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         <select
           value={brandFilter}
           onChange={e => setBrandFilter(e.target.value)}
@@ -276,6 +276,11 @@ export default function AdminServicesPage() {
             <option key={b.id} value={b.id}>{b.name}</option>
           ))}
         </select>
+        {!brandFilter && (
+          <p className="text-xs text-gray-500">
+            Select a brand to import or sync Square services.
+          </p>
+        )}
       </div>
 
       {isLoading ? (
