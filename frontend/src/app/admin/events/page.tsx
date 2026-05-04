@@ -265,10 +265,18 @@ export default function AdminEventsPage() {
       result.inserted ? `${result.inserted} added` : '',
       result.updated ? `${result.updated} updated` : '',
       result.pushed ? `${result.pushed} pushed` : '',
-      result.errors ? `${result.errors} errors` : '',
+      result.errors ? `${result.errors} error${result.errors !== 1 ? 's' : ''}` : '',
     ].filter(Boolean)
 
-    toast.success(`${title}${pieces.length ? `: ${pieces.join(', ')}` : ''}`)
+    const summary = `${title}${pieces.length ? `: ${pieces.join(', ')}` : ''}`
+
+    if (result.errors && result.errorMessages.length) {
+      toast.error(`${summary}\n${result.errorMessages.join('\n')}`)
+    } else if (result.errors) {
+      toast.error(summary)
+    } else {
+      toast.success(summary)
+    }
   }
 
   return (
