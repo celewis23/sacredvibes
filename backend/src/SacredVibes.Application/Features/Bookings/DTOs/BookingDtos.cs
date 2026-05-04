@@ -94,6 +94,8 @@ public class ServiceOfferingDto
     public bool IsActive { get; set; }
     public string? FeaturedImageUrl { get; set; }
     public int SortOrder { get; set; }
+    public string? ExternalSquareItemId { get; set; }
+    public string? ExternalSquareVariationId { get; set; }
 }
 
 public class EventOfferingDto

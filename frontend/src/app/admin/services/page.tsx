@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
 import { offeringsApi, brandsApi } from '@/lib/api'
-import type { ServiceOffering, Brand } from '@/types'
+import type { ServiceOffering, Brand, SquareServiceCatalogSyncResult } from '@/types'
 
 type PriceType = 'Fixed' | 'Variable' | 'Free' | 'Donation' | 'SlidingScale'
 
@@ -51,8 +51,9 @@ export default function AdminServicesPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ServiceOffering | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; isSynced: boolean; deleteFromSquare: boolean } | null>(null)
   const [brandFilter, setBrandFilter] = useState('')
+  const [squareAction, setSquareAction] = useState<string | null>(null)
 
   const { data: brands = [] } = useQuery({
     queryKey: ['admin-brands'],
@@ -82,13 +83,57 @@ export default function AdminServicesPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => offeringsApi.deleteService(id),
+    mutationFn: (data: { id: string; deleteFromSquare: boolean }) => offeringsApi.deleteService(data.id, data.deleteFromSquare),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-offerings-services'] })
       toast.success('Service deleted')
       setDeleteConfirm(null)
     },
     onError: () => toast.error('Failed to delete service'),
+  })
+
+  const squareImportMutation = useMutation({
+    mutationFn: () => offeringsApi.importSquareServices(brandFilter),
+    onMutate: () => setSquareAction('import'),
+    onSuccess: (res) => {
+      showSquareResultToast('Square import complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-services'] })
+    },
+    onError: () => toast.error('Square import failed'),
+    onSettled: () => setSquareAction(null),
+  })
+
+  const squarePushAllMutation = useMutation({
+    mutationFn: () => offeringsApi.pushSquareServices(brandFilter || undefined),
+    onMutate: () => setSquareAction('push-all'),
+    onSuccess: (res) => {
+      showSquareResultToast('Square push complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-services'] })
+    },
+    onError: () => toast.error('Square push failed'),
+    onSettled: () => setSquareAction(null),
+  })
+
+  const squareSyncMutation = useMutation({
+    mutationFn: () => offeringsApi.syncSquareServices(brandFilter),
+    onMutate: () => setSquareAction('sync'),
+    onSuccess: (res) => {
+      showSquareResultToast('Square sync complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-services'] })
+    },
+    onError: () => toast.error('Square sync failed'),
+    onSettled: () => setSquareAction(null),
+  })
+
+  const squarePushOneMutation = useMutation({
+    mutationFn: (id: string) => offeringsApi.pushSquareService(id),
+    onMutate: (id) => setSquareAction(id),
+    onSuccess: () => {
+      toast.success('Service pushed to Square')
+      qc.invalidateQueries({ queryKey: ['admin-offerings-services'] })
+    },
+    onError: () => toast.error('Square push failed'),
+    onSettled: () => setSquareAction(null),
   })
 
   function openCreate() {
@@ -158,6 +203,22 @@ export default function AdminServicesPage() {
     setForm(f => ({ ...f, [key]: value }))
   }
 
+  function showSquareResultToast(title: string, result?: SquareServiceCatalogSyncResult) {
+    if (!result) {
+      toast.success(title)
+      return
+    }
+
+    const pieces = [
+      result.inserted ? `${result.inserted} added` : '',
+      result.updated ? `${result.updated} updated` : '',
+      result.pushed ? `${result.pushed} pushed` : '',
+      result.errors ? `${result.errors} errors` : '',
+    ].filter(Boolean)
+
+    toast.success(`${title}${pieces.length ? `: ${pieces.join(', ')}` : ''}`)
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -165,13 +226,42 @@ export default function AdminServicesPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Services</h1>
           <p className="text-sm text-gray-500 mt-1">{services.length} services</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-yoga-700 text-white rounded-xl text-sm font-medium hover:bg-yoga-800 transition-colors"
-        >
-          <Plus size={16} />
-          New Service
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => squareImportMutation.mutate()}
+            disabled={!brandFilter || squareAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title={brandFilter ? 'Import services from Square into the selected brand' : 'Select a brand before importing'}
+          >
+            <RefreshCw size={16} />
+            Import Square
+          </button>
+          <button
+            onClick={() => squarePushAllMutation.mutate()}
+            disabled={squareAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title="Push local active services to Square"
+          >
+            <UploadCloud size={16} />
+            Push All
+          </button>
+          <button
+            onClick={() => squareSyncMutation.mutate()}
+            disabled={!brandFilter || squareAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-sacred-200 text-sacred-800 rounded-xl text-sm font-medium hover:bg-sacred-50 disabled:opacity-50 transition-colors"
+            title={brandFilter ? 'Import from Square, then push local services back to Square' : 'Select a brand before syncing'}
+          >
+            <Link2 size={16} />
+            Sync
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-yoga-700 text-white rounded-xl text-sm font-medium hover:bg-yoga-800 transition-colors"
+          >
+            <Plus size={16} />
+            New Service
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -226,6 +316,9 @@ export default function AdminServicesPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium w-fit ${s.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                         {s.isActive ? 'Active' : 'Inactive'}
                       </span>
+                      {s.externalSquareItemId && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-50 text-amber-700 w-fit">Square synced</span>
+                      )}
                       {s.isBookable && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-600 w-fit">Bookable</span>
                       )}
@@ -234,6 +327,14 @@ export default function AdminServicesPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => squarePushOneMutation.mutate(s.id)}
+                        disabled={squareAction !== null}
+                        className="p-1.5 text-gray-400 hover:text-amber-700 transition-colors rounded disabled:opacity-50"
+                        title="Push to Square"
+                      >
+                        <UploadCloud size={14} />
+                      </button>
+                      <button
                         onClick={() => openEdit(s)}
                         className="p-1.5 text-gray-400 hover:text-yoga-700 transition-colors rounded"
                         title="Edit"
@@ -241,7 +342,7 @@ export default function AdminServicesPage() {
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => setDeleteConfirm(s.id)}
+                        onClick={() => setDeleteConfirm({ id: s.id, name: s.name, isSynced: !!s.externalSquareItemId, deleteFromSquare: false })}
                         className="p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded"
                         title="Delete"
                       >
@@ -426,12 +527,23 @@ export default function AdminServicesPage() {
           <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteConfirm(null)} />
           <div className="relative bg-white rounded-2xl shadow-xl p-6 max-w-sm mx-4 w-full">
             <h3 className="font-semibold text-gray-900 mb-2">Delete service?</h3>
-            <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
+            <p className="text-sm text-gray-500 mb-4">This will remove {deleteConfirm.name} from the website admin.</p>
+            {deleteConfirm.isSynced && (
+              <label className="mb-5 flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={deleteConfirm.deleteFromSquare}
+                  onChange={e => setDeleteConfirm(d => d ? { ...d, deleteFromSquare: e.target.checked } : d)}
+                  className="rounded border-gray-300 text-yoga-600 focus:ring-yoga-500"
+                />
+                Also delete it from Square
+              </label>
+            )}
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteConfirm(null)}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900">Cancel</button>
               <button
-                onClick={() => deleteMutation.mutate(deleteConfirm)}
+                onClick={() => deleteMutation.mutate({ id: deleteConfirm.id, deleteFromSquare: deleteConfirm.deleteFromSquare })}
                 disabled={deleteMutation.isPending}
                 className="px-4 py-2 bg-red-600 text-white rounded-xl text-sm font-medium hover:bg-red-700 disabled:opacity-50">
                 {deleteMutation.isPending ? 'Deleting…' : 'Delete'}

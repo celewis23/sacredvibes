@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Bookings.DTOs;
+using SacredVibes.Application.Features.Payments;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
@@ -15,7 +16,13 @@ namespace SacredVibes.Api.Controllers;
 public class OfferingsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public OfferingsController(AppDbContext db) => _db = db;
+    private readonly ISquareService _square;
+
+    public OfferingsController(AppDbContext db, ISquareService square)
+    {
+        _db = db;
+        _square = square;
+    }
 
     // ── Services ─────────────────────────────────────────────────────────────
 
@@ -96,14 +103,75 @@ public class OfferingsController : ControllerBase
     }
 
     [HttpDelete("services/{id:guid}")]
-    public async Task<ActionResult> DeleteService(Guid id, CancellationToken ct = default)
+    public async Task<ActionResult> DeleteService(
+        Guid id,
+        [FromQuery] bool deleteFromSquare = false,
+        CancellationToken ct = default)
     {
         var service = await _db.ServiceOfferings.FindAsync([id], ct);
         if (service is null) return NotFound();
+
+        if (deleteFromSquare)
+        {
+            var squareDelete = await _square.DeleteServiceFromSquareAsync(service, ct);
+            if (!squareDelete.Success)
+                return BadRequest(ApiResponse<object>.Fail(squareDelete.Error ?? "Square delete failed"));
+        }
+
         service.IsDeleted = true;
         service.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    [HttpPost("services/import-square")]
+    public async Task<ActionResult<ApiResponse<SquareServiceCatalogSyncResult>>> ImportSquareServices(
+        [FromQuery] Guid brandId,
+        CancellationToken ct = default)
+    {
+        if (brandId == Guid.Empty)
+            return BadRequest(ApiResponse<SquareServiceCatalogSyncResult>.Fail("Choose the brand these Square services should belong to."));
+
+        var result = await _square.ImportServiceCatalogAsync(brandId, ct);
+        return Ok(ApiResponse<SquareServiceCatalogSyncResult>.Ok(result));
+    }
+
+    [HttpPost("services/push-square")]
+    public async Task<ActionResult<ApiResponse<SquareServiceCatalogSyncResult>>> PushSquareServices(
+        [FromQuery] Guid? brandId,
+        CancellationToken ct = default)
+    {
+        var result = await _square.PushServiceCatalogAsync(brandId, ct);
+        return Ok(ApiResponse<SquareServiceCatalogSyncResult>.Ok(result));
+    }
+
+    [HttpPost("services/sync-square")]
+    public async Task<ActionResult<ApiResponse<SquareServiceCatalogSyncResult>>> SyncSquareServices(
+        [FromQuery] Guid brandId,
+        CancellationToken ct = default)
+    {
+        if (brandId == Guid.Empty)
+            return BadRequest(ApiResponse<SquareServiceCatalogSyncResult>.Fail("Choose the brand these Square services should belong to."));
+
+        var imported = await _square.ImportServiceCatalogAsync(brandId, ct);
+        var pushed = await _square.PushServiceCatalogAsync(brandId, ct);
+
+        imported.Pushed = pushed.Pushed;
+        imported.Errors += pushed.Errors;
+        imported.ErrorMessages.AddRange(pushed.ErrorMessages);
+        return Ok(ApiResponse<SquareServiceCatalogSyncResult>.Ok(imported));
+    }
+
+    [HttpPost("services/{id:guid}/push-square")]
+    public async Task<ActionResult<ApiResponse<SquareServicePushResult>>> PushSquareService(
+        Guid id,
+        CancellationToken ct = default)
+    {
+        var result = await _square.PushServiceToSquareAsync(id, ct);
+        if (!result.Success)
+            return BadRequest(ApiResponse<SquareServicePushResult>.Fail(result.Error ?? "Square push failed"));
+
+        return Ok(ApiResponse<SquareServicePushResult>.Ok(result));
     }
 
     // ── Events ────────────────────────────────────────────────────────────────
@@ -231,7 +299,8 @@ public class OfferingsController : ControllerBase
         ShortDescription = s.ShortDescription, Description = s.Description, Category = s.Category,
         PriceType = s.PriceType, Price = s.Price, PriceMin = s.PriceMin, PriceMax = s.PriceMax,
         Currency = s.Currency, DurationMinutes = s.DurationMinutes, Location = s.Location,
-        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder
+        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder,
+        ExternalSquareItemId = s.ExternalSquareItemId, ExternalSquareVariationId = s.ExternalSquareVariationId
     };
 
     private static EventOfferingDto MapEvent(EventOffering e) => new()

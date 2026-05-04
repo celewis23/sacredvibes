@@ -26,9 +26,8 @@ Square is the primary payment processor for Sacred Vibes. It handles booking che
 1. In the Square Developer Dashboard, go to your application → Webhooks
 2. Add endpoint URL: `https://api.sacredvibesyoga.com/api/bookings/webhooks/square`
 3. Subscribe to these events:
-   - `payment.completed`
+   - `payment.created`
    - `payment.updated`
-   - `order.completed`
    - `order.updated`
    - `refund.created`
    - `refund.updated`
@@ -46,7 +45,7 @@ Customer → Booking Form → POST /api/bookings
                                    ↓
                        Customer redirected to Square-hosted checkout
                                    ↓
-                       Square sends webhook: payment.completed
+                       Square sends webhook: payment.updated
                                    ↓
                        BookingsController verifies HMAC-SHA256 signature
                                    ↓

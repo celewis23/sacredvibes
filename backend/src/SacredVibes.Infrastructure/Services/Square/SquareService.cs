@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -32,6 +33,7 @@ public class SquareService : ISquareService
     private string WebhookSignatureKey => _config["Square:WebhookSignatureKey"] ?? string.Empty;
     private bool IsSandbox => (_config["Square:Environment"] ?? "sandbox").Equals("sandbox", StringComparison.OrdinalIgnoreCase);
     private string BaseUrl => IsSandbox ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
+    private const string SquareVersion = "2026-01-22";
 
     public SquareService(IConfiguration config, ILogger<SquareService> logger, AppDbContext db, IHttpClientFactory httpClientFactory)
     {
@@ -43,8 +45,7 @@ public class SquareService : ISquareService
 
     public async Task<CheckoutResponse> CreateCheckoutAsync(CreateCheckoutRequest request, BookingDto booking, CancellationToken ct = default)
     {
-        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
-        _http.DefaultRequestHeaders.Add("Square-Version", "2024-01-18");
+        ConfigureSquareHeaders();
 
         var idempotencyKey = Guid.NewGuid().ToString();
         var amountMoney = new
@@ -119,8 +120,7 @@ public class SquareService : ISquareService
 
     public async Task<SquarePaymentStatusResult> GetPaymentStatusAsync(string squarePaymentId, CancellationToken ct = default)
     {
-        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
-        _http.DefaultRequestHeaders.Add("Square-Version", "2024-01-18");
+        ConfigureSquareHeaders();
 
         try
         {
@@ -193,10 +193,12 @@ public class SquareService : ISquareService
 
             switch (eventType)
             {
+                case "payment.created":
                 case "payment.completed":
                 case "payment.updated":
                     entityId = await HandlePaymentEventAsync(root, eventType, ct);
                     break;
+                case "order.created":
                 case "order.completed":
                 case "order.updated":
                     entityId = await HandleOrderEventAsync(root, ct);
@@ -329,8 +331,7 @@ public class SquareService : ISquareService
 
     public async Task<SquareCustomerImportResult> ImportCustomersAsync(CancellationToken ct = default)
     {
-        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
-        _http.DefaultRequestHeaders.Add("Square-Version", "2024-01-18");
+        ConfigureSquareHeaders();
 
         var result = new SquareCustomerImportResult();
         string? cursor = null;
@@ -411,6 +412,198 @@ public class SquareService : ISquareService
         return result;
     }
 
+    public async Task<SquareServiceCatalogSyncResult> ImportServiceCatalogAsync(Guid brandId, CancellationToken ct = default)
+    {
+        ConfigureSquareHeaders();
+
+        var brandExists = await _db.Brands.AnyAsync(b => b.Id == brandId && !b.IsDeleted, ct);
+        if (!brandExists)
+            throw new InvalidOperationException("Brand not found");
+
+        var result = new SquareServiceCatalogSyncResult();
+        string? cursor = null;
+
+        do
+        {
+            var url = $"{BaseUrl}/v2/catalog/list?types=ITEM";
+            if (cursor is not null) url += $"&cursor={Uri.EscapeDataString(cursor)}";
+
+            var response = await _http.GetAsync(url, ct);
+            var body = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Square catalog list failed: {Status} {Body}", response.StatusCode, body);
+                result.ErrorMessages.Add($"HTTP {response.StatusCode}: {body}");
+                result.Errors++;
+                break;
+            }
+
+            using var doc = JsonDocument.Parse(body);
+            if (!doc.RootElement.TryGetProperty("objects", out var objects))
+                break;
+
+            foreach (var obj in objects.EnumerateArray())
+            {
+                try
+                {
+                    if (!IsAppointmentsServiceItem(obj))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    result.TotalFetched++;
+                    var itemId = obj.GetProperty("id").GetString();
+                    if (string.IsNullOrWhiteSpace(itemId) || !obj.TryGetProperty("item_data", out var itemData))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    var itemName = GetString(itemData, "name") ?? "Square Service";
+                    var itemDescription = GetString(itemData, "description");
+                    var category = GetString(itemData, "category_id");
+
+                    if (!itemData.TryGetProperty("variations", out var variations) || variations.GetArrayLength() == 0)
+                    {
+                        await UpsertServiceFromSquareVariationAsync(
+                            brandId, itemId, null, itemName, itemDescription, category, null, result, ct);
+                        continue;
+                    }
+
+                    foreach (var variation in variations.EnumerateArray())
+                    {
+                        await UpsertServiceFromSquareVariationAsync(
+                            brandId, itemId, variation, itemName, itemDescription, category, variations.GetArrayLength() > 1 ? itemName : null, result, ct);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Errors++;
+                    result.ErrorMessages.Add($"Catalog item error: {ex.Message}");
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+            cursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
+        } while (cursor is not null);
+
+        return result;
+    }
+
+    public async Task<SquareServicePushResult> PushServiceToSquareAsync(Guid serviceId, CancellationToken ct = default)
+    {
+        ConfigureSquareHeaders();
+
+        var service = await _db.ServiceOfferings.FirstOrDefaultAsync(s => s.Id == serviceId && !s.IsDeleted, ct);
+        if (service is null)
+            return new SquareServicePushResult { Success = false, Error = "Service not found" };
+
+        try
+        {
+            var existing = !string.IsNullOrWhiteSpace(service.ExternalSquareItemId)
+                ? await RetrieveCatalogObjectNodeAsync(service.ExternalSquareItemId, ct)
+                : null;
+
+            var itemId = service.ExternalSquareItemId ?? $"#service-{service.Id:N}";
+            var variationId = service.ExternalSquareVariationId ?? $"#variation-{service.Id:N}";
+            var catalogObject = BuildSquareServiceCatalogObject(service, itemId, variationId, existing);
+
+            var body = new JsonObject
+            {
+                ["idempotency_key"] = Guid.NewGuid().ToString(),
+                ["batches"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["objects"] = new JsonArray(catalogObject)
+                    }
+                }
+            };
+
+            var response = await _http.PostAsync(
+                $"{BaseUrl}/v2/catalog/batch-upsert",
+                new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"),
+                ct);
+            var responseBody = await response.Content.ReadAsStringAsync(ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Square service upsert failed: {Status} {Body}", response.StatusCode, responseBody);
+                return new SquareServicePushResult { Success = false, Error = responseBody };
+            }
+
+            ApplySquareIdMappings(service, responseBody);
+            await _db.SaveChangesAsync(ct);
+
+            return new SquareServicePushResult
+            {
+                Success = true,
+                SquareItemId = service.ExternalSquareItemId,
+                SquareVariationId = service.ExternalSquareVariationId
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception pushing service {ServiceId} to Square", serviceId);
+            return new SquareServicePushResult { Success = false, Error = ex.Message };
+        }
+    }
+
+    public async Task<SquareServiceCatalogSyncResult> PushServiceCatalogAsync(Guid? brandId = null, CancellationToken ct = default)
+    {
+        var result = new SquareServiceCatalogSyncResult();
+        var query = _db.ServiceOfferings.Where(s => !s.IsDeleted && s.IsActive);
+        if (brandId.HasValue) query = query.Where(s => s.BrandId == brandId.Value);
+
+        var services = await query.OrderBy(s => s.SortOrder).ThenBy(s => s.Name).ToListAsync(ct);
+        foreach (var service in services)
+        {
+            var push = await PushServiceToSquareAsync(service.Id, ct);
+            if (push.Success)
+            {
+                result.Pushed++;
+            }
+            else
+            {
+                result.Errors++;
+                result.ErrorMessages.Add($"{service.Name}: {push.Error}");
+            }
+        }
+
+        return result;
+    }
+
+    public async Task<SquareServiceDeleteResult> DeleteServiceFromSquareAsync(ServiceOffering service, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(service.ExternalSquareItemId))
+            return new SquareServiceDeleteResult { Success = true };
+
+        ConfigureSquareHeaders();
+
+        var response = await _http.DeleteAsync($"{BaseUrl}/v2/catalog/object/{service.ExternalSquareItemId}", ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("Square service delete failed: {Status} {Body}", response.StatusCode, body);
+            return new SquareServiceDeleteResult
+            {
+                Success = false,
+                SquareItemId = service.ExternalSquareItemId,
+                Error = body
+            };
+        }
+
+        var deletedItemId = service.ExternalSquareItemId;
+        service.ExternalSquareItemId = null;
+        service.ExternalSquareVariationId = null;
+        await _db.SaveChangesAsync(ct);
+
+        return new SquareServiceDeleteResult { Success = true, SquareItemId = deletedItemId };
+    }
+
     public Task<bool> ValidateWebhookSignatureAsync(string rawPayload, string squareSignature, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(WebhookSignatureKey))
@@ -438,4 +631,274 @@ public class SquareService : ISquareService
             return Task.FromResult(false);
         }
     }
+
+    private void ConfigureSquareHeaders()
+    {
+        _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", AccessToken);
+        _http.DefaultRequestHeaders.Remove("Square-Version");
+        _http.DefaultRequestHeaders.Add("Square-Version", SquareVersion);
+    }
+
+    private static bool IsAppointmentsServiceItem(JsonElement obj)
+    {
+        return obj.TryGetProperty("item_data", out var itemData)
+            && itemData.TryGetProperty("product_type", out var productType)
+            && productType.GetString()?.Equals("APPOINTMENTS_SERVICE", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
+    private async Task UpsertServiceFromSquareVariationAsync(
+        Guid brandId,
+        string itemId,
+        JsonElement? variation,
+        string itemName,
+        string? itemDescription,
+        string? category,
+        string? multiVariationItemName,
+        SquareServiceCatalogSyncResult result,
+        CancellationToken ct)
+    {
+        string? variationId = null;
+        string? variationName = null;
+        decimal? price = null;
+        string currency = "USD";
+        int? durationMinutes = null;
+        var priceType = PriceType.Variable;
+
+        if (variation.HasValue)
+        {
+            var v = variation.Value;
+            variationId = GetString(v, "id");
+            if (v.TryGetProperty("item_variation_data", out var variationData))
+            {
+                variationName = GetString(variationData, "name");
+                var pricingType = GetString(variationData, "pricing_type");
+                priceType = pricingType == "FIXED_PRICING" ? PriceType.Fixed : PriceType.Variable;
+
+                if (variationData.TryGetProperty("price_money", out var priceMoney))
+                {
+                    price = GetLong(priceMoney, "amount") / 100m;
+                    currency = GetString(priceMoney, "currency") ?? "USD";
+                }
+
+                var durationMs = GetLong(variationData, "service_duration");
+                if (durationMs > 0)
+                    durationMinutes = (int)Math.Round(durationMs / 60000m);
+            }
+        }
+
+        var serviceName = BuildImportedServiceName(itemName, variationName, multiVariationItemName);
+        var service = await _db.ServiceOfferings.FirstOrDefaultAsync(s =>
+            s.ExternalSquareVariationId == variationId && variationId != null, ct);
+
+        service ??= await _db.ServiceOfferings.FirstOrDefaultAsync(s =>
+            s.ExternalSquareItemId == itemId && s.ExternalSquareVariationId == null && variationId == null, ct);
+
+        if (service is null)
+        {
+            service = new ServiceOffering
+            {
+                BrandId = brandId,
+                Name = serviceName,
+                Slug = await UniqueServiceSlugAsync(brandId, GenerateSlug(serviceName), ct),
+                SortOrder = await _db.ServiceOfferings.Where(s => s.BrandId == brandId).CountAsync(ct)
+            };
+            await _db.ServiceOfferings.AddAsync(service, ct);
+            result.Inserted++;
+        }
+        else
+        {
+            result.Updated++;
+        }
+
+        service.BrandId = brandId;
+        service.Name = serviceName;
+        service.Description = itemDescription;
+        service.ShortDescription ??= itemDescription;
+        service.Category = category;
+        service.PriceType = priceType;
+        service.Price = price;
+        service.Currency = currency;
+        service.DurationMinutes = durationMinutes;
+        service.IsActive = true;
+        service.IsBookable = true;
+        service.ExternalSquareItemId = itemId;
+        service.ExternalSquareVariationId = variationId;
+    }
+
+    private async Task<JsonObject?> RetrieveCatalogObjectNodeAsync(string objectId, CancellationToken ct)
+    {
+        var response = await _http.GetAsync($"{BaseUrl}/v2/catalog/object/{objectId}", ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var root = JsonNode.Parse(body)?.AsObject();
+        return root?["object"]?.AsObject();
+    }
+
+    private static JsonObject BuildSquareServiceCatalogObject(ServiceOffering service, string itemId, string variationId, JsonObject? existing)
+    {
+        var item = existing?.DeepClone().AsObject() ?? new JsonObject
+        {
+            ["type"] = "ITEM",
+            ["id"] = itemId,
+            ["present_at_all_locations"] = true,
+            ["item_data"] = new JsonObject()
+        };
+
+        item["type"] = "ITEM";
+        item["id"] = itemId;
+        item["present_at_all_locations"] = true;
+
+        var itemData = item["item_data"]?.AsObject();
+        if (itemData is null)
+        {
+            itemData = new JsonObject();
+            item["item_data"] = itemData;
+        }
+
+        itemData["name"] = service.Name;
+        itemData["description"] = service.Description ?? service.ShortDescription;
+        itemData["product_type"] = "APPOINTMENTS_SERVICE";
+
+        var variations = itemData["variations"]?.AsArray();
+        if (variations is null)
+        {
+            variations = new JsonArray();
+            itemData["variations"] = variations;
+        }
+
+        var variation = FindVariation(variations, service.ExternalSquareVariationId) ?? variations.FirstOrDefault()?.AsObject();
+        if (variation is null)
+        {
+            variation = new JsonObject
+            {
+                ["type"] = "ITEM_VARIATION",
+                ["id"] = variationId,
+                ["present_at_all_locations"] = true,
+                ["item_variation_data"] = new JsonObject()
+            };
+            variations.Add(variation);
+        }
+        else if (string.IsNullOrWhiteSpace(service.ExternalSquareVariationId))
+        {
+            variationId = variation["id"]?.GetValue<string>() ?? variationId;
+        }
+
+        variation["type"] = "ITEM_VARIATION";
+        variation["id"] = variationId;
+        variation["present_at_all_locations"] = true;
+
+        var variationData = variation["item_variation_data"]?.AsObject();
+        if (variationData is null)
+        {
+            variationData = new JsonObject();
+            variation["item_variation_data"] = variationData;
+        }
+
+        variationData["item_id"] = itemId;
+        variationData["name"] = service.Name;
+        variationData["available_for_booking"] = service.IsBookable;
+        variationData["pricing_type"] = service.PriceType == PriceType.Fixed && service.Price.HasValue
+            ? "FIXED_PRICING"
+            : "VARIABLE_PRICING";
+
+        if (service.PriceType == PriceType.Fixed && service.Price.HasValue)
+        {
+            variationData["price_money"] = new JsonObject
+            {
+                ["amount"] = (long)Math.Round(service.Price.Value * 100m),
+                ["currency"] = service.Currency
+            };
+        }
+        else
+        {
+            variationData.Remove("price_money");
+        }
+
+        if (service.DurationMinutes.HasValue)
+            variationData["service_duration"] = service.DurationMinutes.Value * 60000L;
+
+        return item;
+    }
+
+    private static JsonObject? FindVariation(JsonArray variations, string? variationId)
+    {
+        if (string.IsNullOrWhiteSpace(variationId)) return null;
+        foreach (var node in variations)
+        {
+            var variation = node?.AsObject();
+            if (variation?["id"]?.GetValue<string>() == variationId)
+                return variation;
+        }
+
+        return null;
+    }
+
+    private static void ApplySquareIdMappings(ServiceOffering service, string responseBody)
+    {
+        using var doc = JsonDocument.Parse(responseBody);
+        if (doc.RootElement.TryGetProperty("id_mappings", out var mappings))
+        {
+            foreach (var mapping in mappings.EnumerateArray())
+            {
+                var clientId = GetString(mapping, "client_object_id");
+                var objectId = GetString(mapping, "object_id");
+                if (clientId is null || objectId is null) continue;
+                if (clientId.StartsWith("#service-", StringComparison.Ordinal))
+                    service.ExternalSquareItemId = objectId;
+                if (clientId.StartsWith("#variation-", StringComparison.Ordinal))
+                    service.ExternalSquareVariationId = objectId;
+            }
+        }
+
+        if ((string.IsNullOrWhiteSpace(service.ExternalSquareItemId) || string.IsNullOrWhiteSpace(service.ExternalSquareVariationId))
+            && doc.RootElement.TryGetProperty("objects", out var objects))
+        {
+            foreach (var obj in objects.EnumerateArray())
+            {
+                if (GetString(obj, "type") == "ITEM")
+                {
+                    service.ExternalSquareItemId ??= GetString(obj, "id");
+                    if (obj.TryGetProperty("item_data", out var itemData)
+                        && itemData.TryGetProperty("variations", out var variations)
+                        && variations.GetArrayLength() > 0)
+                    {
+                        service.ExternalSquareVariationId ??= GetString(variations[0], "id");
+                    }
+                }
+            }
+        }
+    }
+
+    private async Task<string> UniqueServiceSlugAsync(Guid brandId, string baseSlug, CancellationToken ct)
+    {
+        var slug = baseSlug;
+        var counter = 1;
+        while (await _db.ServiceOfferings.AnyAsync(s => s.BrandId == brandId && s.Slug == slug, ct))
+            slug = $"{baseSlug}-{counter++}";
+        return slug;
+    }
+
+    private static string BuildImportedServiceName(string itemName, string? variationName, string? multiVariationItemName)
+    {
+        if (string.IsNullOrWhiteSpace(variationName) || variationName.Equals("Regular", StringComparison.OrdinalIgnoreCase))
+            return itemName;
+        return multiVariationItemName is null ? variationName : $"{multiVariationItemName} - {variationName}";
+    }
+
+    private static string GenerateSlug(string name) =>
+        System.Text.RegularExpressions.Regex.Replace(
+            name.ToLowerInvariant().Trim().Replace("'", "").Replace("\"", "").Replace(" ", "-"),
+            @"[^a-z0-9\-]", "").Trim('-');
+
+    private static string? GetString(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var property) && property.ValueKind != JsonValueKind.Null
+            ? property.GetString()
+            : null;
+
+    private static long GetLong(JsonElement element, string propertyName) =>
+        element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Number
+            ? property.GetInt64()
+            : 0L;
 }

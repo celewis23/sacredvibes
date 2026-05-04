@@ -173,9 +173,9 @@ export default function AdminIntegrationsPage() {
             <div className="mt-3 text-xs text-gray-500">
               <p className="font-medium mb-1">Subscribe to these events:</p>
               <ul className="list-disc list-inside space-y-0.5 text-gray-400">
-                <li>payment.completed</li>
+                <li>payment.created</li>
                 <li>payment.updated</li>
-                <li>order.completed</li>
+                <li>order.updated</li>
                 <li>refund.created / refund.updated</li>
               </ul>
             </div>

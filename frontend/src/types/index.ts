@@ -160,6 +160,25 @@ export interface ServiceOffering {
   isActive: boolean
   featuredImageUrl?: string
   sortOrder: number
+  externalSquareItemId?: string
+  externalSquareVariationId?: string
+}
+
+export interface SquareServiceCatalogSyncResult {
+  totalFetched: number
+  inserted: number
+  updated: number
+  skipped: number
+  pushed: number
+  errors: number
+  errorMessages: string[]
+}
+
+export interface SquareServicePushResult {
+  success: boolean
+  squareItemId?: string
+  squareVariationId?: string
+  error?: string
 }
 
 export interface EventOffering {

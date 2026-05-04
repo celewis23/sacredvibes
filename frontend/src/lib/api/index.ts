@@ -3,7 +3,7 @@ import type {
   ApiResponse, PagedResult, BlogPostSummary, BlogPost, BlogCategory, BlogTag,
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
-  SitePage, AdminUser, ImportJob,
+  SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -174,8 +174,20 @@ export const offeringsApi = {
   updateService: (id: string, data: unknown) =>
     apiClient.put<ApiResponse<ServiceOffering>>(`/offerings/services/${id}`, data),
 
-  deleteService: (id: string) =>
-    apiClient.delete(`/offerings/services/${id}`),
+  deleteService: (id: string, deleteFromSquare = false) =>
+    apiClient.delete(`/offerings/services/${id}`, { params: { deleteFromSquare } }),
+
+  importSquareServices: (brandId: string) =>
+    apiClient.post<ApiResponse<SquareServiceCatalogSyncResult>>('/offerings/services/import-square', null, { params: { brandId } }),
+
+  pushSquareServices: (brandId?: string) =>
+    apiClient.post<ApiResponse<SquareServiceCatalogSyncResult>>('/offerings/services/push-square', null, { params: { brandId } }),
+
+  syncSquareServices: (brandId: string) =>
+    apiClient.post<ApiResponse<SquareServiceCatalogSyncResult>>('/offerings/services/sync-square', null, { params: { brandId } }),
+
+  pushSquareService: (id: string) =>
+    apiClient.post<ApiResponse<SquareServicePushResult>>(`/offerings/services/${id}/push-square`),
 
   // Events
   getEvents: (params?: { brandId?: string; includeInactive?: boolean; upcomingOnly?: boolean }) =>
