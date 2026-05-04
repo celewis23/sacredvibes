@@ -213,7 +213,7 @@ public class SubscribersController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Square customer import failed");
-            return BadRequest(ApiResponse<ImportResultDto>.Fail($"Square import failed: {ex.Message}"));
+            return BadRequest(ApiResponse<ImportResultDto>.Fail($"Square import failed: {GetInnermostMessage(ex)}"));
         }
     }
 
@@ -349,6 +349,12 @@ public class SubscribersController : ControllerBase
             Color = m.SubscriberTag.Color
         }).ToList()
     };
+
+    private static string GetInnermostMessage(Exception ex)
+    {
+        while (ex.InnerException is not null) ex = ex.InnerException;
+        return ex.Message;
+    }
 }
 
 public class ImportJobSummaryDto

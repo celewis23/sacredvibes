@@ -335,6 +335,7 @@ public class SquareService : ISquareService
 
         var result = new SquareCustomerImportResult();
         string? cursor = null;
+        var seenEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         do
         {
@@ -368,32 +369,39 @@ public class SquareService : ISquareService
                 result.TotalFetched++;
                 try
                 {
-                    var email = customer.TryGetProperty("email_address", out var emailEl) ? emailEl.GetString() : null;
-                    if (string.IsNullOrWhiteSpace(email))
+                    var email = NormalizeEmail(customer.TryGetProperty("email_address", out var emailEl) ? emailEl.GetString() : null);
+                    if (string.IsNullOrWhiteSpace(email) || !IsValidEmail(email))
                     {
                         result.Skipped++;
                         continue;
                     }
 
-                    var firstName = customer.TryGetProperty("given_name", out var fn) ? fn.GetString() : null;
-                    var lastName = customer.TryGetProperty("family_name", out var ln) ? ln.GetString() : null;
-                    var phone = customer.TryGetProperty("phone_number", out var ph) ? ph.GetString() : null;
+                    if (!seenEmails.Add(email))
+                    {
+                        result.Skipped++;
+                        continue;
+                    }
+
+                    var firstName = Truncate(customer.TryGetProperty("given_name", out var fn) ? fn.GetString() : null, 100);
+                    var lastName = Truncate(customer.TryGetProperty("family_name", out var ln) ? ln.GetString() : null, 100);
+                    var phone = Truncate(customer.TryGetProperty("phone_number", out var ph) ? ph.GetString() : null, 30);
                     var customerId = customer.TryGetProperty("id", out var cid) ? cid.GetString() : null;
 
-                    var existing = await _db.Subscribers.FirstOrDefaultAsync(s => s.Email == email.ToLowerInvariant(), ct);
+                    var existing = await _db.Subscribers.FirstOrDefaultAsync(s => s.Email == email, ct);
                     if (existing is not null)
                     {
                         // Update if needed
                         existing.FirstName ??= firstName;
                         existing.LastName ??= lastName;
                         existing.Phone ??= phone;
+                        existing.ExternalSourceId ??= customerId;
                         result.Updated++;
                     }
                     else
                     {
                         await _db.Subscribers.AddAsync(new Subscriber
                         {
-                            Email = email.ToLowerInvariant(),
+                            Email = email,
                             FirstName = firstName,
                             LastName = lastName,
                             Phone = phone,
@@ -404,15 +412,17 @@ public class SquareService : ISquareService
                         }, ct);
                         result.Inserted++;
                     }
+
+                    await _db.SaveChangesAsync(ct);
                 }
                 catch (Exception ex)
                 {
+                    _db.ChangeTracker.Clear();
                     result.Errors++;
-                    result.ErrorMessages.Add($"Row error: {ex.Message}");
+                    result.ErrorMessages.Add($"Customer import error: {GetInnermostMessage(ex)}");
                 }
             }
 
-            await _db.SaveChangesAsync(ct);
             cursor = doc.RootElement.TryGetProperty("cursor", out var c) ? c.GetString() : null;
         } while (cursor is not null);
 
@@ -908,4 +918,33 @@ public class SquareService : ISquareService
         element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.Number
             ? property.GetInt64()
             : 0L;
+
+    private static string? NormalizeEmail(string? email) =>
+        string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
+
+    private static string? Truncate(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            var addr = new System.Net.Mail.MailAddress(email);
+            return addr.Address.Equals(email, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string GetInnermostMessage(Exception ex)
+    {
+        while (ex.InnerException is not null) ex = ex.InnerException;
+        return ex.Message;
+    }
 }
