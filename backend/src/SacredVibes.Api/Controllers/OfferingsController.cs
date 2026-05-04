@@ -51,6 +51,9 @@ public class OfferingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<ServiceOfferingDto>>> CreateService(
         [FromBody] SaveServiceRequest req, CancellationToken ct = default)
     {
+        if (!await _db.Brands.AnyAsync(b => b.Id == req.BrandId && !b.IsDeleted, ct))
+            return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid brand for this service."));
+
         var slug = await UniqueSlug(req.Slug ?? GenerateSlug(req.Name),
             s => _db.ServiceOfferings.AnyAsync(x => x.BrandId == req.BrandId && x.Slug == s, ct));
 
@@ -79,8 +82,19 @@ public class OfferingsController : ControllerBase
         var service = await _db.ServiceOfferings.FindAsync([id], ct);
         if (service is null) return NotFound();
 
+        if (!await _db.Brands.AnyAsync(b => b.Id == req.BrandId && !b.IsDeleted, ct))
+            return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid brand for this service."));
+
+        var nextSlug = !string.IsNullOrWhiteSpace(req.Slug) ? req.Slug : service.Slug;
+        if (service.BrandId != req.BrandId || !nextSlug.Equals(service.Slug, StringComparison.OrdinalIgnoreCase))
+        {
+            nextSlug = await UniqueSlug(nextSlug,
+                s => _db.ServiceOfferings.AnyAsync(x => x.Id != id && x.BrandId == req.BrandId && x.Slug == s, ct));
+        }
+
+        service.BrandId = req.BrandId;
         service.Name = req.Name;
-        if (!string.IsNullOrWhiteSpace(req.Slug)) service.Slug = req.Slug;
+        service.Slug = nextSlug;
         service.ShortDescription = req.ShortDescription;
         service.Description = req.Description;
         service.Category = req.Category;
