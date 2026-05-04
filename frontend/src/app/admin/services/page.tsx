@@ -69,6 +69,11 @@ export default function AdminServicesPage() {
   })
 
   const brandName = (id: string) => brands.find((b: Brand) => b.id === id)?.name ?? ''
+  const categoryOptions = Array.from(new Set(
+    services
+      .map(s => s.category?.trim())
+      .filter((category): category is string => !!category)
+  )).sort((a, b) => a.localeCompare(b))
 
   const saveMutation = useMutation({
     mutationFn: (data: unknown) => editing
@@ -400,9 +405,14 @@ export default function AdminServicesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
-                  <input value={form.category} onChange={e => set('category', e.target.value)}
+                  <select value={form.category} onChange={e => set('category', e.target.value)}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500"
-                    placeholder="Massage" />
+                  >
+                    <option value="">No category</option>
+                    {categoryOptions.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
