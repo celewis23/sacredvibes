@@ -21,13 +21,20 @@ public class SubscribersController : ControllerBase
     private readonly IStripeImportService _stripe;
     private readonly ICsvImportService _csv;
     private readonly ISquareService _square;
+    private readonly ILogger<SubscribersController> _logger;
 
-    public SubscribersController(AppDbContext db, IStripeImportService stripe, ICsvImportService csv, ISquareService square)
+    public SubscribersController(
+        AppDbContext db,
+        IStripeImportService stripe,
+        ICsvImportService csv,
+        ISquareService square,
+        ILogger<SubscribersController> logger)
     {
         _db = db;
         _stripe = stripe;
         _csv = csv;
         _square = square;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -189,17 +196,25 @@ public class SubscribersController : ControllerBase
     [HttpPost("import/square")]
     public async Task<ActionResult<ApiResponse<ImportResultDto>>> ImportFromSquare(CancellationToken ct = default)
     {
-        var result = await _square.ImportCustomersAsync(ct);
-        return Ok(ApiResponse<ImportResultDto>.Ok(new ImportResultDto
+        try
         {
-            InsertedCount = result.Inserted,
-            UpdatedCount = result.Updated,
-            SkippedCount = result.Skipped,
-            ErrorCount = result.Errors,
-            TotalRows = result.TotalFetched,
-            Status = result.Errors > 0 ? ImportStatus.PartiallyCompleted : ImportStatus.Completed,
-            ErrorSummary = result.ErrorMessages.Any() ? string.Join("; ", result.ErrorMessages.Take(5)) : null
-        }));
+            var result = await _square.ImportCustomersAsync(ct);
+            return Ok(ApiResponse<ImportResultDto>.Ok(new ImportResultDto
+            {
+                InsertedCount = result.Inserted,
+                UpdatedCount = result.Updated,
+                SkippedCount = result.Skipped,
+                ErrorCount = result.Errors,
+                TotalRows = result.TotalFetched,
+                Status = result.Errors > 0 ? ImportStatus.PartiallyCompleted : ImportStatus.Completed,
+                ErrorSummary = result.ErrorMessages.Any() ? string.Join("; ", result.ErrorMessages.Take(5)) : null
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Square customer import failed");
+            return BadRequest(ApiResponse<ImportResultDto>.Fail($"Square import failed: {ex.Message}"));
+        }
     }
 
     [HttpPost("import/stripe")]

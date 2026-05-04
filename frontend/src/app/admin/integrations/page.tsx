@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { subscribersApi } from '@/lib/api'
 import ImportModal from '@/components/admin/ImportModal'
 
@@ -51,6 +52,14 @@ function IntegrationCard({
 export default function AdminIntegrationsPage() {
   const queryClient = useQueryClient()
   const [importModal, setImportModal] = useState<ImportSource | null>(null)
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
+  const apiOrigin = apiBase.replace(/\/api\/?$/, '').replace(/\/$/, '')
+  const squareWebhookUrl = `${apiOrigin}/api/bookings/webhooks/square`
+
+  function getErrorMessage(err: unknown, fallback: string) {
+    const axiosError = err as AxiosError<{ errors?: string[]; message?: string }>
+    return axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message ?? fallback
+  }
 
   const squareMutation = useMutation({
     mutationFn: () => subscribersApi.importFromSquare(),
@@ -60,7 +69,7 @@ export default function AdminIntegrationsPage() {
       toast.success(`Square import ${status}: ${d?.insertedCount ?? 0} added, ${d?.updatedCount ?? 0} updated`)
       queryClient.invalidateQueries({ queryKey: ['admin-subscribers'] })
     },
-    onError: () => toast.error('Square import failed'),
+    onError: (err) => toast.error(getErrorMessage(err, 'Square import failed')),
   })
 
   const stripeMutation = useMutation({
@@ -70,7 +79,7 @@ export default function AdminIntegrationsPage() {
       toast.success(`Stripe import complete: ${d?.insertedCount ?? 0} added, ${d?.updatedCount ?? 0} updated`)
       queryClient.invalidateQueries({ queryKey: ['admin-subscribers'] })
     },
-    onError: () => toast.error('Stripe import failed'),
+    onError: (err) => toast.error(getErrorMessage(err, 'Stripe import failed')),
   })
 
   return (
@@ -159,11 +168,11 @@ export default function AdminIntegrationsPage() {
             </p>
             <div className="flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-3">
               <code className="text-sm text-gray-700 flex-1">
-                https://api.sacredvibesyoga.com/api/bookings/webhooks/square
+                {squareWebhookUrl}
               </code>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText('https://api.sacredvibesyoga.com/api/bookings/webhooks/square')
+                  navigator.clipboard.writeText(squareWebhookUrl)
                   toast.success('Copied to clipboard')
                 }}
                 className="text-xs text-sacred-700 hover:text-sacred-900 border border-sacred-300 px-2.5 py-1 rounded hover:bg-sacred-50 transition-colors"
