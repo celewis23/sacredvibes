@@ -220,7 +220,6 @@ public class EventbriteService : IEventbriteService
                 BrandId = brandId,
                 Name = name,
                 Slug = await UniqueSlugAsync(GenerateSlug(name), brandId, ct),
-                SortOrder = await _db.EventOfferings.CountAsync(e => e.BrandId == brandId, ct),
                 IsActive = true,
                 IsBookable = false
             };
