@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
+import type { AxiosError } from 'axios'
 import { offeringsApi, brandsApi } from '@/lib/api'
 import type { ServiceOffering, Brand, SquareServiceCatalogSyncResult } from '@/types'
 
@@ -75,6 +76,14 @@ export default function AdminServicesPage() {
       .filter((category): category is string => !!category)
   )).sort((a, b) => a.localeCompare(b))
 
+  function getErrorMessage(err: unknown, fallback: string) {
+    const axiosError = err as AxiosError<{ errors?: string[]; message?: string; title?: string }>
+    return axiosError.response?.data?.errors?.[0]
+      ?? axiosError.response?.data?.message
+      ?? axiosError.response?.data?.title
+      ?? fallback
+  }
+
   const saveMutation = useMutation({
     mutationFn: (data: unknown) => editing
       ? offeringsApi.updateService(editing.id, data)
@@ -84,7 +93,7 @@ export default function AdminServicesPage() {
       toast.success(editing ? 'Service updated' : 'Service created')
       closeModal()
     },
-    onError: () => toast.error('Failed to save service'),
+    onError: (err) => toast.error(getErrorMessage(err, 'Failed to save service')),
   })
 
   const deleteMutation = useMutation({
@@ -143,7 +152,7 @@ export default function AdminServicesPage() {
 
   function openCreate() {
     setEditing(null)
-    setForm({ ...emptyForm, brandId: brands[0]?.id ?? '' })
+    setForm({ ...emptyForm, brandId: brandFilter || brands[0]?.id || '' })
     setShowModal(true)
   }
 
@@ -181,6 +190,11 @@ export default function AdminServicesPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.brandId) {
+      toast.error('Choose a brand before saving this service')
+      return
+    }
+
     saveMutation.mutate({
       brandId: form.brandId,
       name: form.name,

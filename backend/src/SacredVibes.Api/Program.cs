@@ -4,6 +4,7 @@ using Microsoft.OpenApi.Models;
 using SacredVibes.Infrastructure;
 using SacredVibes.Infrastructure.Data;
 using SacredVibes.Infrastructure.Data.Seeds;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,7 +28,11 @@ builder.WebHost.UseUrls($"http://+:{port}");
 // ── Services ──────────────────────────────────────────────────────────────────
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+    {
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // OpenAPI / Swagger
