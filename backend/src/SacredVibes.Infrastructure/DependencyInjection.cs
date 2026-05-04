@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using SacredVibes.Application.Common.Interfaces;
 using SacredVibes.Application.Features.Auth;
+using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Payments;
 using SacredVibes.Domain.Entities;
@@ -14,6 +15,7 @@ using SacredVibes.Domain.Interfaces;
 using SacredVibes.Infrastructure.Data;
 using SacredVibes.Infrastructure.Services;
 using SacredVibes.Infrastructure.Services.Csv;
+using SacredVibes.Infrastructure.Services.Eventbrite;
 using SacredVibes.Infrastructure.Services.ImageProcessing;
 using SacredVibes.Infrastructure.Services.Square;
 using SacredVibes.Infrastructure.Services.Storage;
@@ -75,12 +77,14 @@ public static class DependencyInjection
         // HTTP clients
         services.AddHttpClient("Square");
         services.AddHttpClient("Stripe");
+        services.AddHttpClient("Eventbrite");
 
         // Core services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IStorageService, LocalStorageService>();
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
         services.AddScoped<ISquareService, SquareService>();
+        services.AddScoped<IEventbriteService, EventbriteService>();
         services.AddScoped<IStripeImportService, StripeImportService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
 

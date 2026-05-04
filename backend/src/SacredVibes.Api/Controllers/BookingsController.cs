@@ -316,7 +316,8 @@ public class BookingsController : ControllerBase
         PriceType = e.PriceType, Price = e.Price, Currency = e.Currency,
         IsBookable = e.IsBookable, IsActive = e.IsActive, IsFeatured = e.IsFeatured,
         IsSoldOut = e.IsSoldOut || (e.Capacity.HasValue && e.RegisteredCount >= e.Capacity.Value),
-        IsSoundOnTheRiver = e.IsSoundOnTheRiver, InstructorName = e.InstructorName
+        IsSoundOnTheRiver = e.IsSoundOnTheRiver, InstructorName = e.InstructorName,
+        ExternalUrl = e.ExternalUrl, ExternalEventbriteId = e.ExternalEventbriteId
     };
 }
 

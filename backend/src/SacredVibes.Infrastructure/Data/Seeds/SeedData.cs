@@ -43,6 +43,7 @@ public static class SeedData
         }
 
         await EnsureAuthSchemaCompatibilityAsync(db);
+        await EnsureOfferingsSchemaCompatibilityAsync(db);
         await ValidateCriticalAuthSchemaAsync(db);
     }
 
@@ -201,6 +202,28 @@ public static class SeedData
                 throw new InvalidOperationException($"Database startup validation failed: required column 'AspNetUsers.{column}' is missing.");
             }
         }
+    }
+
+    private static async Task EnsureOfferingsSchemaCompatibilityAsync(AppDbContext db)
+    {
+        if (!await TableExistsAsync(db, "event_offerings"))
+        {
+            return;
+        }
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE event_offerings
+            ADD COLUMN IF NOT EXISTS "ExternalEventbriteId" character varying(100) NULL;
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE INDEX IF NOT EXISTS "IX_event_offerings_ExternalEventbriteId"
+            ON event_offerings ("ExternalEventbriteId");
+            """
+        );
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
@@ -518,6 +541,7 @@ public static class SeedData
         {
             new() { Provider = "Square", SettingsJson = """{"environment":"sandbox","applicationId":"","accessToken":"","locationId":"","webhookSignatureKey":""}""", IsEnabled = false },
             new() { Provider = "Stripe", SettingsJson = """{"secretKey":"","publishableKey":""}""", IsEnabled = false },
+            new() { Provider = "Eventbrite", SettingsJson = """{"organizationId":"","privateToken":"","defaultVenueId":"","publishOnCreate":false}""", IsEnabled = false },
             new() { Provider = "Email", SettingsJson = """{"smtpHost":"","smtpPort":587,"smtpUser":"","smtpPassword":"","fromEmail":"noreply@sacredvibesyoga.com","fromName":"Sacred Vibes Yoga"}""", IsEnabled = false },
         };
 

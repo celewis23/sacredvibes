@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
+import type { AxiosError } from 'axios'
 import { offeringsApi, brandsApi } from '@/lib/api'
-import type { EventOffering, Brand } from '@/types'
+import type { EventOffering, Brand, EventbriteEventSyncResult } from '@/types'
 
 // Convert UTC ISO string to local datetime-local input value
 function toLocalInput(iso: string) {
@@ -68,6 +69,7 @@ export default function AdminEventsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [brandFilter, setBrandFilter] = useState('')
   const [upcomingOnly, setUpcomingOnly] = useState(false)
+  const [eventbriteAction, setEventbriteAction] = useState<string | null>(null)
 
   const { data: brands = [] } = useQuery({
     queryKey: ['admin-brands'],
@@ -85,6 +87,14 @@ export default function AdminEventsPage() {
 
   const brandName = (id: string) => brands.find((b: Brand) => b.id === id)?.name ?? ''
 
+  function getErrorMessage(err: unknown, fallback: string) {
+    const axiosError = err as AxiosError<{ errors?: string[]; message?: string; title?: string }>
+    return axiosError.response?.data?.errors?.[0]
+      ?? axiosError.response?.data?.message
+      ?? axiosError.response?.data?.title
+      ?? fallback
+  }
+
   const saveMutation = useMutation({
     mutationFn: (data: unknown) => editing
       ? offeringsApi.updateEvent(editing.id, data)
@@ -94,7 +104,7 @@ export default function AdminEventsPage() {
       toast.success(editing ? 'Event updated' : 'Event created')
       closeModal()
     },
-    onError: () => toast.error('Failed to save event'),
+    onError: (err) => toast.error(getErrorMessage(err, 'Failed to save event')),
   })
 
   const deleteMutation = useMutation({
@@ -105,6 +115,50 @@ export default function AdminEventsPage() {
       setDeleteConfirm(null)
     },
     onError: () => toast.error('Failed to delete event'),
+  })
+
+  const eventbriteImportMutation = useMutation({
+    mutationFn: () => offeringsApi.importEventbriteEvents(brandFilter),
+    onMutate: () => setEventbriteAction('import'),
+    onSuccess: (res) => {
+      showEventbriteResultToast('Eventbrite import complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-events'] })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite import failed')),
+    onSettled: () => setEventbriteAction(null),
+  })
+
+  const eventbritePushAllMutation = useMutation({
+    mutationFn: () => offeringsApi.pushEventbriteEvents(brandFilter || undefined),
+    onMutate: () => setEventbriteAction('push-all'),
+    onSuccess: (res) => {
+      showEventbriteResultToast('Eventbrite push complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-events'] })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite push failed')),
+    onSettled: () => setEventbriteAction(null),
+  })
+
+  const eventbriteSyncMutation = useMutation({
+    mutationFn: () => offeringsApi.syncEventbriteEvents(brandFilter),
+    onMutate: () => setEventbriteAction('sync'),
+    onSuccess: (res) => {
+      showEventbriteResultToast('Eventbrite sync complete', res.data.data)
+      qc.invalidateQueries({ queryKey: ['admin-offerings-events'] })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite sync failed')),
+    onSettled: () => setEventbriteAction(null),
+  })
+
+  const eventbritePushOneMutation = useMutation({
+    mutationFn: (id: string) => offeringsApi.pushEventbriteEvent(id),
+    onMutate: (id) => setEventbriteAction(id),
+    onSuccess: () => {
+      toast.success('Event pushed to Eventbrite')
+      qc.invalidateQueries({ queryKey: ['admin-offerings-events'] })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite push failed')),
+    onSettled: () => setEventbriteAction(null),
   })
 
   function openCreate() {
@@ -118,7 +172,7 @@ export default function AdminEventsPage() {
       const pad = (n: number) => String(n).padStart(2, '0')
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
     }
-    setForm({ ...emptyForm, brandId: brands[0]?.id ?? '', startAt: toInput(start), endAt: toInput(end) })
+    setForm({ ...emptyForm, brandId: brandFilter || brands[0]?.id || '', startAt: toInput(start), endAt: toInput(end) })
     setShowModal(true)
   }
 
@@ -150,7 +204,7 @@ export default function AdminEventsPage() {
       isSoundOnTheRiver: e.isSoundOnTheRiver,
       instructorName: e.instructorName ?? '',
       instructorBio: '',
-      externalUrl: '',
+      externalUrl: e.externalUrl ?? '',
       seoTitle: '',
       seoDescription: '',
     })
@@ -201,6 +255,22 @@ export default function AdminEventsPage() {
     setForm(f => ({ ...f, [key]: value }))
   }
 
+  function showEventbriteResultToast(title: string, result?: EventbriteEventSyncResult) {
+    if (!result) {
+      toast.success(title)
+      return
+    }
+
+    const pieces = [
+      result.inserted ? `${result.inserted} added` : '',
+      result.updated ? `${result.updated} updated` : '',
+      result.pushed ? `${result.pushed} pushed` : '',
+      result.errors ? `${result.errors} errors` : '',
+    ].filter(Boolean)
+
+    toast.success(`${title}${pieces.length ? `: ${pieces.join(', ')}` : ''}`)
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -208,13 +278,42 @@ export default function AdminEventsPage() {
           <h1 className="text-2xl font-semibold text-gray-900">Events</h1>
           <p className="text-sm text-gray-500 mt-1">{events.length} events</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-yoga-700 text-white rounded-xl text-sm font-medium hover:bg-yoga-800 transition-colors"
-        >
-          <Plus size={16} />
-          New Event
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => eventbriteImportMutation.mutate()}
+            disabled={!brandFilter || eventbriteAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title={brandFilter ? 'Import Eventbrite events into the selected brand' : 'Select a brand before importing'}
+          >
+            <RefreshCw size={16} />
+            Import Eventbrite
+          </button>
+          <button
+            onClick={() => eventbritePushAllMutation.mutate()}
+            disabled={eventbriteAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title="Push local active events to Eventbrite"
+          >
+            <UploadCloud size={16} />
+            Push All
+          </button>
+          <button
+            onClick={() => eventbriteSyncMutation.mutate()}
+            disabled={!brandFilter || eventbriteAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-sacred-200 text-sacred-800 rounded-xl text-sm font-medium hover:bg-sacred-50 disabled:opacity-50 transition-colors"
+            title={brandFilter ? 'Import from Eventbrite, then push local events back to Eventbrite' : 'Select a brand before syncing'}
+          >
+            <Link2 size={16} />
+            Sync
+          </button>
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-yoga-700 text-white rounded-xl text-sm font-medium hover:bg-yoga-800 transition-colors"
+          >
+            <Plus size={16} />
+            New Event
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -238,6 +337,11 @@ export default function AdminEventsPage() {
           />
           Upcoming only
         </label>
+        {!brandFilter && (
+          <p className="text-xs text-gray-500">
+            Select a brand to import or sync Eventbrite events.
+          </p>
+        )}
       </div>
 
       {isLoading ? (
@@ -258,6 +362,7 @@ export default function AdminEventsPage() {
                   <div className="flex flex-col items-end gap-1 shrink-0">
                     {ev.isFeatured && <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">Featured</span>}
                     {ev.isSoundOnTheRiver && <span className="text-xs bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded">River</span>}
+                    {ev.externalEventbriteId && <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">Eventbrite</span>}
                     {!ev.isActive && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Inactive</span>}
                   </div>
                 </div>
@@ -272,6 +377,14 @@ export default function AdminEventsPage() {
                 </div>
 
                 <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => eventbritePushOneMutation.mutate(ev.id)}
+                    disabled={eventbriteAction !== null}
+                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-orange-700 transition-colors disabled:opacity-50"
+                  >
+                    <UploadCloud size={13} /> Push
+                  </button>
+                  <span className="text-gray-200">|</span>
                   <button
                     onClick={() => openEdit(ev)}
                     className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-yoga-700 transition-colors"
@@ -438,7 +551,7 @@ export default function AdminEventsPage() {
                 <label className="block text-xs font-medium text-gray-700 mb-1">External URL</label>
                 <input value={form.externalUrl} onChange={e => set('externalUrl', e.target.value)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500"
-                  placeholder="Eventbrite / Meetup link (optional)" />
+                  placeholder="Eventbrite link (filled automatically after push)" />
               </div>
             </form>
 

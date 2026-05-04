@@ -213,14 +213,25 @@ export default async function ClassesPage() {
                       )}
                     </div>
 
-                    {event.isBookable && !event.isSoldOut && (
+                    {(event.isBookable || event.externalUrl) && !event.isSoldOut && (
                       <div className="shrink-0 self-center">
-                        <Link
-                          href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
-                          className="px-6 py-3 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300 whitespace-nowrap"
-                        >
-                          Register
-                        </Link>
+                        {event.externalUrl ? (
+                          <a
+                            href={event.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-6 py-3 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300 whitespace-nowrap"
+                          >
+                            Register
+                          </a>
+                        ) : (
+                          <Link
+                            href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
+                            className="px-6 py-3 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300 whitespace-nowrap"
+                          >
+                            Register
+                          </Link>
+                        )}
                       </div>
                     )}
                   </div>

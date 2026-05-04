@@ -4,6 +4,7 @@ import type {
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
+  EventbriteEventSyncResult, EventbriteEventPushResult,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -202,8 +203,20 @@ export const offeringsApi = {
   updateEvent: (id: string, data: unknown) =>
     apiClient.put<ApiResponse<EventOffering>>(`/offerings/events/${id}`, data),
 
-  deleteEvent: (id: string) =>
-    apiClient.delete(`/offerings/events/${id}`),
+  deleteEvent: (id: string, deleteFromEventbrite = false) =>
+    apiClient.delete(`/offerings/events/${id}`, { params: { deleteFromEventbrite } }),
+
+  importEventbriteEvents: (brandId: string) =>
+    apiClient.post<ApiResponse<EventbriteEventSyncResult>>('/offerings/events/import-eventbrite', null, { params: { brandId } }),
+
+  pushEventbriteEvents: (brandId?: string) =>
+    apiClient.post<ApiResponse<EventbriteEventSyncResult>>('/offerings/events/push-eventbrite', null, { params: { brandId } }),
+
+  syncEventbriteEvents: (brandId: string) =>
+    apiClient.post<ApiResponse<EventbriteEventSyncResult>>('/offerings/events/sync-eventbrite', null, { params: { brandId } }),
+
+  pushEventbriteEvent: (id: string) =>
+    apiClient.post<ApiResponse<EventbriteEventPushResult>>(`/offerings/events/${id}/push-eventbrite`),
 }
 
 // ── Brands (Admin) ────────────────────────────────────────────────────────────

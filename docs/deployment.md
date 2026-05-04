@@ -20,6 +20,13 @@ Before deploying to production, complete all items in this checklist.
 - [ ] Copy webhook signature key to `Square:WebhookSignatureKey`
 - [ ] Test a sandbox payment end-to-end before going live
 
+### Eventbrite
+- [ ] Create an Eventbrite API key and copy the private token
+- [ ] Set `Eventbrite__PrivateToken` and `Eventbrite__OrganizationId` on the backend host
+- [ ] Optional: set `Eventbrite__DefaultVenueId` for in-person event creation
+- [ ] Keep `Eventbrite__PublishOnCreate=false` until test event sync is verified
+- [ ] Run **Import Eventbrite** from Admin Events for the correct brand
+
 ### DNS / Subdomains
 - [ ] `sacredvibesyoga.com` → frontend server
 - [ ] `hands.sacredvibesyoga.com` → frontend server

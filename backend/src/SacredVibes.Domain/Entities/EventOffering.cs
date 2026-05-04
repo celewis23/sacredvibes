@@ -41,6 +41,7 @@ public class EventOffering : BaseEntity
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
     public string? ExternalUrl { get; set; }
+    public string? ExternalEventbriteId { get; set; }
 
     // For Sound on the River special program
     public bool IsSoundOnTheRiver { get; set; } = false;

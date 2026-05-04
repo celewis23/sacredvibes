@@ -212,6 +212,25 @@ export interface EventOffering {
   isSoundOnTheRiver: boolean
   instructorName?: string
   featuredImageUrl?: string
+  externalUrl?: string
+  externalEventbriteId?: string
+}
+
+export interface EventbriteEventSyncResult {
+  totalFetched: number
+  inserted: number
+  updated: number
+  skipped: number
+  pushed: number
+  errors: number
+  errorMessages: string[]
+}
+
+export interface EventbriteEventPushResult {
+  success: boolean
+  eventbriteEventId?: string
+  eventbriteUrl?: string
+  error?: string
 }
 
 // ── Bookings ──────────────────────────────────────────────────────────────────

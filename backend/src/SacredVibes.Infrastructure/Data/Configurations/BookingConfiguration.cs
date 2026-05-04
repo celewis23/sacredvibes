@@ -75,7 +75,9 @@ public class EventOfferingConfiguration : IEntityTypeConfiguration<EventOffering
         builder.HasIndex(e => e.IsSoundOnTheRiver);
         builder.Property(e => e.Price).HasColumnType("decimal(10,2)");
         builder.Property(e => e.Currency).HasMaxLength(3);
+        builder.Property(e => e.ExternalEventbriteId).HasMaxLength(100);
         builder.Property(e => e.PriceType).HasConversion<int>();
+        builder.HasIndex(e => e.ExternalEventbriteId);
         builder.HasOne(e => e.Brand).WithMany(b => b.EventOfferings).HasForeignKey(e => e.BrandId);
     }
 }

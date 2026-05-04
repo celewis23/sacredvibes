@@ -239,6 +239,7 @@ function EventSection({
 function EventCard({ event, featured = false, brand }: { event: EventOffering; featured?: boolean; brand: ReturnType<typeof getCurrentBrand> }) {
   const startDate = new Date(event.startAt)
   const endDate   = new Date(event.endAt)
+  const registrationHref = event.externalUrl || toBrandPath(brand, `/booking?eventId=${event.id}`)
 
   return (
     <div className={`experience-card group flex flex-col p-8 ${featured ? 'ring-1 ring-yoga-400/40' : ''}`}>
@@ -314,13 +315,24 @@ function EventCard({ event, featured = false, brand }: { event: EventOffering; f
         <p className="font-heading text-lg text-yoga-700">
           {formatPrice(event.price, event.priceType, event.currency)}
         </p>
-        {event.isBookable && !event.isSoldOut ? (
-          <Link
-            href={toBrandPath(brand, `/booking?eventId=${event.id}`)}
-            className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300"
-          >
-            Register
-          </Link>
+        {(event.isBookable || event.externalUrl) && !event.isSoldOut ? (
+          event.externalUrl ? (
+            <a
+              href={registrationHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300"
+            >
+              Register
+            </a>
+          ) : (
+            <Link
+              href={registrationHref}
+              className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-yoga-700 text-white hover:bg-yoga-600 shadow-sm hover:shadow-glow transition-all duration-300"
+            >
+              Register
+            </Link>
+          )
         ) : event.isSoldOut ? (
           <span className="px-5 py-2 rounded-full text-xs font-body font-medium tracking-wider uppercase bg-sacred-100 text-sacred-400 cursor-not-allowed">
             Sold Out

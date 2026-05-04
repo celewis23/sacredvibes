@@ -61,6 +61,8 @@ export default async function SoundOnTheRiverPage() {
                     <div className="shrink-0">
                       {event.isSoldOut ? (
                         <span className="px-5 py-2.5 bg-gray-100 text-gray-500 text-sm rounded-full">Sold Out</span>
+                      ) : event.externalUrl ? (
+                        <a href={event.externalUrl} target="_blank" rel="noopener noreferrer" className="inline-block px-5 py-2.5 bg-sound-800 text-white text-sm rounded-full hover:bg-sound-900 transition-colors">Reserve Your Spot</a>
                       ) : event.isBookable ? (
                         <Link href={toBrandPath(brand, `/booking?eventId=${event.id}`)} className="inline-block px-5 py-2.5 bg-sound-800 text-white text-sm rounded-full hover:bg-sound-900 transition-colors">Reserve Your Spot</Link>
                       ) : null}
@@ -220,6 +222,15 @@ export default async function SoundOnTheRiverPage() {
                       <span className="px-5 py-2.5 bg-gray-100 text-gray-500 text-sm rounded-full cursor-not-allowed">
                         Sold Out
                       </span>
+                    ) : event.externalUrl ? (
+                      <a
+                        href={event.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-5 py-2.5 bg-sound-800 text-white text-sm rounded-full hover:bg-sound-900 transition-colors"
+                      >
+                        Reserve Your Spot
+                      </a>
                     ) : event.isBookable ? (
                       <Link
                         href={toBrandPath(brand, `/booking?eventId=${event.id}`)}

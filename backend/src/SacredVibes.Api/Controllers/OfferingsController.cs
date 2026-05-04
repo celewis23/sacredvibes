@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Bookings.DTOs;
+using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Payments;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
@@ -17,11 +18,15 @@ public class OfferingsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ISquareService _square;
+    private readonly IEventbriteService _eventbrite;
+    private readonly IConfiguration _config;
 
-    public OfferingsController(AppDbContext db, ISquareService square)
+    public OfferingsController(AppDbContext db, ISquareService square, IEventbriteService eventbrite, IConfiguration config)
     {
         _db = db;
         _square = square;
+        _eventbrite = eventbrite;
+        _config = config;
     }
 
     // ── Services ─────────────────────────────────────────────────────────────
@@ -149,6 +154,58 @@ public class OfferingsController : ControllerBase
         return NoContent();
     }
 
+    // ── Eventbrite Events ────────────────────────────────────────────────────
+
+    [HttpPost("events/import-eventbrite")]
+    public async Task<ActionResult<ApiResponse<EventbriteEventSyncResult>>> ImportEventbriteEvents(
+        [FromQuery] Guid brandId,
+        CancellationToken ct = default)
+    {
+        if (brandId == Guid.Empty)
+            return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail("Choose the brand these Eventbrite events should belong to."));
+
+        var result = await _eventbrite.ImportEventsAsync(brandId, ct);
+        return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+    }
+
+    [HttpPost("events/push-eventbrite")]
+    public async Task<ActionResult<ApiResponse<EventbriteEventSyncResult>>> PushEventbriteEvents(
+        [FromQuery] Guid? brandId,
+        CancellationToken ct = default)
+    {
+        var result = await _eventbrite.PushEventsAsync(brandId, ct);
+        return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+    }
+
+    [HttpPost("events/sync-eventbrite")]
+    public async Task<ActionResult<ApiResponse<EventbriteEventSyncResult>>> SyncEventbriteEvents(
+        [FromQuery] Guid brandId,
+        CancellationToken ct = default)
+    {
+        if (brandId == Guid.Empty)
+            return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail("Choose the brand these Eventbrite events should belong to."));
+
+        var imported = await _eventbrite.ImportEventsAsync(brandId, ct);
+        var pushed = await _eventbrite.PushEventsAsync(brandId, ct);
+
+        imported.Pushed = pushed.Pushed;
+        imported.Errors += pushed.Errors;
+        imported.ErrorMessages.AddRange(pushed.ErrorMessages);
+        return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(imported));
+    }
+
+    [HttpPost("events/{id:guid}/push-eventbrite")]
+    public async Task<ActionResult<ApiResponse<EventbriteEventPushResult>>> PushEventbriteEvent(
+        Guid id,
+        CancellationToken ct = default)
+    {
+        var result = await _eventbrite.PushEventAsync(id, ct);
+        if (!result.Success)
+            return BadRequest(ApiResponse<EventbriteEventPushResult>.Fail(result.Error ?? "Eventbrite push failed"));
+
+        return Ok(ApiResponse<EventbriteEventPushResult>.Ok(result));
+    }
+
     [HttpPost("services/import-square")]
     public async Task<ActionResult<ApiResponse<SquareServiceCatalogSyncResult>>> ImportSquareServices(
         [FromQuery] Guid brandId,
@@ -244,11 +301,17 @@ public class OfferingsController : ControllerBase
             IsBookable = req.IsBookable, IsActive = req.IsActive,
             IsFeatured = req.IsFeatured, IsSoundOnTheRiver = req.IsSoundOnTheRiver,
             InstructorName = req.InstructorName, InstructorBio = req.InstructorBio,
-            ExternalUrl = req.ExternalUrl, SeoTitle = req.SeoTitle, SeoDescription = req.SeoDescription
+            ExternalUrl = req.ExternalUrl, ExternalEventbriteId = req.ExternalEventbriteId,
+            SeoTitle = req.SeoTitle, SeoDescription = req.SeoDescription
         };
 
         await _db.EventOfferings.AddAsync(ev, ct);
         await _db.SaveChangesAsync(ct);
+
+        var eventbriteResult = await PushToEventbriteIfEnabledAsync(ev.Id, ct);
+        if (eventbriteResult is { Success: false })
+            return BadRequest(ApiResponse<EventOfferingDto>.Fail($"Event created locally, but Eventbrite push failed: {eventbriteResult.Error}"));
+
         return CreatedAtAction(nameof(GetEvent), new { id = ev.Id },
             ApiResponse<EventOfferingDto>.Ok(MapEvent(ev)));
     }
@@ -285,18 +348,35 @@ public class OfferingsController : ControllerBase
         ev.InstructorName = req.InstructorName;
         ev.InstructorBio = req.InstructorBio;
         ev.ExternalUrl = req.ExternalUrl;
+        ev.ExternalEventbriteId = req.ExternalEventbriteId ?? ev.ExternalEventbriteId;
         ev.SeoTitle = req.SeoTitle;
         ev.SeoDescription = req.SeoDescription;
 
         await _db.SaveChangesAsync(ct);
+
+        var eventbriteResult = await PushToEventbriteIfEnabledAsync(ev.Id, ct);
+        if (eventbriteResult is { Success: false })
+            return BadRequest(ApiResponse<EventOfferingDto>.Fail($"Event updated locally, but Eventbrite push failed: {eventbriteResult.Error}"));
+
         return Ok(ApiResponse<EventOfferingDto>.Ok(MapEvent(ev)));
     }
 
     [HttpDelete("events/{id:guid}")]
-    public async Task<ActionResult> DeleteEvent(Guid id, CancellationToken ct = default)
+    public async Task<ActionResult> DeleteEvent(
+        Guid id,
+        [FromQuery] bool deleteFromEventbrite = false,
+        CancellationToken ct = default)
     {
         var ev = await _db.EventOfferings.FindAsync([id], ct);
         if (ev is null) return NotFound();
+
+        if (deleteFromEventbrite)
+        {
+            var eventbriteDelete = await _eventbrite.DeleteEventAsync(ev, ct);
+            if (!eventbriteDelete.Success)
+                return BadRequest(ApiResponse<object>.Fail(eventbriteDelete.Error ?? "Eventbrite delete failed"));
+        }
+
         ev.IsDeleted = true;
         ev.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
@@ -356,8 +436,25 @@ public class OfferingsController : ControllerBase
         PriceType = e.PriceType, Price = e.Price, Currency = e.Currency,
         IsBookable = e.IsBookable, IsActive = e.IsActive, IsFeatured = e.IsFeatured,
         IsSoldOut = e.IsSoldOut || (e.Capacity.HasValue && e.RegisteredCount >= e.Capacity.Value),
-        IsSoundOnTheRiver = e.IsSoundOnTheRiver, InstructorName = e.InstructorName
+        IsSoundOnTheRiver = e.IsSoundOnTheRiver, InstructorName = e.InstructorName,
+        ExternalUrl = e.ExternalUrl, ExternalEventbriteId = e.ExternalEventbriteId
     };
+
+    private async Task<EventbriteEventPushResult?> PushToEventbriteIfEnabledAsync(Guid eventId, CancellationToken ct)
+    {
+        if (!IsEventbriteEnabled()) return null;
+        return await _eventbrite.PushEventAsync(eventId, ct);
+    }
+
+    private bool IsEventbriteEnabled()
+    {
+        var token = _config["Eventbrite:PrivateToken"];
+        var organizationId = _config["Eventbrite:OrganizationId"];
+        return !string.IsNullOrWhiteSpace(token)
+            && !token.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase)
+            && !string.IsNullOrWhiteSpace(organizationId)
+            && !organizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 // ── Request models ────────────────────────────────────────────────────────────
@@ -414,6 +511,7 @@ public class SaveEventRequest
     public string? InstructorName { get; set; }
     public string? InstructorBio { get; set; }
     public string? ExternalUrl { get; set; }
+    public string? ExternalEventbriteId { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
 }

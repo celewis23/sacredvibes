@@ -107,6 +107,49 @@ Endpoint: `POST /api/subscribers/import/stripe`
 
 ---
 
+## Eventbrite (Event Sync)
+
+Eventbrite is used for event discovery, registration, and ticketing. Sacred Vibes can import Eventbrite events into the website, push local admin events to Eventbrite, and link synced website events back to their Eventbrite registration page.
+
+### Setup
+
+1. In Eventbrite, create or open your developer API key.
+2. Copy the private token for server-side API access.
+3. Find your Eventbrite organization ID. If your account does not belong to a separate organization, Eventbrite may use your user ID as the default organization ID.
+4. Optional: create or find a default Eventbrite venue ID for in-person events.
+
+### Required Configuration
+
+Use .NET double-underscore names in Railway/Vercel-style environment variables:
+
+| Key | Description |
+|-----|-------------|
+| `Eventbrite__PrivateToken` | Private token used by the backend. Do not expose this in the frontend. |
+| `Eventbrite__OrganizationId` | Eventbrite organization ID used for listing and creating events. |
+| `Eventbrite__DefaultVenueId` | Optional Eventbrite venue ID attached when pushing in-person events. |
+| `Eventbrite__PublishOnCreate` | `true` to publish immediately after creation, `false` to leave pushed events as drafts. |
+
+The public token, API key, and client secret are not needed for the current server-to-server sync. Keep them stored securely for future OAuth/app-partner work.
+
+### Admin Workflow
+
+The Admin Events page provides:
+
+- **Import Eventbrite** — pulls Eventbrite events into the selected brand.
+- **Push All** — pushes active local events to Eventbrite.
+- **Sync** — imports Eventbrite events first, then pushes active local events back.
+- **Push** on an individual event — creates or updates that event in Eventbrite.
+
+Imported events are matched by `ExternalEventbriteId` first. If no match exists, the importer falls back to matching by event name and start time for the selected brand. Synced events store the Eventbrite URL in `ExternalUrl`, and public event cards link registration buttons to Eventbrite when that URL exists.
+
+### Create / Update Behavior
+
+When `Eventbrite__PrivateToken` and `Eventbrite__OrganizationId` are configured, creating or editing an event in Admin Events automatically pushes the event to Eventbrite. The Eventbrite event ID is saved locally so future edits update the existing Eventbrite event instead of creating duplicates.
+
+If `Eventbrite__PublishOnCreate=false`, newly pushed events stay in Eventbrite as drafts until you publish them in Eventbrite. This is the safer default while testing.
+
+---
+
 ## CSV Import
 
 The CSV importer supports importing subscriber lists from any source (Mailchimp exports, spreadsheet exports, CRMs, etc.).

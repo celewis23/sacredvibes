@@ -130,4 +130,6 @@ public class EventOfferingDto
     public bool IsSoundOnTheRiver { get; set; }
     public string? InstructorName { get; set; }
     public string? FeaturedImageUrl { get; set; }
+    public string? ExternalUrl { get; set; }
+    public string? ExternalEventbriteId { get; set; }
 }

@@ -138,6 +138,28 @@ export default function AdminIntegrationsPage() {
           </div>
         </div>
 
+        {/* Events section */}
+        <div>
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Events</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <IntegrationCard
+              title="Eventbrite"
+              description="Sync Eventbrite events into the site and push local events back to Eventbrite from Admin Events."
+              badge="Event Sync"
+              badgeColor="bg-orange-100 text-orange-700"
+              actionLabel="Open Events Sync"
+              onAction={() => { window.location.href = '/admin/events' }}
+            >
+              <div className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3 space-y-1">
+                <p>Configured via backend environment variables:</p>
+                <code className="block text-gray-700">Eventbrite:PrivateToken</code>
+                <code className="block text-gray-700">Eventbrite:OrganizationId</code>
+                <code className="block text-gray-700">Eventbrite:DefaultVenueId</code>
+              </div>
+            </IntegrationCard>
+          </div>
+        </div>
+
         {/* CSV section */}
         <div>
           <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">CSV Import</h2>

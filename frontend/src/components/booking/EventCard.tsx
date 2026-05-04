@@ -17,6 +17,7 @@ export default function EventCard({ event, colorScheme = 'yoga', brandSlug = 'sa
   const accent = { yoga: 'text-yoga-600', hands: 'text-hands-600', sound: 'text-sound-600' }[colorScheme]
   const startDate = new Date(event.startAt)
   const isSoldOut = event.isSoldOut
+  const registrationHref = event.externalUrl || toBrandPath(brandSlug, `/events/${event.slug}?register=1`)
 
   return (
     <Card hover className="flex flex-col">
@@ -67,13 +68,24 @@ export default function EventCard({ event, colorScheme = 'yoga', brandSlug = 'sa
         <p className={clsx('font-semibold text-base', accent)}>
           {formatPrice(event.price, event.priceType, event.currency)}
         </p>
-        {event.isBookable && !isSoldOut && (
-          <Link
-            href={toBrandPath(brandSlug, `/events/${event.slug}?register=1`)}
-            className="px-4 py-2 rounded-lg text-xs font-medium bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm transition-all duration-200"
-          >
-            Register
-          </Link>
+        {(event.isBookable || event.externalUrl) && !isSoldOut && (
+          event.externalUrl ? (
+            <a
+              href={registrationHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 rounded-lg text-xs font-medium bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm transition-all duration-200"
+            >
+              Register
+            </a>
+          ) : (
+            <Link
+              href={registrationHref}
+              className="px-4 py-2 rounded-lg text-xs font-medium bg-yoga-700 text-white hover:bg-yoga-800 shadow-sm transition-all duration-200"
+            >
+              Register
+            </Link>
+          )
         )}
       </div>
     </Card>
