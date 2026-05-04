@@ -158,6 +158,7 @@ export interface ServiceOffering {
   isVirtual: boolean
   isBookable: boolean
   isActive: boolean
+  featuredImageAssetId?: string
   featuredImageUrl?: string
   sortOrder: number
   externalSquareItemId?: string

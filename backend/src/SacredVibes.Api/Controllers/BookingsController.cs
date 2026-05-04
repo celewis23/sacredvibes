@@ -207,7 +207,8 @@ public class BookingsController : ControllerBase
         if (!string.IsNullOrWhiteSpace(category)) query = query.Where(s => s.Category == category);
 
         var services = await query.OrderBy(s => s.SortOrder).ToListAsync(ct);
-        return Ok(ApiResponse<List<ServiceOfferingDto>>.Ok(services.Select(MapServiceToDto).ToList()));
+        var imageUrls = await GetAssetUrlsAsync(services.Select(s => s.FeaturedImageAssetId), ct);
+        return Ok(ApiResponse<List<ServiceOfferingDto>>.Ok(services.Select(s => MapServiceToDto(s, imageUrls)).ToList()));
     }
 
     [AllowAnonymous]
@@ -283,13 +284,25 @@ public class BookingsController : ControllerBase
         }).ToList()
     };
 
-    private static ServiceOfferingDto MapServiceToDto(Domain.Entities.ServiceOffering s) => new()
+    private async Task<Dictionary<Guid, string?>> GetAssetUrlsAsync(IEnumerable<Guid?> assetIds, CancellationToken ct)
+    {
+        var ids = assetIds.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, string?>();
+
+        return await _db.Assets
+            .Where(a => ids.Contains(a.Id) && !a.IsDeleted)
+            .ToDictionaryAsync(a => a.Id, a => a.PublicUrl, ct);
+    }
+
+    private static ServiceOfferingDto MapServiceToDto(Domain.Entities.ServiceOffering s, IReadOnlyDictionary<Guid, string?>? imageUrls = null) => new()
     {
         Id = s.Id, BrandId = s.BrandId, Name = s.Name, Slug = s.Slug,
         ShortDescription = s.ShortDescription, Description = s.Description, Category = s.Category,
         PriceType = s.PriceType, Price = s.Price, PriceMin = s.PriceMin, PriceMax = s.PriceMax,
         Currency = s.Currency, DurationMinutes = s.DurationMinutes, Location = s.Location,
-        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder
+        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder,
+        FeaturedImageAssetId = s.FeaturedImageAssetId,
+        FeaturedImageUrl = s.FeaturedImageAssetId.HasValue && imageUrls?.TryGetValue(s.FeaturedImageAssetId.Value, out var url) == true ? url : null
     };
 
     private static EventOfferingDto MapEventToDto(Domain.Entities.EventOffering e) => new()

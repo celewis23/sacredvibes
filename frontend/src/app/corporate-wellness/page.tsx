@@ -4,11 +4,15 @@ import LotusMark from '@/components/branding/LotusMark'
 import SacredIcon, { type SacredIconName } from '@/components/branding/SacredIcon'
 import NewsletterSection from '@/components/sections/NewsletterSection'
 import { getBrandIdBySlug } from '@/lib/brand/resolution'
+import { servicesApi } from '@/lib/api'
+import type { ServiceOffering } from '@/types'
 
 export const metadata: Metadata = {
   title: 'Corporate Wellness',
   description: 'Sacred Vibes brings ancient healing practices into modern workplaces — helping teams regulate, reconnect, and elevate their collective energy through yoga, sound healing, and breathwork.',
 }
+
+export const revalidate = 300
 
 const OFFERINGS = [
   {
@@ -36,6 +40,33 @@ const OFFERINGS = [
     description: 'A fully bespoke experience designed around your people, your culture, and your goals — blending movement, sound, breathwork, and energy work into one seamless, unforgettable event.',
   },
 ]
+
+function formatServiceMeta(service: ServiceOffering): string | null {
+  const pieces: string[] = []
+
+  if (service.durationMinutes) pieces.push(`${service.durationMinutes} min`)
+
+  if (service.priceType === 'Free') {
+    pieces.push('Complimentary')
+  } else if (service.priceType === 'Donation') {
+    pieces.push('Donation')
+  } else if (service.priceType === 'SlidingScale' && service.priceMin != null && service.priceMax != null) {
+    const format = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: service.currency }).format(value)
+    pieces.push(`${format(service.priceMin)} – ${format(service.priceMax)}`)
+  } else if (service.price != null) {
+    pieces.push(new Intl.NumberFormat('en-US', { style: 'currency', currency: service.currency }).format(service.price))
+  }
+
+  return pieces.length ? pieces.join(' · ') : null
+}
+
+function getServiceIcon(service: ServiceOffering): SacredIconName {
+  const text = `${service.name} ${service.shortDescription ?? ''} ${service.description ?? ''}`.toLowerCase()
+  if (text.includes('sound')) return 'sound-healing'
+  if (text.includes('breath')) return 'breathwork'
+  if (text.includes('yoga') || text.includes('movement')) return 'move-body'
+  return 'custom-activation'
+}
 
 const FITS = [
   { label: 'Employee wellness days & benefit programs' },
@@ -91,8 +122,27 @@ const STATS = [
   { value: '5★',   label: 'Average client rating' },
 ]
 
-export default function CorporateWellnessPage() {
+export default async function CorporateWellnessPage() {
   const brandId = getBrandIdBySlug('sacred-vibes-yoga')
+  let corporateServices: ServiceOffering[] = []
+
+  try {
+    const res = await servicesApi.getServices({ brandId, category: 'Corporate Wellness' })
+    corporateServices = (res.data.data ?? [])
+      .filter(service => service.isActive)
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+  } catch { /* keep curated fallback content */ }
+
+  const offerings = corporateServices.length
+    ? corporateServices.map(service => ({
+        eyebrow: service.category ?? 'Corporate Wellness',
+        icon: getServiceIcon(service),
+        title: service.name,
+        description: service.shortDescription || service.description || '',
+        imageUrl: service.featuredImageUrl,
+        meta: formatServiceMeta(service),
+      }))
+    : OFFERINGS.map(offering => ({ ...offering, imageUrl: undefined, meta: null }))
 
   return (
     <main className="bg-white">
@@ -208,16 +258,31 @@ export default function CorporateWellnessPage() {
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
-            {OFFERINGS.map((item) => (
-              <div key={item.title} className="experience-card group p-8">
-                <div className="mb-5 text-yoga-700">
-                  <SacredIcon name={item.icon} className="w-11 h-11" label={item.title} />
+            {offerings.map((item) => (
+              <div key={item.title} className="experience-card group overflow-hidden">
+                {item.imageUrl && (
+                  <div
+                    className="h-56 bg-cover bg-center"
+                    style={{ backgroundImage: `url(${item.imageUrl})` }}
+                    role="img"
+                    aria-label={item.title}
+                  />
+                )}
+                <div className="p-8">
+                  <div className="mb-5 text-yoga-700">
+                    <SacredIcon name={item.icon} className="w-11 h-11" label={item.title} />
+                  </div>
+                  <p className="eyebrow text-yoga-500 mb-2">{item.eyebrow}</p>
+                  <h3 className="font-heading text-2xl text-sacred-900 mb-3 leading-snug">{item.title}</h3>
+                  <p className="text-sacred-500 font-body font-light leading-relaxed tracking-wide">
+                    {item.description}
+                  </p>
+                  {item.meta && (
+                    <p className="mt-5 text-sm font-medium text-yoga-700 tracking-wide">
+                      {item.meta}
+                    </p>
+                  )}
                 </div>
-                <p className="eyebrow text-yoga-500 mb-2">{item.eyebrow}</p>
-                <h3 className="font-heading text-2xl text-sacred-900 mb-3 leading-snug">{item.title}</h3>
-                <p className="text-sacred-500 font-body font-light leading-relaxed tracking-wide">
-                  {item.description}
-                </p>
                 <div className="shimmer-overlay rounded-3xl" />
               </div>
             ))}

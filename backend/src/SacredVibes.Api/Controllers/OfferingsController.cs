@@ -37,14 +37,18 @@ public class OfferingsController : ControllerBase
         if (!includeInactive) query = query.Where(s => s.IsActive);
 
         var services = await query.OrderBy(s => s.SortOrder).ThenBy(s => s.Name).ToListAsync(ct);
-        return Ok(ApiResponse<List<ServiceOfferingDto>>.Ok(services.Select(MapService).ToList()));
+        var imageUrls = await GetAssetUrlsAsync(services.Select(s => s.FeaturedImageAssetId), ct);
+        return Ok(ApiResponse<List<ServiceOfferingDto>>.Ok(services.Select(s => MapService(s, imageUrls)).ToList()));
     }
 
     [HttpGet("services/{id:guid}")]
     public async Task<ActionResult<ApiResponse<ServiceOfferingDto>>> GetService(Guid id, CancellationToken ct = default)
     {
         var s = await _db.ServiceOfferings.FindAsync([id], ct);
-        return s is null ? NotFound() : Ok(ApiResponse<ServiceOfferingDto>.Ok(MapService(s)));
+        if (s is null) return NotFound();
+
+        var imageUrls = await GetAssetUrlsAsync([s.FeaturedImageAssetId], ct);
+        return Ok(ApiResponse<ServiceOfferingDto>.Ok(MapService(s, imageUrls)));
     }
 
     [HttpPost("services")]
@@ -53,6 +57,8 @@ public class OfferingsController : ControllerBase
     {
         if (!await _db.Brands.AnyAsync(b => b.Id == req.BrandId && !b.IsDeleted, ct))
             return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid brand for this service."));
+        if (!await IsValidFeaturedImageAsync(req.FeaturedImageAssetId, ct))
+            return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid image from the media library."));
 
         var slug = await UniqueSlug(req.Slug ?? GenerateSlug(req.Name),
             s => _db.ServiceOfferings.AnyAsync(x => x.BrandId == req.BrandId && x.Slug == s, ct));
@@ -66,6 +72,7 @@ public class OfferingsController : ControllerBase
             Currency = req.Currency ?? "USD", DurationMinutes = req.DurationMinutes,
             Location = req.Location, IsVirtual = req.IsVirtual,
             IsBookable = req.IsBookable, IsActive = req.IsActive,
+            FeaturedImageAssetId = req.FeaturedImageAssetId,
             SortOrder = req.SortOrder, SeoTitle = req.SeoTitle, SeoDescription = req.SeoDescription
         };
 
@@ -84,6 +91,8 @@ public class OfferingsController : ControllerBase
 
         if (!await _db.Brands.AnyAsync(b => b.Id == req.BrandId && !b.IsDeleted, ct))
             return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid brand for this service."));
+        if (!await IsValidFeaturedImageAsync(req.FeaturedImageAssetId, ct))
+            return BadRequest(ApiResponse<ServiceOfferingDto>.Fail("Choose a valid image from the media library."));
 
         var nextSlug = !string.IsNullOrWhiteSpace(req.Slug) ? req.Slug : service.Slug;
         if (service.BrandId != req.BrandId || !nextSlug.Equals(service.Slug, StringComparison.OrdinalIgnoreCase))
@@ -108,12 +117,14 @@ public class OfferingsController : ControllerBase
         service.IsVirtual = req.IsVirtual;
         service.IsBookable = req.IsBookable;
         service.IsActive = req.IsActive;
+        service.FeaturedImageAssetId = req.FeaturedImageAssetId;
         service.SortOrder = req.SortOrder;
         service.SeoTitle = req.SeoTitle;
         service.SeoDescription = req.SeoDescription;
 
         await _db.SaveChangesAsync(ct);
-        return Ok(ApiResponse<ServiceOfferingDto>.Ok(MapService(service)));
+        var imageUrls = await GetAssetUrlsAsync([service.FeaturedImageAssetId], ct);
+        return Ok(ApiResponse<ServiceOfferingDto>.Ok(MapService(service, imageUrls)));
     }
 
     [HttpDelete("services/{id:guid}")]
@@ -307,13 +318,30 @@ public class OfferingsController : ControllerBase
         return slug;
     }
 
-    private static ServiceOfferingDto MapService(ServiceOffering s) => new()
+    private async Task<Dictionary<Guid, string?>> GetAssetUrlsAsync(IEnumerable<Guid?> assetIds, CancellationToken ct)
+    {
+        var ids = assetIds.Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+        if (ids.Count == 0) return new Dictionary<Guid, string?>();
+
+        return await _db.Assets
+            .Where(a => ids.Contains(a.Id) && !a.IsDeleted)
+            .ToDictionaryAsync(a => a.Id, a => a.PublicUrl, ct);
+    }
+
+    private async Task<bool> IsValidFeaturedImageAsync(Guid? assetId, CancellationToken ct)
+    {
+        return !assetId.HasValue || await _db.Assets.AnyAsync(a => a.Id == assetId.Value && a.AssetType == AssetType.Image && !a.IsDeleted, ct);
+    }
+
+    private static ServiceOfferingDto MapService(ServiceOffering s, IReadOnlyDictionary<Guid, string?>? imageUrls = null) => new()
     {
         Id = s.Id, BrandId = s.BrandId, Name = s.Name, Slug = s.Slug,
         ShortDescription = s.ShortDescription, Description = s.Description, Category = s.Category,
         PriceType = s.PriceType, Price = s.Price, PriceMin = s.PriceMin, PriceMax = s.PriceMax,
         Currency = s.Currency, DurationMinutes = s.DurationMinutes, Location = s.Location,
         IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder,
+        FeaturedImageAssetId = s.FeaturedImageAssetId,
+        FeaturedImageUrl = s.FeaturedImageAssetId.HasValue && imageUrls?.TryGetValue(s.FeaturedImageAssetId.Value, out var url) == true ? url : null,
         ExternalSquareItemId = s.ExternalSquareItemId, ExternalSquareVariationId = s.ExternalSquareVariationId
     };
 
@@ -352,6 +380,7 @@ public class SaveServiceRequest
     public bool IsVirtual { get; set; }
     public bool IsBookable { get; set; } = true;
     public bool IsActive { get; set; } = true;
+    public Guid? FeaturedImageAssetId { get; set; }
     public int SortOrder { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }

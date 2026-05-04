@@ -3,14 +3,23 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
+import { Image as ImageIcon, Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
 import type { AxiosError } from 'axios'
-import { offeringsApi, brandsApi } from '@/lib/api'
-import type { ServiceOffering, Brand, SquareServiceCatalogSyncResult } from '@/types'
+import { offeringsApi, brandsApi, assetsApi } from '@/lib/api'
+import type { ServiceOffering, Brand, SquareServiceCatalogSyncResult, Asset } from '@/types'
 
 type PriceType = 'Fixed' | 'Variable' | 'Free' | 'Donation' | 'SlidingScale'
 
 const PRICE_TYPES: PriceType[] = ['Fixed', 'Variable', 'Free', 'Donation', 'SlidingScale']
+const BUILT_IN_CATEGORIES = [
+  'Corporate Wellness',
+  'Yoga Class',
+  'Membership',
+  'Private',
+  'Massage',
+  'Specialty',
+  'Sound Healing',
+]
 
 function formatPrice(s: ServiceOffering): string {
   if (s.priceType === 'Free') return 'Free'
@@ -40,6 +49,7 @@ const emptyForm = {
   isVirtual: false,
   isBookable: true,
   isActive: true,
+  featuredImageAssetId: '',
   sortOrder: '0',
   seoTitle: '',
   seoDescription: '',
@@ -69,11 +79,19 @@ export default function AdminServicesPage() {
     }).then(r => r.data.data ?? []),
   })
 
+  const { data: mediaAssets = [] } = useQuery({
+    queryKey: ['service-image-assets', showModal],
+    enabled: showModal,
+    queryFn: () => assetsApi.getAssets({ page: 1, pageSize: 60, assetType: 'Image' })
+      .then(r => r.data.data?.items ?? []),
+  })
+
   const brandName = (id: string) => brands.find((b: Brand) => b.id === id)?.name ?? ''
+  const selectedImage = mediaAssets.find((asset: Asset) => asset.id === form.featuredImageAssetId)
   const categoryOptions = Array.from(new Set(
-    services
+    BUILT_IN_CATEGORIES.concat(services
       .map(s => s.category?.trim())
-      .filter((category): category is string => !!category)
+      .filter((category): category is string => !!category))
   )).sort((a, b) => a.localeCompare(b))
 
   function getErrorMessage(err: unknown, fallback: string) {
@@ -175,6 +193,7 @@ export default function AdminServicesPage() {
       isVirtual: s.isVirtual,
       isBookable: s.isBookable,
       isActive: s.isActive,
+      featuredImageAssetId: s.featuredImageAssetId ?? '',
       sortOrder: s.sortOrder.toString(),
       seoTitle: '',
       seoDescription: '',
@@ -212,6 +231,7 @@ export default function AdminServicesPage() {
       isVirtual: form.isVirtual,
       isBookable: form.isBookable,
       isActive: form.isActive,
+      featuredImageAssetId: form.featuredImageAssetId || undefined,
       sortOrder: parseInt(form.sortOrder) || 0,
       seoTitle: form.seoTitle || undefined,
       seoDescription: form.seoDescription || undefined,
@@ -442,6 +462,47 @@ export default function AdminServicesPage() {
                 <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500 resize-none"
                   placeholder="Full description..." />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Service Image</label>
+                <div className="grid grid-cols-[96px_1fr] gap-3">
+                  <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                    {selectedImage?.publicUrl ? (
+                      <div
+                        className="w-full h-full bg-cover bg-center"
+                        style={{ backgroundImage: `url(${selectedImage.publicUrl})` }}
+                        aria-label={selectedImage.altText ?? selectedImage.fileName}
+                      />
+                    ) : (
+                      <ImageIcon size={24} className="text-gray-400" />
+                    )}
+                  </div>
+                  <div className="space-y-2 min-w-0">
+                    <select
+                      value={form.featuredImageAssetId}
+                      onChange={e => set('featuredImageAssetId', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500"
+                    >
+                      <option value="">No image</option>
+                      {mediaAssets.map((asset: Asset) => (
+                        <option key={asset.id} value={asset.id}>
+                          {asset.altText || asset.originalFileName || asset.fileName}
+                        </option>
+                      ))}
+                    </select>
+                    {form.featuredImageAssetId && (
+                      <button
+                        type="button"
+                        onClick={() => set('featuredImageAssetId', '')}
+                        className="text-xs font-medium text-gray-500 hover:text-red-600"
+                      >
+                        Remove image
+                      </button>
+                    )}
+                    <p className="text-xs text-gray-400">Images come from the Media Library.</p>
+                  </div>
+                </div>
               </div>
 
               {/* Pricing */}

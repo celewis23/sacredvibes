@@ -92,6 +92,7 @@ public class ServiceOfferingDto
     public bool IsVirtual { get; set; }
     public bool IsBookable { get; set; }
     public bool IsActive { get; set; }
+    public Guid? FeaturedImageAssetId { get; set; }
     public string? FeaturedImageUrl { get; set; }
     public int SortOrder { get; set; }
     public string? ExternalSquareItemId { get; set; }
