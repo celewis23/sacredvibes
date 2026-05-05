@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -9,8 +9,9 @@ import TiptapLink from '@tiptap/extension-link'
 import TiptapImage from '@tiptap/extension-image'
 import TiptapPlaceholder from '@tiptap/extension-placeholder'
 import { toast } from 'sonner'
-import { blogApi } from '@/lib/api'
-import type { ContentStatus } from '@/types'
+import { ImageIcon, Upload, X } from 'lucide-react'
+import { blogApi, assetsApi } from '@/lib/api'
+import type { Asset, ContentStatus } from '@/types'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -79,6 +80,15 @@ export default function BlogEditorPage({ params }: Props) {
   const [seoDescription, setSeoDescription] = useState('')
   const [brandId, setBrandId] = useState('')
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [featuredImageAssetId, setFeaturedImageAssetId] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { data: mediaAssets = [] } = useQuery({
+    queryKey: ['blog-image-assets'],
+    queryFn: () => assetsApi.getAssets({ page: 1, pageSize: 100, assetType: 'Image' })
+      .then(r => r.data.data?.items ?? []),
+  })
 
   const { data: post, isLoading } = useQuery({
     queryKey: ['admin-blog-post', id],
@@ -112,6 +122,7 @@ export default function BlogEditorPage({ params }: Props) {
       setSeoTitle(post.seoTitle ?? '')
       setSeoDescription(post.seoDescription ?? '')
       setBrandId(post.brandId)
+      setFeaturedImageAssetId(post.featuredImageAssetId ?? '')
       setSlugManuallyEdited(true)
       editor.commands.setContent(post.content ?? '')
     }
@@ -150,7 +161,32 @@ export default function BlogEditorPage({ params }: Props) {
       seoTitle: seoTitle || undefined,
       seoDescription: seoDescription || undefined,
       brandId: brandId || undefined,
+      featuredImageAssetId: featuredImageAssetId || undefined,
     })
+  }
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('files', file)
+      fd.append('visibility', 'Public')
+      fd.append('usage', 'Blog')
+      const res = await assetsApi.upload(fd)
+      const uploaded = res.data.data?.[0]
+      if (uploaded?.id) {
+        setFeaturedImageAssetId(uploaded.id)
+        queryClient.invalidateQueries({ queryKey: ['blog-image-assets'] })
+        toast.success('Image uploaded')
+      }
+    } catch {
+      toast.error('Image upload failed')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   if (!isNew && isLoading) {
@@ -266,6 +302,68 @@ export default function BlogEditorPage({ params }: Props) {
                 />
               </div>
             )}
+          </div>
+
+          {/* Featured Image */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-800">Featured Image</h3>
+
+            {/* Preview */}
+            <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+              {(() => {
+                const selected = mediaAssets.find((a: Asset) => a.id === featuredImageAssetId)
+                const url = selected?.publicUrl
+                return url ? (
+                  <>
+                    <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${url})` }} />
+                    <button
+                      type="button"
+                      onClick={() => setFeaturedImageAssetId('')}
+                      className="absolute top-1.5 right-1.5 p-1 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <ImageIcon size={28} className="text-gray-300" />
+                )
+              })()}
+            </div>
+
+            {/* Upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-sacred-400 hover:text-sacred-700 disabled:opacity-50 transition-colors"
+            >
+              <Upload size={14} />
+              {isUploading ? 'Uploading...' : 'Upload image'}
+            </button>
+
+            {/* Select from library */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Or pick from library</label>
+              <select
+                value={featuredImageAssetId}
+                onChange={e => setFeaturedImageAssetId(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+              >
+                <option value="">No image</option>
+                {mediaAssets.map((asset: Asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.altText || asset.originalFileName || asset.fileName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* SEO */}
