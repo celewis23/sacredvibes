@@ -96,6 +96,8 @@ function normalizeSignatureHtml(html: string) {
   if (typeof window === 'undefined') return html
 
   const doc = new DOMParser().parseFromString(html, 'text/html')
+  doc.querySelectorAll('script, style').forEach(node => node.remove())
+  doc.body.normalize()
   const socialImages: HTMLImageElement[] = []
   doc.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') ?? ''
@@ -159,6 +161,9 @@ function normalizeSignatureHtml(html: string) {
   }
 
   return doc.body.innerHTML
+    .replace(/>\s+</g, '><')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
 }
 
 function EditorButton({
@@ -600,14 +605,14 @@ function ComposePanel({
 
   const insertSignature = (signature?: EmailSignature) => {
     if (!editor || !signature) return
-    editor.chain().focus().insertContent(`<p></p>${normalizeSignatureHtml(signature.html)}`).run()
+    editor.chain().focus().insertContent(normalizeSignatureHtml(signature.html)).run()
   }
 
   const saveSignatureMutation = useMutation({
     mutationFn: () => emailApi.saveSignature({
       id: signatureId || undefined,
       name: signatureName,
-      html: signatureHtml,
+      html: normalizeSignatureHtml(signatureHtml),
       isDefault: signatureIsDefault,
     }),
     onSuccess: (res) => {
@@ -845,7 +850,7 @@ function ComposePanel({
             />
             {signatureHtml && (
               <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
-                <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
+                <div dangerouslySetInnerHTML={{ __html: normalizeSignatureHtml(signatureHtml) }} />
               </div>
             )}
             <div className="flex flex-wrap gap-2">
