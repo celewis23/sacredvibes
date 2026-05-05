@@ -21,6 +21,7 @@ public class EventbriteService : IEventbriteService
     private string PrivateToken => _config["Eventbrite:PrivateToken"] ?? throw new InvalidOperationException("Eventbrite:PrivateToken not configured");
     private string? ConfiguredOrganizationId => _config["Eventbrite:OrganizationId"];
     private string? ConfiguredOrganizerId => _config["Eventbrite:OrganizerId"];
+    private string? ResolvedOrganizerId => ExtractOrganizerId(ConfiguredOrganizerId);
     private string ImportStatuses => string.IsNullOrWhiteSpace(_config["Eventbrite:ImportStatuses"])
         ? "live"
         : _config["Eventbrite:ImportStatuses"]!;
@@ -168,7 +169,7 @@ public class EventbriteService : IEventbriteService
             }
 
             result.EventsEndpoint = HasConfiguredOrganizerId()
-                ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}&page_size=5"
+                ? $"organizers/{ResolvedOrganizerId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}&page_size=5"
                 : $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}&page_size=5";
             var eventsResponse = await _http.GetAsync(result.EventsEndpoint, ct);
             var eventsBody = await eventsResponse.Content.ReadAsStringAsync(ct);
@@ -328,7 +329,7 @@ public class EventbriteService : IEventbriteService
         {
             var sourceOrganizerId = GetString(source, "organizer_id");
             if (!string.IsNullOrWhiteSpace(sourceOrganizerId)
-                && !string.Equals(sourceOrganizerId, ConfiguredOrganizerId!.Trim(), StringComparison.Ordinal))
+                && !string.Equals(sourceOrganizerId, ResolvedOrganizerId, StringComparison.Ordinal))
             {
                 result.Skipped++;
                 return;
@@ -439,14 +440,14 @@ public class EventbriteService : IEventbriteService
 
     private bool HasConfiguredOrganizerId()
     {
-        return !string.IsNullOrWhiteSpace(ConfiguredOrganizerId)
-            && !ConfiguredOrganizerId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(ResolvedOrganizerId)
+            && !ResolvedOrganizerId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetImportEventsPath(string organizationId)
     {
         return HasConfiguredOrganizerId()
-            ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}"
+            ? $"organizers/{ResolvedOrganizerId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}"
             : $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}";
     }
 
@@ -526,6 +527,18 @@ public class EventbriteService : IEventbriteService
         System.Text.RegularExpressions.Regex.Replace(
             name.ToLowerInvariant().Trim().Replace("'", "").Replace("\"", "").Replace(" ", "-"),
             @"[^a-z0-9\-]", "").Trim('-');
+
+    private static string? ExtractOrganizerId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+
+        var trimmed = value.Trim().TrimEnd('/');
+        if (trimmed.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase)) return trimmed;
+
+        var lastSegment = trimmed.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? trimmed;
+        var match = System.Text.RegularExpressions.Regex.Match(lastSegment, @"(\d+)$");
+        return match.Success ? match.Groups[1].Value : trimmed;
+    }
 
     private static DateTime? ParseEventbriteDate(JsonObject source, string key)
     {
