@@ -37,6 +37,6 @@ public class MemberSubscriptionConfiguration : IEntityTypeConfiguration<MemberSu
         builder.Property(m => m.RawEventJson).HasColumnType("jsonb");
         builder.HasIndex(m => m.UserId).IsUnique();
         builder.HasIndex(m => m.StripeSubscriptionId);
-        builder.HasOne(m => m.User).WithOne(u => u.Subscription).HasForeignKey<MemberSubscription>(m => m.UserId).OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(m => m.User).WithMany().HasForeignKey(m => m.UserId).IsRequired().OnDelete(DeleteBehavior.Cascade);
     }
 }

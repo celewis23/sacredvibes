@@ -21,6 +21,6 @@ public class StudioContent : BaseEntity
     public bool IsPublished { get; set; } = false;
     public int SortOrder { get; set; } = 0;
 
-    public string? BrandId { get; set; }
+    public Guid? BrandId { get; set; }
     public Brand? Brand { get; set; }
 }

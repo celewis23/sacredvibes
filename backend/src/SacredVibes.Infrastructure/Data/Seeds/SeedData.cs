@@ -254,7 +254,7 @@ public static class SeedData
                 "ThumbnailAssetId" uuid NULL,
                 "IsPublished" boolean NOT NULL DEFAULT FALSE,
                 "SortOrder" integer NOT NULL DEFAULT 0,
-                "BrandId" text NULL,
+                "BrandId" uuid NULL,
                 "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
                 "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
                 "IsDeleted" boolean NOT NULL DEFAULT FALSE,

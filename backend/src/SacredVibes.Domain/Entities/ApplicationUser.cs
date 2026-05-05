@@ -22,7 +22,6 @@ public class ApplicationUser : IdentityUser
     // Navigation
     public ICollection<BlogPost> BlogPosts { get; set; } = new List<BlogPost>();
     public ICollection<Asset> UploadedAssets { get; set; } = new List<Asset>();
-    public MemberSubscription? Subscription { get; set; }
 }
 
 public class RefreshToken
