@@ -156,6 +156,14 @@ public class OfferingsController : ControllerBase
 
     // ── Eventbrite Events ────────────────────────────────────────────────────
 
+    [HttpGet("events/eventbrite-diagnostics")]
+    public async Task<ActionResult<ApiResponse<EventbriteDiagnosticsResult>>> GetEventbriteDiagnostics(
+        CancellationToken ct = default)
+    {
+        var result = await _eventbrite.GetDiagnosticsAsync(ct);
+        return Ok(ApiResponse<EventbriteDiagnosticsResult>.Ok(result));
+    }
+
     [HttpPost("events/import-eventbrite")]
     public async Task<ActionResult<ApiResponse<EventbriteEventSyncResult>>> ImportEventbriteEvents(
         [FromQuery] Guid brandId,

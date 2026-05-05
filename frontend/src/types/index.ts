@@ -233,6 +233,31 @@ export interface EventbriteEventPushResult {
   error?: string
 }
 
+export interface EventbriteOrganizationSummary {
+  id?: string
+  name?: string
+}
+
+export interface EventbriteEventSummary {
+  id?: string
+  name?: string
+  status?: string
+  startAt?: string
+  url?: string
+}
+
+export interface EventbriteDiagnosticsResult {
+  tokenConfigured: boolean
+  configuredOrganizationId?: string
+  resolvedOrganizationId?: string
+  organizationCount: number
+  organizations: EventbriteOrganizationSummary[]
+  sampleEventCount: number
+  sampleEvents: EventbriteEventSummary[]
+  eventsEndpoint?: string
+  error?: string
+}
+
 // ── Bookings ──────────────────────────────────────────────────────────────────
 
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Cancelled' | 'Completed' | 'Refunded' | 'NoShow'

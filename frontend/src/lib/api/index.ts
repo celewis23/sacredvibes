@@ -4,7 +4,7 @@ import type {
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
-  EventbriteEventSyncResult, EventbriteEventPushResult,
+  EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -205,6 +205,9 @@ export const offeringsApi = {
 
   deleteEvent: (id: string, deleteFromEventbrite = false) =>
     apiClient.delete(`/offerings/events/${id}`, { params: { deleteFromEventbrite } }),
+
+  getEventbriteDiagnostics: () =>
+    apiClient.get<ApiResponse<EventbriteDiagnosticsResult>>('/offerings/events/eventbrite-diagnostics'),
 
   importEventbriteEvents: (brandId: string) =>
     apiClient.post<ApiResponse<EventbriteEventSyncResult>>('/offerings/events/import-eventbrite', null, { params: { brandId } }),

@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
+import { Link2, Plus, Pencil, RefreshCw, Search, Trash2, UploadCloud, X } from 'lucide-react'
 import type { AxiosError } from 'axios'
 import { offeringsApi, brandsApi } from '@/lib/api'
-import type { EventOffering, Brand, EventbriteEventSyncResult } from '@/types'
+import type { EventOffering, Brand, EventbriteEventSyncResult, EventbriteDiagnosticsResult } from '@/types'
 
 // Convert UTC ISO string to local datetime-local input value
 function toLocalInput(iso: string) {
@@ -70,6 +70,7 @@ export default function AdminEventsPage() {
   const [brandFilter, setBrandFilter] = useState('')
   const [upcomingOnly, setUpcomingOnly] = useState(false)
   const [eventbriteAction, setEventbriteAction] = useState<string | null>(null)
+  const [eventbriteDiagnostics, setEventbriteDiagnostics] = useState<EventbriteDiagnosticsResult | null>(null)
 
   const { data: brands = [] } = useQuery({
     queryKey: ['admin-brands'],
@@ -158,6 +159,22 @@ export default function AdminEventsPage() {
       qc.invalidateQueries({ queryKey: ['admin-offerings-events'] })
     },
     onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite push failed')),
+    onSettled: () => setEventbriteAction(null),
+  })
+
+  const eventbriteDiagnosticsMutation = useMutation({
+    mutationFn: () => offeringsApi.getEventbriteDiagnostics(),
+    onMutate: () => setEventbriteAction('diagnostics'),
+    onSuccess: (res) => {
+      const diagnostics = res.data.data ?? null
+      setEventbriteDiagnostics(diagnostics)
+      if (diagnostics?.error) {
+        toast.error(`Eventbrite diagnostics failed: ${diagnostics.error}`)
+      } else {
+        toast.success(`Eventbrite diagnostics found ${diagnostics?.organizationCount ?? 0} org(s) and ${diagnostics?.sampleEventCount ?? 0} sample event(s)`)
+      }
+    },
+    onError: (err) => toast.error(getErrorMessage(err, 'Eventbrite diagnostics failed')),
     onSettled: () => setEventbriteAction(null),
   })
 
@@ -317,6 +334,15 @@ export default function AdminEventsPage() {
             Sync
           </button>
           <button
+            onClick={() => eventbriteDiagnosticsMutation.mutate()}
+            disabled={eventbriteAction !== null}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-200 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title="Check Eventbrite token, organization, and sample events"
+          >
+            <Search size={16} />
+            Test Eventbrite
+          </button>
+          <button
             onClick={openCreate}
             className="flex items-center gap-2 px-4 py-2 bg-yoga-700 text-white rounded-xl text-sm font-medium hover:bg-yoga-800 transition-colors"
           >
@@ -353,6 +379,74 @@ export default function AdminEventsPage() {
           </p>
         )}
       </div>
+
+      {eventbriteDiagnostics && (
+        <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50/60 p-4 text-sm text-gray-700">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Eventbrite diagnostics</h2>
+              <p className="mt-1 text-xs text-gray-500">
+                Token: {eventbriteDiagnostics.tokenConfigured ? 'configured' : 'missing'} ·
+                Configured org: {eventbriteDiagnostics.configuredOrganizationId || 'auto-discover'} ·
+                Resolved org: {eventbriteDiagnostics.resolvedOrganizationId || 'none'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEventbriteDiagnostics(null)}
+              className="text-gray-400 hover:text-gray-600"
+              aria-label="Hide Eventbrite diagnostics"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {eventbriteDiagnostics.error && (
+            <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-700">
+              {eventbriteDiagnostics.error}
+            </p>
+          )}
+
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Organizations ({eventbriteDiagnostics.organizationCount})
+              </p>
+              <div className="mt-1 space-y-1">
+                {eventbriteDiagnostics.organizations.length === 0 ? (
+                  <p className="text-gray-500">No organizations returned.</p>
+                ) : eventbriteDiagnostics.organizations.map(org => (
+                  <p key={org.id} className="font-mono text-xs text-gray-700">
+                    {org.name || 'Unnamed'} · {org.id}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Sample events ({eventbriteDiagnostics.sampleEventCount})
+              </p>
+              <div className="mt-1 space-y-1">
+                {eventbriteDiagnostics.sampleEvents.length === 0 ? (
+                  <p className="text-gray-500">No events returned from the resolved organization.</p>
+                ) : eventbriteDiagnostics.sampleEvents.map(ev => (
+                  <p key={ev.id} className="text-xs text-gray-700">
+                    <span className="font-medium">{ev.name || 'Untitled event'}</span>
+                    {ev.status ? ` · ${ev.status}` : ''}
+                    {ev.startAt ? ` · ${formatDate(ev.startAt)}` : ''}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {eventbriteDiagnostics.eventsEndpoint && (
+            <p className="mt-3 break-all font-mono text-xs text-gray-500">
+              Endpoint: {eventbriteDiagnostics.eventsEndpoint}
+            </p>
+          )}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="p-12 text-center text-gray-400 text-sm">Loading...</div>

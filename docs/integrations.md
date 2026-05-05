@@ -138,6 +138,7 @@ The Admin Events page provides:
 - **Import Eventbrite** — pulls Eventbrite events into the selected brand.
 - **Push All** — pushes active local events to Eventbrite.
 - **Sync** — imports Eventbrite events first, then pushes active local events back.
+- **Test Eventbrite** — checks whether the private token can see Eventbrite organizations and shows sample events from the resolved organization.
 - **Push** on an individual event — creates or updates that event in Eventbrite.
 
 Imported events are matched by `ExternalEventbriteId` first. If no match exists, the importer falls back to matching by event name and start time for the selected brand. Synced events store the Eventbrite URL in `ExternalUrl`, and public event cards link registration buttons to Eventbrite when that URL exists.

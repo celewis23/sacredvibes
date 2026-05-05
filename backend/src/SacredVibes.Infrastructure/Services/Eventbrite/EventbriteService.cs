@@ -98,6 +98,88 @@ public class EventbriteService : IEventbriteService
         return result;
     }
 
+    public async Task<EventbriteDiagnosticsResult> GetDiagnosticsAsync(CancellationToken ct = default)
+    {
+        var result = new EventbriteDiagnosticsResult
+        {
+            TokenConfigured = HasConfiguredPrivateToken(),
+            ConfiguredOrganizationId = ConfiguredOrganizationId
+        };
+
+        if (!result.TokenConfigured)
+        {
+            result.Error = "Eventbrite:PrivateToken is not configured.";
+            return result;
+        }
+
+        try
+        {
+            ConfigureHeaders();
+
+            var organizationsResponse = await _http.GetAsync("users/me/organizations/", ct);
+            var organizationsBody = await organizationsResponse.Content.ReadAsStringAsync(ct);
+            if (!organizationsResponse.IsSuccessStatusCode)
+            {
+                result.Error = GetEventbriteErrorMessage("organization diagnostics", organizationsResponse, organizationsBody);
+                return result;
+            }
+
+            var organizationsRoot = JsonNode.Parse(organizationsBody)?.AsObject();
+            var organizations = organizationsRoot?["organizations"]?.AsArray() ?? new JsonArray();
+            result.Organizations = organizations
+                .OfType<JsonObject>()
+                .Select(org => new EventbriteOrganizationSummary
+                {
+                    Id = GetString(org, "id"),
+                    Name = GetString(org, "name")
+                })
+                .Where(org => !string.IsNullOrWhiteSpace(org.Id))
+                .ToList();
+            result.OrganizationCount = result.Organizations.Count;
+
+            result.ResolvedOrganizationId = HasConfiguredOrganizationId()
+                ? ConfiguredOrganizationId!.Trim()
+                : result.Organizations.FirstOrDefault()?.Id;
+
+            if (string.IsNullOrWhiteSpace(result.ResolvedOrganizationId))
+            {
+                result.Error = "Eventbrite returned no organizations for this private token.";
+                return result;
+            }
+
+            result.EventsEndpoint = $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status=all&page_size=5";
+            var eventsResponse = await _http.GetAsync(result.EventsEndpoint, ct);
+            var eventsBody = await eventsResponse.Content.ReadAsStringAsync(ct);
+            if (!eventsResponse.IsSuccessStatusCode)
+            {
+                result.Error = GetEventbriteErrorMessage("event diagnostics", eventsResponse, eventsBody);
+                return result;
+            }
+
+            var eventsRoot = JsonNode.Parse(eventsBody)?.AsObject();
+            var events = eventsRoot?["events"]?.AsArray() ?? new JsonArray();
+            result.SampleEventCount = events.Count;
+            result.SampleEvents = events
+                .OfType<JsonObject>()
+                .Select(ev => new EventbriteEventSummary
+                {
+                    Id = GetString(ev, "id"),
+                    Name = GetNestedString(ev, "name", "text") ?? GetNestedString(ev, "name", "html"),
+                    Status = GetString(ev, "status"),
+                    StartAt = ParseEventbriteDate(ev, "start"),
+                    Url = GetString(ev, "url")
+                })
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            result.Error = ex.Message;
+            _logger.LogError(ex, "Eventbrite diagnostics failed");
+        }
+
+        return result;
+    }
+
     public async Task<EventbriteEventPushResult> PushEventAsync(Guid eventId, CancellationToken ct = default)
     {
         var ev = await _db.EventOfferings.FirstOrDefaultAsync(e => e.Id == eventId && !e.IsDeleted, ct);
@@ -315,6 +397,13 @@ public class EventbriteService : IEventbriteService
     {
         return !string.IsNullOrWhiteSpace(ConfiguredOrganizationId)
             && !ConfiguredOrganizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool HasConfiguredPrivateToken()
+    {
+        var token = _config["Eventbrite:PrivateToken"];
+        return !string.IsNullOrWhiteSpace(token)
+            && !token.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task<string> DiscoverOrganizationIdAsync(CancellationToken ct)
