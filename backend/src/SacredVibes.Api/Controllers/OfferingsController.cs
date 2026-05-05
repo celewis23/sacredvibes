@@ -160,8 +160,15 @@ public class OfferingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<EventbriteDiagnosticsResult>>> GetEventbriteDiagnostics(
         CancellationToken ct = default)
     {
-        var result = await _eventbrite.GetDiagnosticsAsync(ct);
-        return Ok(ApiResponse<EventbriteDiagnosticsResult>.Ok(result));
+        try
+        {
+            var result = await _eventbrite.GetDiagnosticsAsync(ct);
+            return Ok(ApiResponse<EventbriteDiagnosticsResult>.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<EventbriteDiagnosticsResult>.Fail($"Eventbrite diagnostics failed: {GetInnermostMessage(ex)}"));
+        }
     }
 
     [HttpPost("events/import-eventbrite")]
@@ -172,8 +179,15 @@ public class OfferingsController : ControllerBase
         if (brandId == Guid.Empty)
             return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail("Choose the brand these Eventbrite events should belong to."));
 
-        var result = await _eventbrite.ImportEventsAsync(brandId, ct);
-        return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+        try
+        {
+            var result = await _eventbrite.ImportEventsAsync(brandId, ct);
+            return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail($"Eventbrite import failed: {GetInnermostMessage(ex)}"));
+        }
     }
 
     [HttpPost("events/push-eventbrite")]
@@ -181,8 +195,15 @@ public class OfferingsController : ControllerBase
         [FromQuery] Guid? brandId,
         CancellationToken ct = default)
     {
-        var result = await _eventbrite.PushEventsAsync(brandId, ct);
-        return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+        try
+        {
+            var result = await _eventbrite.PushEventsAsync(brandId, ct);
+            return Ok(ApiResponse<EventbriteEventSyncResult>.Ok(result));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail($"Eventbrite push failed: {GetInnermostMessage(ex)}"));
+        }
     }
 
     [HttpPost("events/sync-eventbrite")]
@@ -193,8 +214,17 @@ public class OfferingsController : ControllerBase
         if (brandId == Guid.Empty)
             return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail("Choose the brand these Eventbrite events should belong to."));
 
-        var imported = await _eventbrite.ImportEventsAsync(brandId, ct);
-        var pushed = await _eventbrite.PushEventsAsync(brandId, ct);
+        EventbriteEventSyncResult imported;
+        EventbriteEventSyncResult pushed;
+        try
+        {
+            imported = await _eventbrite.ImportEventsAsync(brandId, ct);
+            pushed = await _eventbrite.PushEventsAsync(brandId, ct);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<EventbriteEventSyncResult>.Fail($"Eventbrite sync failed: {GetInnermostMessage(ex)}"));
+        }
 
         imported.Pushed = pushed.Pushed;
         imported.Errors += pushed.Errors;
@@ -461,6 +491,12 @@ public class OfferingsController : ControllerBase
         return !string.IsNullOrWhiteSpace(token)
             && !token.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase)
             && (string.IsNullOrWhiteSpace(organizationId) || !organizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetInnermostMessage(Exception ex)
+    {
+        while (ex.InnerException is not null) ex = ex.InnerException;
+        return ex.Message;
     }
 }
 

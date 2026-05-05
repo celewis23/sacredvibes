@@ -95,7 +95,17 @@ public class EventbriteService : IEventbriteService
         }
         while (!string.IsNullOrWhiteSpace(continuation) && !ct.IsCancellationRequested);
 
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            result.Errors++;
+            result.ErrorMessages.Add($"Database save failed: {GetInnermostMessage(ex)}");
+            _logger.LogError(ex, "Eventbrite import database save failed");
+        }
+
         return result;
     }
 
@@ -342,11 +352,11 @@ public class EventbriteService : IEventbriteService
         ev.IsVirtual = GetBool(source, "online_event") ?? ev.IsVirtual;
         ev.IsActive = !string.Equals(GetString(source, "status"), "canceled", StringComparison.OrdinalIgnoreCase);
 
-        var venue = source["venue"]?.AsObject();
+        var venue = GetObject(source, "venue");
         if (venue is not null)
         {
             ev.Venue = GetString(venue, "name") ?? ev.Venue;
-            var address = venue["address"]?.AsObject();
+            var address = GetObject(venue, "address");
             ev.Address = GetString(address, "address_1") ?? ev.Address;
             ev.City = GetString(address, "city") ?? ev.City;
             ev.State = GetString(address, "region") ?? ev.State;
@@ -511,7 +521,19 @@ public class EventbriteService : IEventbriteService
     }
 
     private static string? GetNestedString(JsonObject obj, string key, string nestedKey) =>
-        obj[key]?.AsObject() is { } nested ? GetString(nested, nestedKey) : null;
+        GetObject(obj, key) is { } nested ? GetString(nested, nestedKey) : null;
+
+    private static JsonObject? GetObject(JsonObject obj, string key)
+    {
+        try
+        {
+            return obj.TryGetPropertyValue(key, out var value) ? value?.AsObject() : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
 
     private static int? GetInt(JsonObject obj, string key)
     {
@@ -535,5 +557,11 @@ public class EventbriteService : IEventbriteService
         {
             return null;
         }
+    }
+
+    private static string GetInnermostMessage(Exception ex)
+    {
+        while (ex.InnerException is not null) ex = ex.InnerException;
+        return ex.Message;
     }
 }
