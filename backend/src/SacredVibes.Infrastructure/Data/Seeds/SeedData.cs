@@ -225,6 +225,16 @@ public static class SeedData
             ON event_offerings ("ExternalEventbriteId");
             """
         );
+
+        if (await TableExistsAsync(db, "blog_posts"))
+        {
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                ALTER TABLE blog_posts
+                ADD COLUMN IF NOT EXISTS "AuthorNameOverride" text NULL;
+                """
+            );
+        }
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)

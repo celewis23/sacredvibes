@@ -9,6 +9,7 @@ public class BlogPost : BaseEntity
 
     public string AuthorId { get; set; } = string.Empty;
     public ApplicationUser? Author { get; set; }
+    public string? AuthorNameOverride { get; set; }
 
     public string Title { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;

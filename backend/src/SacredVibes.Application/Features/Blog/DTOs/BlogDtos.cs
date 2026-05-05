@@ -50,6 +50,7 @@ public class CreateBlogPostRequest
 {
     public Guid BrandId { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? AuthorNameOverride { get; set; }
     public string? Slug { get; set; }
     public string? Excerpt { get; set; }
     public string Content { get; set; } = string.Empty;

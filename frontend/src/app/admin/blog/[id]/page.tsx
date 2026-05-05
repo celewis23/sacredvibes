@@ -80,6 +80,7 @@ export default function BlogEditorPage({ params }: Props) {
   const [seoDescription, setSeoDescription] = useState('')
   const [brandId, setBrandId] = useState('')
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [authorName, setAuthorName] = useState('')
   const [featuredImageAssetId, setFeaturedImageAssetId] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -122,6 +123,7 @@ export default function BlogEditorPage({ params }: Props) {
       setSeoTitle(post.seoTitle ?? '')
       setSeoDescription(post.seoDescription ?? '')
       setBrandId(post.brandId)
+      setAuthorName(post.authorName ?? '')
       setFeaturedImageAssetId(post.featuredImage?.id ?? '')
       setSlugManuallyEdited(true)
       editor.commands.setContent(post.content ?? '')
@@ -161,6 +163,7 @@ export default function BlogEditorPage({ params }: Props) {
       seoTitle: seoTitle || undefined,
       seoDescription: seoDescription || undefined,
       brandId: brandId || undefined,
+      authorNameOverride: authorName.trim() || undefined,
       featuredImageAssetId: featuredImageAssetId || undefined,
     })
   }
@@ -274,6 +277,19 @@ export default function BlogEditorPage({ params }: Props) {
 
         {/* Sidebar */}
         <div className="space-y-5">
+          {/* Author */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-gray-800">Author</h3>
+            <input
+              type="text"
+              placeholder="Author name"
+              value={authorName}
+              onChange={e => setAuthorName(e.target.value)}
+              className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+            <p className="text-xs text-gray-400">Overrides the logged-in user's name on the post.</p>
+          </div>
+
           {/* Publish settings */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
             <h3 className="text-sm font-semibold text-gray-800">Publish Settings</h3>

@@ -260,6 +260,7 @@ public class BlogController : ControllerBase
         {
             BrandId = request.BrandId,
             AuthorId = authorId,
+            AuthorNameOverride = string.IsNullOrWhiteSpace(request.AuthorNameOverride) ? null : request.AuthorNameOverride.Trim(),
             Title = request.Title,
             Slug = slug,
             Excerpt = request.Excerpt,
@@ -295,6 +296,7 @@ public class BlogController : ControllerBase
         var post = await _db.BlogPosts.FindAsync([id], ct);
         if (post is null) return NotFound();
 
+        post.AuthorNameOverride = string.IsNullOrWhiteSpace(request.AuthorNameOverride) ? null : request.AuthorNameOverride.Trim();
         post.Title = request.Title;
         post.Slug = request.Slug ?? GenerateSlug(request.Title);
         post.Excerpt = request.Excerpt;
@@ -366,7 +368,7 @@ public class BlogController : ControllerBase
         BrandId = p.BrandId,
         BrandSlug = p.Brand?.Slug ?? "",
         AuthorId = p.AuthorId,
-        AuthorName = p.Author?.FullName ?? "Sacred Vibes Team",
+        AuthorName = p.AuthorNameOverride ?? p.Author?.FullName ?? "Sacred Vibes Team",
         Title = p.Title,
         Slug = p.Slug,
         Excerpt = p.Excerpt,
