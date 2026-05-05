@@ -92,8 +92,16 @@ public class SendEmailRequest
     public string Subject { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
     public bool IsHtml { get; set; } = true;
+    public List<SendEmailAttachmentRequest> Attachments { get; set; } = new();
     public string? ReplyToMessageId { get; set; }
     public string? ReplyToFolderId { get; set; }
+}
+
+public class SendEmailAttachmentRequest
+{
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = "application/octet-stream";
+    public string Base64Content { get; set; } = string.Empty;
 }
 
 public class EmailMarkRequest

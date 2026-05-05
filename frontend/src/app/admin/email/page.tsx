@@ -1,15 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import type { ChangeEvent, ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
+import Link from '@tiptap/extension-link'
+import Placeholder from '@tiptap/extension-placeholder'
 import {
-  Archive, ChevronLeft, ChevronRight, Flame, Inbox, Mail, MailOpen,
-  Menu, PenLine, RefreshCw, Search, Send, Settings, SquarePen, Trash2, X
+  Archive, Bold, ChevronLeft, ChevronRight, Flame, Heading2, Image as ImageIcon, Inbox,
+  Italic, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
+  PenLine, Quote, RefreshCw, RotateCcw, RotateCw, Search, Send, Settings, SquarePen,
+  Trash2, X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { emailApi } from '@/lib/api'
-import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary } from '@/types'
+import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary, EmailSendAttachment } from '@/types'
 
 type PanelMode = 'message' | 'compose' | 'settings'
 
@@ -57,6 +65,58 @@ function uniqueEmails(values: string[]) {
 function getApiErrorMessage(error: unknown, fallback: string) {
   const axiosError = error as AxiosError<{ errors?: string[]; message?: string }>
   return axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message ?? fallback
+}
+
+function fileToBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${Math.round(size / 1024)} KB`
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function EditorButton({
+  active,
+  disabled,
+  title,
+  onClick,
+  children,
+}: {
+  active?: boolean
+  disabled?: boolean
+  title: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex h-8 w-8 items-center justify-center rounded border text-gray-600 transition-colors disabled:opacity-40 ${
+        active ? 'border-sacred-700 bg-sacred-50 text-sacred-800' : 'border-gray-200 hover:bg-gray-50'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
 function FolderButton({
@@ -310,9 +370,33 @@ function ComposePanel({
   const [cc, setCc] = useState('')
   const [bcc, setBcc] = useState('')
   const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject.replace(/^Re:\s*/i, '')}` : '')
-  const [body, setBody] = useState('')
   const [contactSearch, setContactSearch] = useState('')
   const [groupName, setGroupName] = useState('')
+  const [attachments, setAttachments] = useState<EmailSendAttachment[]>([])
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      Image.configure({ inline: false, allowBase64: true }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: {
+          rel: 'noopener noreferrer',
+          target: '_blank',
+        },
+      }),
+      Placeholder.configure({ placeholder: 'Write your message...' }),
+    ],
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'min-h-[400px] max-h-[600px] overflow-y-auto px-4 py-3 text-sm leading-relaxed text-gray-900 focus:outline-none',
+      },
+    },
+  })
 
   const { data: contacts = [] } = useQuery({
     queryKey: ['email-contacts', contactSearch],
@@ -330,8 +414,9 @@ function ComposePanel({
       cc: splitAddresses(cc),
       bcc: splitAddresses(bcc),
       subject,
-      body: body.replace(/\n/g, '<br />'),
+      body: editor?.getHTML() ?? '',
       isHtml: true,
+      attachments,
       replyToMessageId: replyTo?.id,
       replyToFolderId: replyTo?.folderId,
     }),
@@ -382,8 +467,54 @@ function ComposePanel({
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not create recipient group')),
   })
 
+  const attachFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+
+    try {
+      const next = await Promise.all(files.map(async file => ({
+        fileName: file.name,
+        contentType: file.type || 'application/octet-stream',
+        base64Content: await fileToBase64(file),
+      })))
+      setAttachments(prev => [...prev, ...next])
+      toast.success(`Attached ${files.length} file${files.length === 1 ? '' : 's'}`)
+    } catch {
+      toast.error('Could not attach file')
+    }
+  }
+
+  const insertImages = async (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []).filter(file => file.type.startsWith('image/'))
+    event.target.value = ''
+    if (!editor || files.length === 0) return
+
+    try {
+      for (const file of files) {
+        const src = await fileToDataUrl(file)
+        editor.chain().focus().setImage({ src, alt: file.name }).run()
+      }
+    } catch {
+      toast.error('Could not insert image')
+    }
+  }
+
+  const setLink = () => {
+    if (!editor) return
+    const previousUrl = editor.getAttributes('link').href as string | undefined
+    const url = window.prompt('Link URL', previousUrl ?? 'https://')
+    if (url === null) return
+    if (!url.trim()) {
+      editor.chain().focus().unsetLink().run()
+      return
+    }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url.trim() }).run()
+  }
+
   return (
-    <div className="h-full bg-white flex flex-col">
+    <div className="h-full bg-white overflow-y-auto">
+      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col">
       <div className="border-b border-gray-200 px-5 py-4 flex items-center gap-3">
         <PenLine size={18} className="text-sacred-700" />
         <div>
@@ -482,7 +613,69 @@ function ComposePanel({
         </div>
         <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
       </div>
-      <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Write your message..." className="flex-1 p-5 text-sm resize-none focus:outline-none" />
+      <div className="border-b border-gray-100">
+        <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 px-4 py-2">
+          <EditorButton title="Bold" active={editor?.isActive('bold')} disabled={!editor} onClick={() => editor?.chain().focus().toggleBold().run()}>
+            <Bold size={15} />
+          </EditorButton>
+          <EditorButton title="Italic" active={editor?.isActive('italic')} disabled={!editor} onClick={() => editor?.chain().focus().toggleItalic().run()}>
+            <Italic size={15} />
+          </EditorButton>
+          <EditorButton title="Heading" active={editor?.isActive('heading', { level: 2 })} disabled={!editor} onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>
+            <Heading2 size={15} />
+          </EditorButton>
+          <EditorButton title="Bulleted list" active={editor?.isActive('bulletList')} disabled={!editor} onClick={() => editor?.chain().focus().toggleBulletList().run()}>
+            <List size={15} />
+          </EditorButton>
+          <EditorButton title="Numbered list" active={editor?.isActive('orderedList')} disabled={!editor} onClick={() => editor?.chain().focus().toggleOrderedList().run()}>
+            <ListOrdered size={15} />
+          </EditorButton>
+          <EditorButton title="Quote" active={editor?.isActive('blockquote')} disabled={!editor} onClick={() => editor?.chain().focus().toggleBlockquote().run()}>
+            <Quote size={15} />
+          </EditorButton>
+          <span className="mx-1 h-6 w-px bg-gray-200" />
+          <EditorButton title="Insert link" active={editor?.isActive('link')} disabled={!editor} onClick={setLink}>
+            <LinkIcon size={15} />
+          </EditorButton>
+          <label title="Insert image" className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50">
+            <ImageIcon size={15} />
+            <input type="file" accept="image/*" multiple className="hidden" onChange={insertImages} />
+          </label>
+          <label title="Attach files" className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-gray-200 text-gray-600 transition-colors hover:bg-gray-50">
+            <Paperclip size={15} />
+            <input type="file" multiple className="hidden" onChange={attachFiles} />
+          </label>
+          <span className="mx-1 h-6 w-px bg-gray-200" />
+          <EditorButton title="Undo" disabled={!editor} onClick={() => editor?.chain().focus().undo().run()}>
+            <RotateCcw size={15} />
+          </EditorButton>
+          <EditorButton title="Redo" disabled={!editor} onClick={() => editor?.chain().focus().redo().run()}>
+            <RotateCw size={15} />
+          </EditorButton>
+        </div>
+        <div className="max-h-[600px] min-h-[400px] overflow-y-auto border-b border-gray-100 [&_.ProseMirror>ol]:list-decimal [&_.ProseMirror>ol]:pl-6 [&_.ProseMirror>ul]:list-disc [&_.ProseMirror>ul]:pl-6 [&_.ProseMirror_a]:text-sacred-700 [&_.ProseMirror_a]:underline [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-gray-200 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_h2]:text-lg [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_img]:my-3 [&_.ProseMirror_img]:max-w-full">
+          <EditorContent editor={editor} />
+        </div>
+        {attachments.length > 0 && (
+          <div className="space-y-2 px-4 py-3">
+            {attachments.map((attachment, index) => (
+              <div key={`${attachment.fileName}-${index}`} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                <Paperclip size={14} className="text-gray-400" />
+                <span className="min-w-0 flex-1 truncate">{attachment.fileName}</span>
+                <span className="text-xs text-gray-400">{formatFileSize(Math.ceil((attachment.base64Content.length * 3) / 4))}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachments(prev => prev.filter((_, i) => i !== index))}
+                  className="text-gray-400 hover:text-gray-700"
+                  title="Remove attachment"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       <div className="border-t border-gray-200 px-5 py-4 flex justify-end">
         <button
           onClick={() => sendMutation.mutate()}
@@ -492,6 +685,7 @@ function ComposePanel({
           <Send size={15} />
           {sendMutation.isPending ? 'Sending...' : 'Send Email'}
         </button>
+      </div>
       </div>
     </div>
   )

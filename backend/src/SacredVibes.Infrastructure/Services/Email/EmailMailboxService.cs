@@ -198,6 +198,7 @@ public class EmailMailboxService : IEmailMailboxService
         request.To ??= new List<string>();
         request.Cc ??= new List<string>();
         request.Bcc ??= new List<string>();
+        request.Attachments ??= new List<SendEmailAttachmentRequest>();
 
         if (request.To.Count + request.Cc.Count + request.Bcc.Count == 0)
             throw new InvalidOperationException("At least one recipient is required.");
@@ -209,9 +210,29 @@ public class EmailMailboxService : IEmailMailboxService
         AddRecipients(message.Cc, request.Cc);
         AddRecipients(message.Bcc, request.Bcc);
         message.Subject = request.Subject.Trim();
-        message.Body = request.IsHtml
-            ? new BodyBuilder { HtmlBody = request.Body }.ToMessageBody()
-            : new TextPart("plain") { Text = request.Body };
+        var bodyBuilder = new BodyBuilder();
+        if (request.IsHtml) bodyBuilder.HtmlBody = request.Body;
+        else bodyBuilder.TextBody = request.Body;
+
+        foreach (var attachment in request.Attachments)
+        {
+            if (string.IsNullOrWhiteSpace(attachment.FileName) || string.IsNullOrWhiteSpace(attachment.Base64Content))
+                continue;
+
+            var content = Convert.FromBase64String(attachment.Base64Content);
+            ContentType contentType;
+            try
+            {
+                contentType = ContentType.Parse(attachment.ContentType);
+            }
+            catch
+            {
+                contentType = new ContentType("application", "octet-stream");
+            }
+            bodyBuilder.Attachments.Add(attachment.FileName, content, contentType);
+        }
+
+        message.Body = bodyBuilder.ToMessageBody();
 
         using var smtp = new SmtpClient();
         await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SocketOptions(settings.SmtpUseSsl), ct);

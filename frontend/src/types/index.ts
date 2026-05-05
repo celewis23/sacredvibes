@@ -548,6 +548,12 @@ export interface EmailRecipientGroup {
   count: number
 }
 
+export interface EmailSendAttachment {
+  fileName: string
+  contentType: string
+  base64Content: string
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

@@ -6,6 +6,7 @@ import type {
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
+  EmailSendAttachment,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -335,6 +336,7 @@ export const emailApi = {
     subject: string
     body: string
     isHtml?: boolean
+    attachments?: EmailSendAttachment[]
     replyToMessageId?: string
     replyToFolderId?: string
   }) => apiClient.post('/email/send', data),
