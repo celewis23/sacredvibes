@@ -1,0 +1,107 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SacredVibes.Application.Common.DTOs;
+using SacredVibes.Application.Features.Email;
+using SacredVibes.Application.Features.Email.DTOs;
+
+namespace SacredVibes.Api.Controllers;
+
+[ApiController]
+[Authorize(Roles = "Admin")]
+[Route("api/email")]
+public class EmailController : ControllerBase
+{
+    private readonly IEmailMailboxService _mailbox;
+
+    public EmailController(IEmailMailboxService mailbox) => _mailbox = mailbox;
+
+    [HttpGet("settings")]
+    public async Task<ActionResult<ApiResponse<EmailMailboxSettingsDto>>> GetSettings(CancellationToken ct)
+    {
+        var settings = await _mailbox.GetSettingsAsync(ct);
+        return Ok(ApiResponse<EmailMailboxSettingsDto>.Ok(settings));
+    }
+
+    [HttpPut("settings")]
+    public async Task<ActionResult<ApiResponse<EmailMailboxSettingsDto>>> SaveSettings(
+        [FromBody] SaveEmailMailboxSettingsRequest request,
+        CancellationToken ct)
+    {
+        var settings = await _mailbox.SaveSettingsAsync(request, ct);
+        return Ok(ApiResponse<EmailMailboxSettingsDto>.Ok(settings));
+    }
+
+    [HttpPost("test")]
+    public async Task<ActionResult<ApiResponse<EmailTestResultDto>>> Test(CancellationToken ct)
+    {
+        var result = await _mailbox.TestConnectionAsync(ct);
+        return result.Success
+            ? Ok(ApiResponse<EmailTestResultDto>.Ok(result))
+            : BadRequest(ApiResponse<EmailTestResultDto>.Fail(result.Message));
+    }
+
+    [HttpGet("folders")]
+    public async Task<ActionResult<ApiResponse<List<EmailFolderDto>>>> GetFolders(CancellationToken ct)
+    {
+        var folders = await _mailbox.GetFoldersAsync(ct);
+        return Ok(ApiResponse<List<EmailFolderDto>>.Ok(folders));
+    }
+
+    [HttpGet("messages")]
+    public async Task<ActionResult<ApiResponse<EmailMessageListDto>>> GetMessages(
+        [FromQuery] string? folderId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
+    {
+        var messages = await _mailbox.GetMessagesAsync(folderId, page, pageSize, search, ct);
+        return Ok(ApiResponse<EmailMessageListDto>.Ok(messages));
+    }
+
+    [HttpGet("messages/{id}")]
+    public async Task<ActionResult<ApiResponse<EmailMessageDto>>> GetMessage(
+        string id,
+        [FromQuery] string? folderId,
+        CancellationToken ct)
+    {
+        var message = await _mailbox.GetMessageAsync(id, folderId, ct);
+        return message is null ? NotFound() : Ok(ApiResponse<EmailMessageDto>.Ok(message));
+    }
+
+    [HttpPost("send")]
+    public async Task<ActionResult> Send([FromBody] SendEmailRequest request, CancellationToken ct)
+    {
+        await _mailbox.SendAsync(request, ct);
+        return Ok(new { message = "Email sent" });
+    }
+
+    [HttpPatch("messages/{id}/read")]
+    public async Task<ActionResult> MarkRead(
+        string id,
+        [FromQuery] string? folderId,
+        [FromBody] EmailMarkRequest request,
+        CancellationToken ct)
+    {
+        await _mailbox.MarkReadAsync(id, folderId, request.IsRead, ct);
+        return Ok(new { message = request.IsRead ? "Marked as read" : "Marked as unread" });
+    }
+
+    [HttpPost("messages/{id}/move")]
+    public async Task<ActionResult> Move(
+        string id,
+        [FromQuery] string? folderId,
+        [FromBody] EmailMoveRequest request,
+        CancellationToken ct)
+    {
+        await _mailbox.MoveAsync(id, folderId, request.DestinationFolderId, ct);
+        return Ok(new { message = "Message moved" });
+    }
+
+    [HttpDelete("messages/{id}")]
+    public async Task<ActionResult> Delete(string id, [FromQuery] string? folderId, CancellationToken ct)
+    {
+        await _mailbox.DeleteAsync(id, folderId, ct);
+        return Ok(new { message = "Message deleted" });
+    }
+}

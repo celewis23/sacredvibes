@@ -11,6 +11,7 @@ public interface IAuthService
     Task<bool> ChangePasswordAsync(string userId, ChangePasswordRequest request, CancellationToken ct = default);
     Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken ct = default);
     Task<bool> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken ct = default);
+    Task<AuthResponse> RegisterMemberAsync(RegisterMemberRequest request, string? ipAddress = null, CancellationToken ct = default);
     Task<UserProfileDto> CreateAdminUserAsync(CreateAdminUserRequest request, CancellationToken ct = default);
     Task<UserProfileDto?> GetUserProfileAsync(string userId, CancellationToken ct = default);
     Task UpdateUserProfileAsync(string userId, UserProfileDto profile, CancellationToken ct = default);

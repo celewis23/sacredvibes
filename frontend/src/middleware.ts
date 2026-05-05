@@ -1,5 +1,19 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
+function getJwtRole(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    // ASP.NET Identity uses ClaimTypes.Role which maps to this key
+    return (
+      payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ??
+      payload['role'] ??
+      null
+    )
+  } catch {
+    return null
+  }
+}
+
 const BRAND_HOST_MAP: Record<string, string> = {
   'sacredvibesyoga.com':       'sacred-vibes-yoga',
   'admin.sacredvibesyoga.com': 'admin',
@@ -54,6 +68,24 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get('access_token')?.value
     if (!token) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
+    }
+  }
+
+  // Protect member account routes
+  if (pathname.startsWith('/account')) {
+    const token = request.cookies.get('access_token')?.value
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+  }
+
+  // Redirect authenticated members away from /login and /register
+  if (pathname === '/login' || pathname === '/register') {
+    const token = request.cookies.get('access_token')?.value
+    if (token) {
+      const role = getJwtRole(token)
+      const dest = role === 'Member' ? '/account' : '/admin'
+      return NextResponse.redirect(new URL(dest, request.url))
     }
   }
 

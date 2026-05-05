@@ -36,5 +36,6 @@ public enum UserRole
 {
     Admin = 0,
     Editor = 1,
-    Manager = 2
+    Manager = 2,
+    Member = 3
 }

@@ -14,6 +14,22 @@ public class AuthController : ControllerBase
 
     public AuthController(IAuthService auth) => _auth = auth;
 
+    [HttpPost("register")]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(
+        [FromBody] RegisterMemberRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var result = await _auth.RegisterMemberAsync(request, ip, ct);
+            return Ok(ApiResponse<AuthResponse>.Ok(result));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<AuthResponse>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Login(
         [FromBody] LoginRequest request, CancellationToken ct)

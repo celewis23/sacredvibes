@@ -10,7 +10,7 @@ interface AuthContextValue {
   user: AuthUser | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<AuthUser>
   logout: () => Promise<void>
 }
 
@@ -36,11 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { loadUser() }, [loadUser])
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<AuthUser> => {
     const { data } = await authApi.login(email, password)
     if (!data.success || !data.data) throw new Error(data.errors?.[0] ?? 'Login failed')
     setAuthTokens(data.data.accessToken, data.data.refreshToken)
     setUser(data.data.user)
+    return data.data.user
   }
 
   const logout = async () => {

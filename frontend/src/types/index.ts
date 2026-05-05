@@ -471,6 +471,70 @@ export interface ImportJob {
   createdAt: string
 }
 
+// ── Email Inbox ───────────────────────────────────────────────────────────────
+
+export interface EmailMailboxSettings {
+  isEnabled: boolean
+  emailAddress: string
+  fromName: string
+  imapHost: string
+  imapPort: number
+  imapUseSsl: boolean
+  smtpHost: string
+  smtpPort: number
+  smtpUseSsl: boolean
+  username: string
+  hasPassword: boolean
+  lastSyncAt?: string
+  lastSyncResult?: string
+}
+
+export interface EmailFolder {
+  id: string
+  name: string
+  unreadCount?: number
+  totalCount?: number
+}
+
+export interface EmailAddress {
+  name: string
+  address: string
+}
+
+export interface EmailAttachment {
+  fileName: string
+  contentType: string
+  size?: number
+}
+
+export interface EmailMessageSummary {
+  id: string
+  folderId: string
+  subject: string
+  from?: EmailAddress
+  to: EmailAddress[]
+  date?: string
+  isRead: boolean
+  hasAttachments: boolean
+  preview: string
+}
+
+export interface EmailMessage extends EmailMessageSummary {
+  htmlBody?: string
+  textBody?: string
+  cc: EmailAddress[]
+  attachments: EmailAttachment[]
+}
+
+export interface EmailMessageList {
+  folderId: string
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+  items: EmailMessageSummary[]
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

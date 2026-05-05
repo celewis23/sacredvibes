@@ -161,6 +161,33 @@ public class AuthService : IAuthService
         return true;
     }
 
+    public async Task<AuthResponse> RegisterMemberAsync(RegisterMemberRequest request, string? ipAddress = null, CancellationToken ct = default)
+    {
+        if (await _userManager.FindByEmailAsync(request.Email) is not null)
+            throw new InvalidOperationException("An account with that email already exists");
+
+        var user = new ApplicationUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Role = UserRole.Member,
+            EmailConfirmed = true,
+            IsActive = true,
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(string.Join(", ", result.Errors.Select(e => e.Description)));
+
+        await _userManager.AddToRoleAsync(user, "Member");
+
+        var accessToken = GenerateAccessToken(user);
+        var refreshToken = await CreateRefreshTokenAsync(user.Id, ipAddress, null, ct);
+        return BuildAuthResponse(accessToken, refreshToken, user);
+    }
+
     public async Task<UserProfileDto> CreateAdminUserAsync(CreateAdminUserRequest request, CancellationToken ct = default)
     {
         if (await _userManager.FindByEmailAsync(request.Email) is not null)

@@ -222,7 +222,46 @@ Jobs are retained indefinitely. Each job stores: provider, status, total/inserte
 
 ## Email (Planned)
 
-The system has placeholder hooks for email notifications but does not ship with an email provider integration. The recommended approach is to add one of these providers by implementing an `IEmailService` interface:
+The admin panel includes a cPanel-compatible mailbox client for `info@sacredvibesyoga.com`.
+
+### cPanel Inbox Setup
+
+In Admin → Email Inbox, open Settings and enter the mailbox details from cPanel:
+
+| Field | Typical cPanel Value |
+|-------|----------------------|
+| Email Address | `info@sacredvibesyoga.com` |
+| Username | `info@sacredvibesyoga.com` |
+| IMAP Host | `mail.sacredvibesyoga.com` |
+| IMAP Port | `993` |
+| IMAP SSL | enabled |
+| SMTP Host | `mail.sacredvibesyoga.com` |
+| SMTP Port | `465` |
+| SMTP SSL | enabled |
+
+The admin inbox can list folders, read messages, mark messages read/unread, archive when an Archive folder exists, delete messages, compose new email, and reply as `info@sacredvibesyoga.com`.
+
+### Required Backend Secret
+
+Mailbox passwords saved through the admin UI are encrypted before they are stored in `integration_settings`. Set a stable encryption key in production so saved credentials survive deploys:
+
+| Key | Description |
+|-----|-------------|
+| `EMAIL_CREDENTIAL_KEY` | Strong random secret used to encrypt saved mailbox credentials. If omitted, the app falls back to `Jwt:Secret`. |
+
+You can also bypass saving the mailbox password in the database by setting it as an environment variable:
+
+| Key | Description |
+|-----|-------------|
+| `EMAIL_PASSWORD` | Mailbox password for `info@sacredvibesyoga.com` |
+| `EMAIL_USERNAME` | Optional override for the mailbox username |
+| `EMAIL_IMAP_HOST` / `EMAIL_IMAP_PORT` / `EMAIL_IMAP_SSL` | Optional incoming-mail overrides |
+| `EMAIL_SMTP_HOST` / `EMAIL_SMTP_PORT` / `EMAIL_SMTP_SSL` | Optional outgoing-mail overrides |
+| `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` | Optional sender identity overrides |
+
+### Future Transactional Email
+
+The inbox integration is for reading and sending admin-managed mailbox email. Automated transactional notifications can still be added later with a provider such as:
 
 | Provider | Notes |
 |----------|-------|

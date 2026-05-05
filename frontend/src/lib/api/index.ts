@@ -5,6 +5,7 @@ import type {
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
+  EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -12,12 +13,18 @@ import type {
 export const authApi = {
   login: (email: string, password: string) =>
     apiClient.post<ApiResponse<AuthResponse>>('/auth/login', { email, password }),
+  register: (data: { email: string; firstName: string; lastName: string; password: string }) =>
+    apiClient.post<ApiResponse<AuthResponse>>('/auth/register', data),
   refresh: (refreshToken: string) =>
     apiClient.post<ApiResponse<AuthResponse>>('/auth/refresh', { refreshToken }),
   logout: (refreshToken: string) =>
     apiClient.post('/auth/logout', { refreshToken }),
   me: () =>
     apiClient.get<ApiResponse<AuthResponse['user']>>('/auth/me'),
+  updateProfile: (data: { firstName: string; lastName: string; bio?: string }) =>
+    apiClient.put('/auth/me', data),
+  changePassword: (data: { currentPassword: string; newPassword: string }) =>
+    apiClient.post('/auth/change-password', data),
 }
 
 // ── Blog ──────────────────────────────────────────────────────────────────────
@@ -298,4 +305,46 @@ export const usersApi = {
 export const importsApi = {
   getJobs: (params?: { page?: number; pageSize?: number }) =>
     apiClient.get<ApiResponse<PagedResult<ImportJob>>>('/subscribers/import/jobs', { params }),
+}
+
+// ── Email Inbox ───────────────────────────────────────────────────────────────
+
+export const emailApi = {
+  getSettings: () =>
+    apiClient.get<ApiResponse<EmailMailboxSettings>>('/email/settings'),
+
+  saveSettings: (data: Record<string, unknown>) =>
+    apiClient.put<ApiResponse<EmailMailboxSettings>>('/email/settings', data),
+
+  testConnection: () =>
+    apiClient.post<ApiResponse<{ success: boolean; message: string }>>('/email/test'),
+
+  getFolders: () =>
+    apiClient.get<ApiResponse<EmailFolder[]>>('/email/folders'),
+
+  getMessages: (params: { folderId?: string; page?: number; pageSize?: number; search?: string }) =>
+    apiClient.get<ApiResponse<EmailMessageList>>('/email/messages', { params }),
+
+  getMessage: (id: string, folderId?: string) =>
+    apiClient.get<ApiResponse<EmailMessage>>(`/email/messages/${id}`, { params: { folderId } }),
+
+  send: (data: {
+    to: string[]
+    cc?: string[]
+    bcc?: string[]
+    subject: string
+    body: string
+    isHtml?: boolean
+    replyToMessageId?: string
+    replyToFolderId?: string
+  }) => apiClient.post('/email/send', data),
+
+  markRead: (id: string, folderId: string | undefined, isRead: boolean) =>
+    apiClient.patch(`/email/messages/${id}/read`, { isRead }, { params: { folderId } }),
+
+  move: (id: string, folderId: string | undefined, destinationFolderId: string) =>
+    apiClient.post(`/email/messages/${id}/move`, { destinationFolderId }, { params: { folderId } }),
+
+  delete: (id: string, folderId?: string) =>
+    apiClient.delete(`/email/messages/${id}`, { params: { folderId } }),
 }

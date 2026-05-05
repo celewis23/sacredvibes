@@ -239,7 +239,7 @@ public static class SeedData
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
     {
-        string[] roles = ["Admin", "Editor", "Manager"];
+        string[] roles = ["Admin", "Editor", "Manager", "Member"];
         foreach (var role in roles)
         {
             if (!await roleManager.RoleExistsAsync(role))
@@ -641,7 +641,7 @@ public static class SeedData
             new() { Provider = "Square", SettingsJson = """{"environment":"sandbox","applicationId":"","accessToken":"","locationId":"","webhookSignatureKey":""}""", IsEnabled = false },
             new() { Provider = "Stripe", SettingsJson = """{"secretKey":"","publishableKey":""}""", IsEnabled = false },
             new() { Provider = "Eventbrite", SettingsJson = """{"organizationId":"","privateToken":"","defaultVenueId":"","publishOnCreate":false}""", IsEnabled = false },
-            new() { Provider = "Email", SettingsJson = """{"smtpHost":"","smtpPort":587,"smtpUser":"","smtpPassword":"","fromEmail":"noreply@sacredvibesyoga.com","fromName":"Sacred Vibes Yoga"}""", IsEnabled = false },
+            new() { Provider = "Email", SettingsJson = """{"emailAddress":"info@sacredvibesyoga.com","fromName":"Sacred Vibes Healing & Wellness","imapHost":"","imapPort":993,"imapUseSsl":true,"smtpHost":"","smtpPort":465,"smtpUseSsl":true,"username":"","protectedPassword":""}""", IsEnabled = false },
         };
 
         await db.IntegrationSettings.AddRangeAsync(settings);
