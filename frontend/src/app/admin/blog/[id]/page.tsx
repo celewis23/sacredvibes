@@ -122,7 +122,7 @@ export default function BlogEditorPage({ params }: Props) {
       setSeoTitle(post.seoTitle ?? '')
       setSeoDescription(post.seoDescription ?? '')
       setBrandId(post.brandId)
-      setFeaturedImageAssetId(post.featuredImageAssetId ?? '')
+      setFeaturedImageAssetId(post.featuredImage?.id ?? '')
       setSlugManuallyEdited(true)
       editor.commands.setContent(post.content ?? '')
     }
