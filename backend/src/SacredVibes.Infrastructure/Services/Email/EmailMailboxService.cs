@@ -260,7 +260,7 @@ public class EmailMailboxService : IEmailMailboxService
         {
             throw new InvalidOperationException($"SMTP protocol error while sending: {ex.Message}", ex);
         }
-        catch (AuthenticationException ex)
+        catch (System.Security.Authentication.AuthenticationException ex)
         {
             throw new InvalidOperationException($"SMTP authentication failed: {ex.Message}", ex);
         }
