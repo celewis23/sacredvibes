@@ -96,6 +96,7 @@ function normalizeSignatureHtml(html: string) {
   if (typeof window === 'undefined') return html
 
   const doc = new DOMParser().parseFromString(html, 'text/html')
+  const socialImages: HTMLImageElement[] = []
   doc.querySelectorAll('img').forEach(img => {
     const src = img.getAttribute('src') ?? ''
     const isSocialIcon = /instagram|facebook/i.test(src)
@@ -116,6 +117,7 @@ function normalizeSignatureHtml(html: string) {
     styles.set('display', 'block')
     styles.set('border', '0')
     styles.set('outline', 'none')
+    if (isSocialIcon) socialImages.push(img)
 
     if (width) {
       img.setAttribute('width', width)
@@ -133,6 +135,28 @@ function normalizeSignatureHtml(html: string) {
 
     img.setAttribute('style', Array.from(styles.entries()).map(([key, value]) => `${key}: ${value}`).join('; '))
   })
+
+  if (socialImages.length > 0) {
+    const socialParagraph = doc.createElement('p')
+    socialParagraph.setAttribute('style', 'margin: 0; line-height: 24px;')
+
+    socialImages.forEach((img, index) => {
+      const link = img.closest('a')
+      const href = link?.getAttribute('href') ?? '#'
+      const nextLink = doc.createElement('a')
+      nextLink.setAttribute('href', href)
+      nextLink.setAttribute('style', `display: inline-block; vertical-align: middle; margin: 0 ${index === socialImages.length - 1 ? '0' : '8px'} 0 0; text-decoration: none; line-height: 0;`)
+      nextLink.appendChild(img.cloneNode(true))
+      socialParagraph.appendChild(nextLink)
+    })
+
+    const firstSocialBlock = socialImages[0].closest('div, p, table') ?? socialImages[0].parentElement
+    firstSocialBlock?.replaceWith(socialParagraph)
+    socialImages.slice(1).forEach(img => {
+      const block = img.closest('div, p, table')
+      if (block && block !== socialParagraph && block.isConnected) block.remove()
+    })
+  }
 
   return doc.body.innerHTML
 }
@@ -452,7 +476,7 @@ function ComposePanel({
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      EmailImage.configure({ inline: false, allowBase64: true }),
+      EmailImage.configure({ inline: true, allowBase64: true }),
       Link.configure({
         openOnClick: false,
         autolink: true,
