@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using SacredVibes.Application.Features.Auth;
 using SacredVibes.Application.Features.Auth.DTOs;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
 
 namespace SacredVibes.Infrastructure.Services;
