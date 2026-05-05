@@ -39,6 +39,11 @@ public class EventbriteService : IEventbriteService
 
         var result = new EventbriteEventSyncResult();
         var organizationId = await ResolveOrganizationIdAsync(ct);
+        var reservedSlugs = (await _db.EventOfferings
+            .Where(e => e.BrandId == brandId)
+            .Select(e => e.Slug)
+            .ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         string? continuation = null;
 
         do
@@ -78,7 +83,7 @@ public class EventbriteService : IEventbriteService
             {
                 try
                 {
-                    await ImportOneAsync(node, brandId, result, ct);
+                    await ImportOneAsync(node, brandId, result, reservedSlugs, ct);
                 }
                 catch (Exception ex)
                 {
@@ -302,7 +307,12 @@ public class EventbriteService : IEventbriteService
         }
     }
 
-    private async Task ImportOneAsync(JsonObject source, Guid brandId, EventbriteEventSyncResult result, CancellationToken ct)
+    private async Task ImportOneAsync(
+        JsonObject source,
+        Guid brandId,
+        EventbriteEventSyncResult result,
+        HashSet<string> reservedSlugs,
+        CancellationToken ct)
     {
         var eventbriteId = GetString(source, "id");
         if (string.IsNullOrWhiteSpace(eventbriteId))
@@ -328,7 +338,7 @@ public class EventbriteService : IEventbriteService
             {
                 BrandId = brandId,
                 Name = name,
-                Slug = await UniqueSlugAsync(GenerateSlug(name), brandId, ct),
+                Slug = UniqueReservedSlug(GenerateSlug(name), reservedSlugs),
                 IsActive = true,
                 IsBookable = false
             };
@@ -483,15 +493,18 @@ public class EventbriteService : IEventbriteService
         }
     }
 
-    private async Task<string> UniqueSlugAsync(string baseSlug, Guid brandId, CancellationToken ct)
+    private static string UniqueReservedSlug(string baseSlug, HashSet<string> reservedSlugs)
     {
+        if (string.IsNullOrWhiteSpace(baseSlug)) baseSlug = "event";
+
         var slug = baseSlug;
         var counter = 1;
-        while (await _db.EventOfferings.AnyAsync(e => e.BrandId == brandId && e.Slug == slug, ct))
+        while (reservedSlugs.Contains(slug))
         {
             slug = $"{baseSlug}-{counter++}";
         }
 
+        reservedSlugs.Add(slug);
         return slug;
     }
 
