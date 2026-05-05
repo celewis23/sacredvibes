@@ -42,6 +42,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<PaymentRecord> PaymentRecords => Set<PaymentRecord>();
 
+    // Digital Studio
+    public DbSet<StudioContent> StudioContent => Set<StudioContent>();
+    public DbSet<MemberSubscription> MemberSubscriptions => Set<MemberSubscription>();
+
     // System
     public DbSet<IntegrationSetting> IntegrationSettings => Set<IntegrationSetting>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();

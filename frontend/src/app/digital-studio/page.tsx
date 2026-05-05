@@ -75,7 +75,7 @@ const PLANS = [
       'Community access',
     ],
     cta: 'Start Free',
-    href: '#waitlist',
+    href: '/register',
     highlighted: false,
   },
   {
@@ -91,8 +91,8 @@ const PLANS = [
       'Member discounts on in-person events',
       'Community circle access',
     ],
-    cta: 'Join Waitlist',
-    href: '#waitlist',
+    cta: 'Join Seeker',
+    href: '/account',
     highlighted: true,
   },
   {
@@ -108,8 +108,8 @@ const PLANS = [
       'Early access to retreats & events',
       'Founding member pricing (locked forever)',
     ],
-    cta: 'Join Waitlist',
-    href: '#waitlist',
+    cta: 'Join Devotee',
+    href: '/account',
     highlighted: false,
   },
 ]
@@ -158,7 +158,7 @@ export default function DigitalStudioPage() {
               Launching Soon — Join the Founding Member Waitlist
             </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="#waitlist" className="btn-gold">Join the Waitlist</a>
+              <a href="/register" className="btn-gold">Start Free — Explorer Plan</a>
               <a href="#content" className="btn-ghost-light">Preview Content</a>
             </div>
           </div>
@@ -207,7 +207,7 @@ export default function DigitalStudioPage() {
                 </div>
                 <div className="pt-4 border-t border-sacred-100 flex items-center justify-between">
                   <p className="text-xs text-sacred-400 font-body tracking-wide">{cat.count}+ sessions</p>
-                  <a href="#waitlist" className="text-xs font-body font-medium text-yoga-600 hover:text-yoga-800 transition-colors tracking-wide">
+                  <a href="/register" className="text-xs font-body font-medium text-yoga-600 hover:text-yoga-800 transition-colors tracking-wide">
                     Join to Access →
                   </a>
                 </div>
@@ -258,7 +258,7 @@ export default function DigitalStudioPage() {
                 </div>
 
                 {track.locked ? (
-                  <a href="#waitlist" className="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-body font-semibold tracking-wider uppercase bg-yoga-100 text-yoga-700 hover:bg-yoga-200 transition-colors">
+                  <a href="/register" className="flex-shrink-0 px-4 py-1.5 rounded-full text-[10px] font-body font-semibold tracking-wider uppercase bg-yoga-100 text-yoga-700 hover:bg-yoga-200 transition-colors">
                     Unlock
                   </a>
                 ) : (

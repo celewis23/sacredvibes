@@ -339,6 +339,47 @@ export interface AuthUser {
   fullName: string
   role: string
   avatarPath?: string
+  bio?: string
+  title?: string
+  studioTier?: string
+  subscriptionStatus?: string
+  subscriptionPeriodEnd?: string
+}
+
+// ── Studio ─────────────────────────────────────────────────────────────────────
+
+export type StudioTier = 'Free' | 'Seeker' | 'Devotee'
+
+export interface StudioContentItem {
+  id: string
+  title: string
+  description?: string
+  category: string
+  requiredTier: StudioTier
+  duration?: string
+  thumbnailUrl?: string
+  isPublished: boolean
+  sortOrder: number
+  locked: boolean
+  streamUrl?: string
+}
+
+export interface StudioCategory {
+  type: string
+  label: string
+  items: StudioContentItem[]
+}
+
+export interface StudioLibrary {
+  userTier: StudioTier
+  categories: StudioCategory[]
+}
+
+export interface MemberSubscription {
+  tier: StudioTier
+  status: string
+  currentPeriodEnd?: string
+  isActive: boolean
 }
 
 export interface AuthResponse {

@@ -7,6 +7,7 @@ import type {
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
   EmailSendAttachment, EmailSignature,
+  StudioLibrary, StudioContentItem, MemberSubscription,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -370,4 +371,40 @@ export const emailApi = {
 
   deleteSignature: (id: string) =>
     apiClient.delete<ApiResponse<object>>(`/email/signatures/${id}`),
+}
+
+// ── Digital Studio ────────────────────────────────────────────────────────────
+
+export const studioApi = {
+  // Member-facing
+  getLibrary: () =>
+    apiClient.get<ApiResponse<StudioLibrary>>('/studio/library'),
+
+  getContent: (id: string) =>
+    apiClient.get<ApiResponse<StudioContentItem>>(`/studio/content/${id}`),
+
+  getSubscription: () =>
+    apiClient.get<ApiResponse<MemberSubscription>>('/studio/subscription'),
+
+  createCheckout: (tier: string) =>
+    apiClient.post<ApiResponse<{ checkoutUrl: string }>>('/studio/checkout', { tier }),
+
+  createPortal: () =>
+    apiClient.post<ApiResponse<{ portalUrl: string }>>('/studio/portal'),
+
+  // Admin
+  adminListContent: () =>
+    apiClient.get<ApiResponse<StudioContentItem[]>>('/studio/admin/content'),
+
+  adminCreateContent: (data: unknown) =>
+    apiClient.post<ApiResponse<StudioContentItem>>('/studio/admin/content', data),
+
+  adminUpdateContent: (id: string, data: unknown) =>
+    apiClient.put<ApiResponse<StudioContentItem>>(`/studio/admin/content/${id}`, data),
+
+  adminDeleteContent: (id: string) =>
+    apiClient.delete(`/studio/admin/content/${id}`),
+
+  adminTogglePublished: (id: string) =>
+    apiClient.patch(`/studio/admin/content/${id}/toggle`),
 }

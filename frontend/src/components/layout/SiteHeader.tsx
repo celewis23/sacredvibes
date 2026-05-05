@@ -8,6 +8,7 @@ import { clsx } from 'clsx'
 import { resolveDisplayBrand, toBrandPath, type BrandContext } from '@/lib/brand/resolution'
 import LotusMark from '@/components/branding/LotusMark'
 import { useSiteNavigation } from '@/components/layout/useSiteNavigation'
+import { useAuth } from '@/lib/auth/context'
 
 interface SiteHeaderProps {
   brand: BrandContext
@@ -71,6 +72,7 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
   const displayBrand = resolveDisplayBrand(brand, pathname)
   const scheme = subBrandSchemes[displayBrand.colorScheme]
   const { navigate, handleNavigationClick, normalizePath } = useSiteNavigation()
+  const { user, isAuthenticated } = useAuth()
   const rafRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -289,6 +291,31 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
 
           {/* Desktop CTA */}
           <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+            {isAuthenticated && user?.role === 'Member' ? (
+              <Link
+                href="/account"
+                className={clsx(
+                  'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
+                  onDark
+                    ? 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
+                    : `border-sacred-300 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
+                )}
+              >
+                My Studio
+              </Link>
+            ) : !isAuthenticated ? (
+              <Link
+                href="/login"
+                className={clsx(
+                  'px-5 py-2.5 rounded-full text-sm font-body font-medium tracking-wide border transition-all duration-300',
+                  onDark
+                    ? 'border-white/30 text-white/80 hover:border-white/60 hover:text-white'
+                    : `border-sacred-300 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
+                )}
+              >
+                Sign In
+              </Link>
+            ) : null}
             {!isYoga && (
               <Link
                 href={toBrandPath(displayBrand, '/contact')}
@@ -419,6 +446,33 @@ export default function SiteHeader({ brand }: SiteHeaderProps) {
               >
                 Contact
               </Link>
+              {isAuthenticated && user?.role === 'Member' ? (
+                <Link
+                  href="/account"
+                  onClick={closeMenus}
+                  className={clsx(
+                    'block text-center px-6 py-3 rounded-full text-sm font-medium border transition-colors',
+                    onDark
+                      ? 'border-white/25 text-white/90 hover:border-white/45 hover:text-white'
+                      : `border-sacred-200 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
+                  )}
+                >
+                  My Studio
+                </Link>
+              ) : !isAuthenticated ? (
+                <Link
+                  href="/login"
+                  onClick={closeMenus}
+                  className={clsx(
+                    'block text-center px-6 py-3 rounded-full text-sm font-medium border transition-colors',
+                    onDark
+                      ? 'border-white/25 text-white/90 hover:border-white/45 hover:text-white'
+                      : `border-sacred-200 text-sacred-700 ${scheme.contactHoverBorder} ${scheme.contactHoverText}`
+                  )}
+                >
+                  Sign In
+                </Link>
+              ) : null}
             </div>
           </nav>
         </div>

@@ -217,7 +217,16 @@ public class AuthService : IAuthService
     public async Task<UserProfileDto?> GetUserProfileAsync(string userId, CancellationToken ct = default)
     {
         var user = await _userManager.FindByIdAsync(userId);
-        return user is null ? null : MapToProfileDto(user);
+        if (user is null) return null;
+        var dto = MapToProfileDto(user);
+        var sub = await _db.MemberSubscriptions.FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        if (sub is not null)
+        {
+            dto.StudioTier           = sub.Tier.ToString();
+            dto.SubscriptionStatus   = sub.Status.ToString();
+            dto.SubscriptionPeriodEnd = sub.CurrentPeriodEnd;
+        }
+        return dto;
     }
 
     public async Task UpdateUserProfileAsync(string userId, UserProfileDto profile, CancellationToken ct = default)

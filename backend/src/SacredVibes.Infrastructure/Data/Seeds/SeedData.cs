@@ -25,6 +25,7 @@ public static class SeedData
         await SeedRestFest2026Async(db, userManager);
         await SeedPagesAsync(db);
         await SeedIntegrationSettingsAsync(db);
+        await SeedStudioContentAsync(db);
 
         await db.SaveChangesAsync();
     }
@@ -45,6 +46,7 @@ public static class SeedData
 
         await EnsureAuthSchemaCompatibilityAsync(db);
         await EnsureOfferingsSchemaCompatibilityAsync(db);
+        await EnsureStudioSchemaCompatibilityAsync(db);
         await ValidateCriticalAuthSchemaAsync(db);
     }
 
@@ -235,6 +237,66 @@ public static class SeedData
                 """
             );
         }
+    }
+
+    private static async Task EnsureStudioSchemaCompatibilityAsync(AppDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS studio_content (
+                "Id" uuid NOT NULL DEFAULT gen_random_uuid(),
+                "Title" character varying(300) NOT NULL DEFAULT '',
+                "Description" character varying(2000) NULL,
+                "Category" integer NOT NULL DEFAULT 0,
+                "RequiredTier" integer NOT NULL DEFAULT 0,
+                "Duration" character varying(50) NULL,
+                "AssetId" uuid NULL,
+                "ThumbnailAssetId" uuid NULL,
+                "IsPublished" boolean NOT NULL DEFAULT FALSE,
+                "SortOrder" integer NOT NULL DEFAULT 0,
+                "BrandId" text NULL,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_studio_content" PRIMARY KEY ("Id")
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS member_subscriptions (
+                "Id" uuid NOT NULL DEFAULT gen_random_uuid(),
+                "UserId" text NOT NULL,
+                "Tier" integer NOT NULL DEFAULT 0,
+                "Status" integer NOT NULL DEFAULT 0,
+                "StripeSubscriptionId" character varying(200) NULL,
+                "StripeCustomerId" character varying(200) NULL,
+                "CurrentPeriodStart" timestamp with time zone NULL,
+                "CurrentPeriodEnd" timestamp with time zone NULL,
+                "CancelledAt" timestamp with time zone NULL,
+                "RawEventJson" jsonb NULL,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_member_subscriptions" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_member_subscriptions_AspNetUsers_UserId"
+                    FOREIGN KEY ("UserId") REFERENCES "AspNetUsers" ("Id") ON DELETE CASCADE
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE UNIQUE INDEX IF NOT EXISTS "IX_member_subscriptions_UserId" ON member_subscriptions ("UserId");"""
+        );
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_member_subscriptions_StripeSubscriptionId" ON member_subscriptions ("StripeSubscriptionId");"""
+        );
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_studio_content_Category_SortOrder" ON studio_content ("Category", "SortOrder");"""
+        );
     }
 
     private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
@@ -645,6 +707,45 @@ public static class SeedData
         };
 
         await db.IntegrationSettings.AddRangeAsync(settings);
+    }
+
+    private static async Task SeedStudioContentAsync(AppDbContext db)
+    {
+        if (await db.StudioContent.AnyAsync()) return;
+
+        var items = new List<StudioContent>
+        {
+            // Free tier — Sound Healing
+            new() { Title = "Morning Frequency Reset", Description = "Start your day with a grounding 432 Hz sound bath to clear mental fog and align your energy.", Category = StudioCategoryType.SoundHealing, RequiredTier = StudioTier.Free, Duration = "12 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Heart Chakra Opening", Description = "Rose quartz crystal bowls and 528 Hz tones to open and soften the heart center.", Category = StudioCategoryType.SoundHealing, RequiredTier = StudioTier.Seeker, Duration = "24 min", IsPublished = true, SortOrder = 2 },
+            new() { Title = "Deep Sleep Soundscape", Description = "Delta wave frequencies and Tibetan bowl drones for restorative rest.", Category = StudioCategoryType.SoundHealing, RequiredTier = StudioTier.Seeker, Duration = "45 min", IsPublished = true, SortOrder = 3 },
+            new() { Title = "Full Moon Release Ceremony", Description = "A sound healing journey for releasing what no longer serves during the full moon.", Category = StudioCategoryType.SoundHealing, RequiredTier = StudioTier.Devotee, Duration = "60 min", IsPublished = true, SortOrder = 4 },
+
+            // Free tier — Yoga Flows
+            new() { Title = "Root Chakra Grounding Flow", Description = "A slow, intentional yoga flow focused on stability, safety, and connection to earth.", Category = StudioCategoryType.YogaFlows, RequiredTier = StudioTier.Free, Duration = "45 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Morning Rise Vinyasa", Description = "Wake up the spine and ignite your inner fire with this energizing morning flow.", Category = StudioCategoryType.YogaFlows, RequiredTier = StudioTier.Seeker, Duration = "30 min", IsPublished = true, SortOrder = 2 },
+            new() { Title = "Yin for Deep Release", Description = "Long-held postures targeting the hips, spine, and connective tissue.", Category = StudioCategoryType.YogaFlows, RequiredTier = StudioTier.Seeker, Duration = "60 min", IsPublished = true, SortOrder = 3 },
+
+            // Breathwork — Seeker+
+            new() { Title = "Box Breathing for Calm", Description = "A foundational breathwork technique for nervous system regulation.", Category = StudioCategoryType.Breathwork, RequiredTier = StudioTier.Seeker, Duration = "10 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Pranayama for Energy", Description = "Kapalabhati and alternate nostril breathing to energize and balance the mind.", Category = StudioCategoryType.Breathwork, RequiredTier = StudioTier.Seeker, Duration = "20 min", IsPublished = true, SortOrder = 2 },
+            new() { Title = "Transformational Breathwork", Description = "A deeper circular breathing practice for emotional release and expanded awareness.", Category = StudioCategoryType.Breathwork, RequiredTier = StudioTier.Devotee, Duration = "45 min", IsPublished = true, SortOrder = 3 },
+
+            // Meditations — Seeker+
+            new() { Title = "Body Scan Relaxation", Description = "A guided progressive relaxation through each part of the body.", Category = StudioCategoryType.GuidedMeditation, RequiredTier = StudioTier.Seeker, Duration = "20 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Loving-Kindness Practice", Description = "Metta meditation to cultivate compassion toward yourself and others.", Category = StudioCategoryType.GuidedMeditation, RequiredTier = StudioTier.Seeker, Duration = "15 min", IsPublished = true, SortOrder = 2 },
+            new() { Title = "Third Eye Activation", Description = "A visualization and sound meditation for intuition and inner clarity.", Category = StudioCategoryType.GuidedMeditation, RequiredTier = StudioTier.Devotee, Duration = "30 min", IsPublished = true, SortOrder = 3 },
+
+            // Ceremonies — Devotee
+            new() { Title = "New Moon Intentions Ritual", Description = "Set powerful intentions and anchor them with breath, movement, and sound.", Category = StudioCategoryType.CeremoniesAndRituals, RequiredTier = StudioTier.Devotee, Duration = "45 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Sacred Cacao Ceremony", Description = "A heart-opening ceremony using ceremonial-grade cacao as a plant medicine ally.", Category = StudioCategoryType.CeremoniesAndRituals, RequiredTier = StudioTier.Devotee, Duration = "90 min", IsPublished = true, SortOrder = 2 },
+
+            // Energy Work — Devotee
+            new() { Title = "Chakra Balancing with Sound", Description = "A full chakra scan and balancing session using tuning forks and crystal bowls.", Category = StudioCategoryType.EnergyWork, RequiredTier = StudioTier.Devotee, Duration = "40 min", IsPublished = true, SortOrder = 1 },
+            new() { Title = "Reiki-Infused Relaxation", Description = "A guided visualization with Reiki energy principles for deep healing.", Category = StudioCategoryType.EnergyWork, RequiredTier = StudioTier.Devotee, Duration = "35 min", IsPublished = true, SortOrder = 2 },
+        };
+
+        await db.StudioContent.AddRangeAsync(items);
     }
 }
 

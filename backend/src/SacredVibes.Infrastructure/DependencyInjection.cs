@@ -11,6 +11,8 @@ using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Payments;
+using SacredVibes.Application.Features.Studio;
+using SacredVibes.Application.Features.Subscriptions;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Interfaces;
 using SacredVibes.Infrastructure.Data;
@@ -22,6 +24,7 @@ using SacredVibes.Infrastructure.Services.ImageProcessing;
 using SacredVibes.Infrastructure.Services.Square;
 using SacredVibes.Infrastructure.Services.Storage;
 using SacredVibes.Infrastructure.Services.Stripe;
+using SacredVibes.Infrastructure.Services.Studio;
 using System.Text;
 
 namespace SacredVibes.Infrastructure;
@@ -95,6 +98,8 @@ public static class DependencyInjection
         services.AddScoped<IStripeImportService, StripeImportService>();
         services.AddScoped<ICsvImportService, CsvImportService>();
         services.AddScoped<IEmailMailboxService, EmailMailboxService>();
+        services.AddScoped<IStudioService, StudioService>();
+        services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
 
         return services;
     }

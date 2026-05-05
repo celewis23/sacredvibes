@@ -23,5 +23,6 @@ public enum AssetUsage
     Blog = 2,
     PageContent = 3,
     StorageOnly = 4,
-    Profile = 5
+    Profile = 5,
+    StudioContent = 6
 }

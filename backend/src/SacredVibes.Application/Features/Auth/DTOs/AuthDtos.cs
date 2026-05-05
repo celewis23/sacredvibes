@@ -39,6 +39,10 @@ public class UserProfileDto
     public string? AvatarPath { get; set; }
     public string? Bio { get; set; }
     public string? Title { get; set; }
+    // Studio subscription (populated for Member role)
+    public string? StudioTier { get; set; }
+    public string? SubscriptionStatus { get; set; }
+    public DateTime? SubscriptionPeriodEnd { get; set; }
 }
 
 public class ChangePasswordRequest

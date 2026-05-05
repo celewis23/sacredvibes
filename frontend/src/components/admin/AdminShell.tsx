@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, ShoppingBag,
   Users, Upload, MessageSquare, Settings, LogOut, Globe, Megaphone,
-  BarChart2, ChevronRight, Menu, X, UserCog, Mail
+  BarChart2, ChevronRight, Menu, X, UserCog, Mail, PlayCircle
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
@@ -36,6 +36,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Blog', href: '/admin/blog', icon: BookOpen },
       { label: 'Pages', href: '/admin/pages', icon: Globe },
+      { label: 'Digital Studio', href: '/admin/studio', icon: PlayCircle },
       { label: 'Media Library', href: '/admin/media', icon: Image },
       { label: 'Galleries', href: '/admin/galleries', icon: Grid2x2 },
     ]
