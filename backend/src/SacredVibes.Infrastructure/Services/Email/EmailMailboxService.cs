@@ -2,7 +2,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Net.Sockets;
+using System.Net.Http.Headers;
 using System.Security.Authentication;
+using System.Text.Json.Serialization;
 using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Net.Smtp;
@@ -25,11 +27,13 @@ public class EmailMailboxService : IEmailMailboxService
     private static readonly TimeSpan SmtpSendTimeout = TimeSpan.FromSeconds(45);
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IHttpClientFactory _httpClientFactory;
 
-    public EmailMailboxService(AppDbContext db, IConfiguration config)
+    public EmailMailboxService(AppDbContext db, IConfiguration config, IHttpClientFactory httpClientFactory)
     {
         _db = db;
         _config = config;
+        _httpClientFactory = httpClientFactory;
     }
 
     public async Task<EmailMailboxSettingsDto> GetSettingsAsync(CancellationToken ct = default)
@@ -207,6 +211,18 @@ public class EmailMailboxService : IEmailMailboxService
             throw new InvalidOperationException("At least one recipient is required.");
 
         var settings = await GetRequiredSettingsAsync(ct);
+        var resendApiKey = GetResendApiKey();
+        if (!string.IsNullOrWhiteSpace(resendApiKey))
+        {
+            await SendWithResendAsync(settings, request, resendApiKey, ct);
+            return;
+        }
+
+        await SendWithSmtpAsync(settings, request, ct);
+    }
+
+    private async Task SendWithSmtpAsync(ResolvedEmailSettings settings, SendEmailRequest request, CancellationToken ct)
+    {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(settings.FromName, settings.EmailAddress));
         AddRecipients(message.To, request.To);
@@ -275,6 +291,69 @@ public class EmailMailboxService : IEmailMailboxService
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
             throw new InvalidOperationException($"SMTP send failed: {ex.Message}", ex);
+        }
+    }
+
+    private async Task SendWithResendAsync(ResolvedEmailSettings settings, SendEmailRequest request, string apiKey, CancellationToken ct)
+    {
+        if (request.To.Count == 0 && request.Bcc.Count > 0 && request.Cc.Count == 0)
+        {
+            foreach (var recipient in request.Bcc)
+            {
+                await SendSingleResendEmailAsync(settings, request, apiKey, new List<string> { recipient }, new List<string>(), new List<string>(), ct);
+            }
+
+            return;
+        }
+
+        await SendSingleResendEmailAsync(settings, request, apiKey, request.To.Count > 0 ? request.To : new List<string> { settings.EmailAddress }, request.Cc, request.Bcc, ct);
+    }
+
+    private async Task SendSingleResendEmailAsync(
+        ResolvedEmailSettings settings,
+        SendEmailRequest request,
+        string apiKey,
+        List<string> to,
+        List<string> cc,
+        List<string> bcc,
+        CancellationToken ct)
+    {
+        if (to.Count > 50)
+            throw new InvalidOperationException("Resend allows up to 50 visible recipients per email. Use a recipient group or fewer To recipients.");
+
+        var payload = new ResendEmailRequest
+        {
+            From = FormatResendFrom(settings),
+            To = to,
+            Cc = cc.Count > 0 ? cc : null,
+            Bcc = bcc.Count > 0 ? bcc : null,
+            Subject = request.Subject.Trim(),
+            Html = request.IsHtml ? request.Body : null,
+            Text = request.IsHtml ? null : request.Body,
+            ReplyTo = settings.EmailAddress,
+            Attachments = request.Attachments
+                .Where(a => !string.IsNullOrWhiteSpace(a.FileName) && !string.IsNullOrWhiteSpace(a.Base64Content))
+                .Select(a => new ResendAttachment
+                {
+                    Filename = a.FileName,
+                    Content = a.Base64Content
+                })
+                .ToList()
+        };
+
+        if (payload.Attachments.Count == 0)
+            payload.Attachments = null;
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/emails");
+        httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+        httpRequest.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        var client = _httpClientFactory.CreateClient("Resend");
+        using var response = await client.SendAsync(httpRequest, ct);
+        var responseBody = await response.Content.ReadAsStringAsync(ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException($"Resend send failed ({(int)response.StatusCode}): {ExtractResendError(responseBody)}");
         }
     }
 
@@ -765,6 +844,45 @@ public class EmailMailboxService : IEmailMailboxService
         return SHA256.HashData(Encoding.UTF8.GetBytes(secret));
     }
 
+    private string GetResendApiKey() =>
+        Environment.GetEnvironmentVariable("RESEND_API_KEY")
+        ?? _config["Resend:ApiKey"]
+        ?? string.Empty;
+
+    private static string FormatResendFrom(ResolvedEmailSettings settings)
+    {
+        var email = ResolveValue("RESEND_FROM_EMAIL", settings.EmailAddress);
+        var name = ResolveValue("RESEND_FROM_NAME", settings.FromName);
+        return string.IsNullOrWhiteSpace(name) ? email : $"{name} <{email}>";
+    }
+
+    private static string ExtractResendError(string responseBody)
+    {
+        if (string.IsNullOrWhiteSpace(responseBody))
+            return "No response body returned by Resend.";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(responseBody);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("message", out var message))
+                return message.GetString() ?? responseBody;
+            if (root.TryGetProperty("error", out var error))
+            {
+                if (error.ValueKind == JsonValueKind.String)
+                    return error.GetString() ?? responseBody;
+                if (error.TryGetProperty("message", out var errorMessage))
+                    return errorMessage.GetString() ?? responseBody;
+            }
+        }
+        catch
+        {
+            return responseBody;
+        }
+
+        return responseBody;
+    }
+
     private async Task UpdateSyncResultAsync(bool success, string message, CancellationToken ct)
     {
         var setting = await GetOrCreateSettingAsync(ct);
@@ -871,5 +989,49 @@ public class EmailMailboxService : IEmailMailboxService
     private class ResolvedEmailSettings : StoredEmailSettings
     {
         public string Password { get; set; } = string.Empty;
+    }
+
+    private sealed class ResendEmailRequest
+    {
+        [JsonPropertyName("from")]
+        public string From { get; set; } = string.Empty;
+
+        [JsonPropertyName("to")]
+        public List<string> To { get; set; } = new();
+
+        [JsonPropertyName("cc")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<string>? Cc { get; set; }
+
+        [JsonPropertyName("bcc")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<string>? Bcc { get; set; }
+
+        [JsonPropertyName("subject")]
+        public string Subject { get; set; } = string.Empty;
+
+        [JsonPropertyName("html")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Html { get; set; }
+
+        [JsonPropertyName("text")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Text { get; set; }
+
+        [JsonPropertyName("reply_to")]
+        public string ReplyTo { get; set; } = string.Empty;
+
+        [JsonPropertyName("attachments")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<ResendAttachment>? Attachments { get; set; }
+    }
+
+    private sealed class ResendAttachment
+    {
+        [JsonPropertyName("filename")]
+        public string Filename { get; set; } = string.Empty;
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
     }
 }

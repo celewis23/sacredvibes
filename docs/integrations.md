@@ -232,14 +232,26 @@ In Admin → Email Inbox, open Settings and enter the mailbox details from cPane
 |-------|----------------------|
 | Email Address | `info@sacredvibesyoga.com` |
 | Username | `info@sacredvibesyoga.com` |
-| IMAP Host | `mail.sacredvibesyoga.com` |
+| IMAP Host | `sacredvibesyoga.com` |
 | IMAP Port | `993` |
 | IMAP SSL | enabled |
-| SMTP Host | `mail.sacredvibesyoga.com` |
+| SMTP Host | `sacredvibesyoga.com` |
 | SMTP Port | `465` |
 | SMTP SSL | enabled |
 
 The admin inbox can list folders, read messages, mark messages read/unread, archive when an Archive folder exists, delete messages, compose new email, and reply as `info@sacredvibesyoga.com`.
+
+### Sending With Resend
+
+Production sending should use Resend over HTTPS to avoid outbound SMTP port blocking. When `RESEND_API_KEY` is configured, admin-composed email sends through Resend automatically while incoming mail still uses cPanel IMAP.
+
+| Key | Description |
+|-----|-------------|
+| `RESEND_API_KEY` | Resend server API key used for outbound email |
+| `RESEND_FROM_EMAIL` | Optional verified sender address, usually `info@sacredvibesyoga.com` |
+| `RESEND_FROM_NAME` | Optional sender name, usually `Sacred Vibes Yoga` |
+
+Verify `sacredvibesyoga.com` in Resend before sending from `info@sacredvibesyoga.com`.
 
 ### Required Backend Secret
 
@@ -256,7 +268,7 @@ You can also bypass saving the mailbox password in the database by setting it as
 | `EMAIL_PASSWORD` | Mailbox password for `info@sacredvibesyoga.com` |
 | `EMAIL_USERNAME` | Optional override for the mailbox username |
 | `EMAIL_IMAP_HOST` / `EMAIL_IMAP_PORT` / `EMAIL_IMAP_SSL` | Optional incoming-mail overrides |
-| `EMAIL_SMTP_HOST` / `EMAIL_SMTP_PORT` / `EMAIL_SMTP_SSL` | Optional outgoing-mail overrides |
+| `EMAIL_SMTP_HOST` / `EMAIL_SMTP_PORT` / `EMAIL_SMTP_SSL` | Optional outgoing-mail overrides used only when `RESEND_API_KEY` is not configured |
 | `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` | Optional sender identity overrides |
 
 ### Future Transactional Email

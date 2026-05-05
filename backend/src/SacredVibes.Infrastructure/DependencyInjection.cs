@@ -80,6 +80,11 @@ public static class DependencyInjection
         services.AddHttpClient("Square");
         services.AddHttpClient("Stripe");
         services.AddHttpClient("Eventbrite");
+        services.AddHttpClient("Resend", client =>
+        {
+            client.BaseAddress = new Uri("https://api.resend.com");
+            client.Timeout = TimeSpan.FromSeconds(60);
+        });
 
         // Core services
         services.AddScoped<IAuthService, AuthService>();
