@@ -2,11 +2,12 @@ import { headers } from 'next/headers'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getCurrentBrand } from '@/lib/brand/current'
-import { blogApi } from '@/lib/api'
 import { toBrandPath } from '@/lib/brand/resolution'
 import type { BlogPostSummary } from '@/types'
 
-export const revalidate = 300
+export const revalidate = 60
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 
 function getVariantUrl(post: BlogPostSummary): string {
   if (!post.featuredImage) return ''
@@ -34,15 +35,25 @@ export default async function BlogPage({
   let totalPages = 1
 
   try {
-    const res = await blogApi.getPosts({
+    const params = new URLSearchParams({
       brandSlug: brand.slug,
-      category,
-      page,
-      pageSize: 9,
+      page: String(page),
+      pageSize: '9',
     })
-    posts = res.data.data?.items ?? []
-    totalPages = res.data.data?.totalPages ?? 1
-  } catch { /* show empty state */ }
+    if (category) params.set('category', category)
+    const res = await fetch(`${API_BASE}/api/blog/posts?${params}`, {
+      next: { revalidate: 60 },
+    })
+    if (!res.ok) {
+      console.error(`[blog/page] API responded ${res.status} for brand=${brand.slug}`)
+    } else {
+      const json = await res.json()
+      posts = json.data?.items ?? []
+      totalPages = json.data?.totalPages ?? 1
+    }
+  } catch (err) {
+    console.error('[blog/page] fetch failed:', err)
+  }
 
   const heroPost = posts[0]
   const restPosts = posts.slice(1)

@@ -5,9 +5,20 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { toBrandPath } from '@/lib/brand/resolution'
-import { blogApi } from '@/lib/api'
 
-export const revalidate = 300
+export const revalidate = 60
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
+
+async function fetchPost(slug: string, brandSlug: string) {
+  const res = await fetch(
+    `${API_BASE}/api/blog/posts/${slug}?brandSlug=${brandSlug}`,
+    { next: { revalidate: 60 } },
+  )
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.data ?? null
+}
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -19,8 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const brand = getCurrentBrand(headersList)
 
   try {
-    const res = await blogApi.getPost(slug, brand.slug)
-    const post = res.data.data
+    const post = await fetchPost(slug, brand.slug)
     if (!post) return {}
     return {
       title: post.seoTitle ?? post.title,
@@ -41,13 +51,7 @@ export default async function BlogPostPage({ params }: Props) {
   const headersList = await headers()
   const brand = getCurrentBrand(headersList)
 
-  let post
-  try {
-    const res = await blogApi.getPost(slug, brand.slug)
-    post = res.data.data
-  } catch {
-    notFound()
-  }
+  const post = await fetchPost(slug, brand.slug)
 
   if (!post) notFound()
 
