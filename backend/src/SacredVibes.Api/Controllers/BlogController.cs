@@ -33,7 +33,7 @@ public class BlogController : ControllerBase
             .Include(p => p.FeaturedImageAsset)
             .Include(p => p.BlogPostCategories).ThenInclude(c => c.BlogCategory)
             .Include(p => p.BlogPostTags).ThenInclude(t => t.BlogTag)
-            .Where(p => p.Status == ContentStatus.Published && p.PublishedAt <= DateTime.UtcNow)
+            .Where(p => p.Status == ContentStatus.Published)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(brandSlug))
@@ -47,7 +47,7 @@ public class BlogController : ControllerBase
 
         var total = await query.CountAsync(ct);
         var posts = await query
-            .OrderByDescending(p => p.PublishedAt)
+            .OrderByDescending(p => p.PublishedAt ?? p.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new BlogPostSummaryDto
