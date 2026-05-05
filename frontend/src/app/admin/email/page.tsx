@@ -92,6 +92,51 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function normalizeSignatureHtml(html: string) {
+  if (typeof window === 'undefined') return html
+
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  doc.querySelectorAll('img').forEach(img => {
+    const src = img.getAttribute('src') ?? ''
+    const isSocialIcon = /instagram|facebook/i.test(src)
+    const width = isSocialIcon ? '24' : img.getAttribute('width')
+    const height = isSocialIcon ? '24' : img.getAttribute('height')
+    const styles = new Map<string, string>()
+
+    ;(img.getAttribute('style') ?? '')
+      .split(';')
+      .map(rule => rule.trim())
+      .filter(Boolean)
+      .forEach(rule => {
+        const [key, ...valueParts] = rule.split(':')
+        if (!key || valueParts.length === 0) return
+        styles.set(key.trim().toLowerCase(), valueParts.join(':').trim())
+      })
+
+    styles.set('display', 'block')
+    styles.set('border', '0')
+    styles.set('outline', 'none')
+
+    if (width) {
+      img.setAttribute('width', width)
+      styles.set('width', `${width}px !important`)
+      styles.set('max-width', `${width}px !important`)
+    }
+
+    if (height) {
+      img.setAttribute('height', height)
+      styles.set('height', `${height}px !important`)
+      styles.set('max-height', `${height}px !important`)
+    } else {
+      styles.set('height', 'auto')
+    }
+
+    img.setAttribute('style', Array.from(styles.entries()).map(([key, value]) => `${key}: ${value}`).join('; '))
+  })
+
+  return doc.body.innerHTML
+}
+
 function EditorButton({
   active,
   disabled,
@@ -119,6 +164,29 @@ function EditorButton({
     </button>
   )
 }
+
+const EmailImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: element => element.getAttribute('width'),
+        renderHTML: attributes => attributes.width ? { width: attributes.width } : {},
+      },
+      height: {
+        default: null,
+        parseHTML: element => element.getAttribute('height'),
+        renderHTML: attributes => attributes.height ? { height: attributes.height } : {},
+      },
+      style: {
+        default: null,
+        parseHTML: element => element.getAttribute('style'),
+        renderHTML: attributes => attributes.style ? { style: attributes.style } : {},
+      },
+    }
+  },
+})
 
 function FolderButton({
   folder,
@@ -384,7 +452,7 @@ function ComposePanel({
     immediatelyRender: false,
     extensions: [
       StarterKit,
-      Image.configure({ inline: false, allowBase64: true }),
+      EmailImage.configure({ inline: false, allowBase64: true }),
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -508,7 +576,7 @@ function ComposePanel({
 
   const insertSignature = (signature?: EmailSignature) => {
     if (!editor || !signature) return
-    editor.chain().focus().insertContent(`<p></p>${signature.html}`).run()
+    editor.chain().focus().insertContent(`<p></p>${normalizeSignatureHtml(signature.html)}`).run()
   }
 
   const saveSignatureMutation = useMutation({
@@ -819,7 +887,16 @@ function ComposePanel({
             <RotateCw size={15} />
           </EditorButton>
         </div>
-        <div className="max-h-[600px] min-h-[400px] overflow-y-auto border-b border-gray-100 [&_.ProseMirror>ol]:list-decimal [&_.ProseMirror>ol]:pl-6 [&_.ProseMirror>ul]:list-disc [&_.ProseMirror>ul]:pl-6 [&_.ProseMirror_a]:text-sacred-700 [&_.ProseMirror_a]:underline [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-gray-200 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_h2]:text-lg [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_img]:my-3 [&_.ProseMirror_img]:max-w-full">
+        <div className="email-compose-editor max-h-[600px] min-h-[400px] overflow-y-auto border-b border-gray-100 [&_.ProseMirror>ol]:list-decimal [&_.ProseMirror>ol]:pl-6 [&_.ProseMirror>ul]:list-disc [&_.ProseMirror>ul]:pl-6 [&_.ProseMirror_a]:text-sacred-700 [&_.ProseMirror_a]:underline [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-gray-200 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_h2]:text-lg [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_img]:my-3 [&_.ProseMirror_img]:max-w-full">
+          <style>{`
+            .email-compose-editor .ProseMirror img[width="24"] {
+              width: 24px !important;
+              max-width: 24px !important;
+              height: 24px !important;
+              max-height: 24px !important;
+              display: block;
+            }
+          `}</style>
           <EditorContent editor={editor} />
         </div>
         {attachments.length > 0 && (
