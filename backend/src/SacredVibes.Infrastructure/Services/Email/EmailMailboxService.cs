@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using MailKit;
 using MailKit.Net.Imap;
 using MailKit.Net.Smtp;
@@ -257,6 +259,22 @@ public class EmailMailboxService : IEmailMailboxService
         catch (SmtpProtocolException ex)
         {
             throw new InvalidOperationException($"SMTP protocol error while sending: {ex.Message}", ex);
+        }
+        catch (AuthenticationException ex)
+        {
+            throw new InvalidOperationException($"SMTP authentication failed: {ex.Message}", ex);
+        }
+        catch (SocketException ex)
+        {
+            throw new InvalidOperationException($"SMTP connection failed for {settings.SmtpHost}:{settings.SmtpPort}: {ex.Message}", ex);
+        }
+        catch (IOException ex)
+        {
+            throw new InvalidOperationException($"SMTP network error while sending: {ex.Message}", ex);
+        }
+        catch (Exception ex) when (ex is not InvalidOperationException)
+        {
+            throw new InvalidOperationException($"SMTP send failed: {ex.Message}", ex);
         }
     }
 

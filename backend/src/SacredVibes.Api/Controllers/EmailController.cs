@@ -12,8 +12,13 @@ namespace SacredVibes.Api.Controllers;
 public class EmailController : ControllerBase
 {
     private readonly IEmailMailboxService _mailbox;
+    private readonly ILogger<EmailController> _logger;
 
-    public EmailController(IEmailMailboxService mailbox) => _mailbox = mailbox;
+    public EmailController(IEmailMailboxService mailbox, ILogger<EmailController> logger)
+    {
+        _mailbox = mailbox;
+        _logger = logger;
+    }
 
     [HttpGet("settings")]
     public async Task<ActionResult<ApiResponse<EmailMailboxSettingsDto>>> GetSettings(CancellationToken ct)
@@ -84,6 +89,11 @@ public class EmailController : ControllerBase
         catch (FormatException)
         {
             return BadRequest(ApiResponse<object>.Fail("One or more attachments could not be read. Remove the attachment and try again."));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected email send failure");
+            return BadRequest(ApiResponse<object>.Fail($"Email send failed: {ex.Message}"));
         }
     }
 
