@@ -624,6 +624,76 @@ public class EmailMailboxService : IEmailMailboxService
         };
     }
 
+    public async Task<List<EmailSignatureDto>> GetSignaturesAsync(CancellationToken ct = default)
+    {
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+        EnsureDefaultSignatures(settings);
+        return settings.Signatures
+            .OrderByDescending(s => s.IsDefault)
+            .ThenBy(s => s.Name)
+            .Select(ToSignatureDto)
+            .ToList();
+    }
+
+    public async Task<EmailSignatureDto> SaveSignatureAsync(SaveEmailSignatureRequest request, CancellationToken ct = default)
+    {
+        var name = Normalize(request.Name);
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Signature name is required.");
+        if (string.IsNullOrWhiteSpace(request.Html))
+            throw new InvalidOperationException("Signature content is required.");
+
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+        EnsureDefaultSignatures(settings);
+
+        var signature = !string.IsNullOrWhiteSpace(request.Id)
+            ? settings.Signatures.FirstOrDefault(s => s.Id.Equals(request.Id, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        if (signature is null)
+        {
+            signature = new StoredEmailSignature { Id = Guid.NewGuid().ToString("N") };
+            settings.Signatures.Add(signature);
+        }
+
+        signature.Name = name;
+        signature.Html = request.Html.Trim();
+        signature.IsDefault = request.IsDefault || settings.Signatures.Count == 1;
+
+        if (signature.IsDefault)
+        {
+            foreach (var other in settings.Signatures.Where(s => s.Id != signature.Id))
+                other.IsDefault = false;
+        }
+
+        setting.SettingsJson = JsonSerializer.Serialize(settings);
+        await _db.SaveChangesAsync(ct);
+
+        return ToSignatureDto(signature);
+    }
+
+    public async Task DeleteSignatureAsync(string id, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new InvalidOperationException("Signature id is required.");
+
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+        EnsureDefaultSignatures(settings);
+
+        var removed = settings.Signatures.RemoveAll(s => s.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) > 0;
+        if (!removed)
+            throw new InvalidOperationException("Signature not found.");
+
+        if (settings.Signatures.Count > 0 && !settings.Signatures.Any(s => s.IsDefault))
+            settings.Signatures[0].IsDefault = true;
+
+        setting.SettingsJson = JsonSerializer.Serialize(settings);
+        await _db.SaveChangesAsync(ct);
+    }
+
     private async Task<IntegrationSetting> GetOrCreateSettingAsync(CancellationToken ct)
     {
         var setting = await _db.IntegrationSettings.FirstOrDefaultAsync(i => i.Provider == Provider, ct);
@@ -931,6 +1001,33 @@ public class EmailMailboxService : IEmailMailboxService
     private static string JoinName(string? firstName, string? lastName) =>
         $"{firstName} {lastName}".Trim();
 
+    private static void EnsureDefaultSignatures(StoredEmailSettings settings)
+    {
+        if (settings.Signatures.Count > 0) return;
+
+        settings.Signatures.Add(new StoredEmailSignature
+        {
+            Id = "default-shanna",
+            Name = "Shanna Signature",
+            IsDefault = true,
+            Html = """
+                <div>
+                  <p>Warm regards,</p>
+                  <p><img src="https://sacredvibes.vercel.app/images/ShannaEmailSignature.png" alt="Shanna - Sacred Vibes Yoga" style="max-width: 360px; width: 100%; height: auto;" /></p>
+                  <p><a href="https://sacredvibes.vercel.app">sacredvibes.vercel.app</a></p>
+                </div>
+                """
+        });
+    }
+
+    private static EmailSignatureDto ToSignatureDto(StoredEmailSignature signature) => new()
+    {
+        Id = signature.Id,
+        Name = signature.Name,
+        Html = signature.Html,
+        IsDefault = signature.IsDefault
+    };
+
     private static UniqueId ParseUid(string id) =>
         uint.TryParse(id, out var value) ? new UniqueId(value) : throw new InvalidOperationException("Invalid message id.");
 
@@ -984,11 +1081,20 @@ public class EmailMailboxService : IEmailMailboxService
         public bool SmtpUseSsl { get; set; } = true;
         public string Username { get; set; } = string.Empty;
         public string ProtectedPassword { get; set; } = string.Empty;
+        public List<StoredEmailSignature> Signatures { get; set; } = new();
     }
 
     private class ResolvedEmailSettings : StoredEmailSettings
     {
         public string Password { get; set; } = string.Empty;
+    }
+
+    private class StoredEmailSignature
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Html { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
     }
 
     private sealed class ResendEmailRequest

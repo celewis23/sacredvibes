@@ -18,4 +18,7 @@ public interface IEmailMailboxService
     Task<List<EmailRecipientGroupDto>> GetRecipientGroupsAsync(CancellationToken ct = default);
     Task<List<EmailContactDto>> GetGroupRecipientsAsync(string groupId, CancellationToken ct = default);
     Task<EmailRecipientGroupDto> CreateRecipientGroupAsync(CreateEmailRecipientGroupRequest request, CancellationToken ct = default);
+    Task<List<EmailSignatureDto>> GetSignaturesAsync(CancellationToken ct = default);
+    Task<EmailSignatureDto> SaveSignatureAsync(SaveEmailSignatureRequest request, CancellationToken ct = default);
+    Task DeleteSignatureAsync(string id, CancellationToken ct = default);
 }

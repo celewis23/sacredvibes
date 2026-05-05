@@ -6,7 +6,7 @@ import type {
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
-  EmailSendAttachment,
+  EmailSendAttachment, EmailSignature,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -361,4 +361,13 @@ export const emailApi = {
 
   getRecipientGroupContacts: (groupId: string) =>
     apiClient.get<ApiResponse<EmailContact[]>>(`/email/recipient-groups/${encodeURIComponent(groupId)}/contacts`),
+
+  getSignatures: () =>
+    apiClient.get<ApiResponse<EmailSignature[]>>('/email/signatures'),
+
+  saveSignature: (data: { id?: string; name: string; html: string; isDefault: boolean }) =>
+    apiClient.put<ApiResponse<EmailSignature>>('/email/signatures', data),
+
+  deleteSignature: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/email/signatures/${id}`),
 }

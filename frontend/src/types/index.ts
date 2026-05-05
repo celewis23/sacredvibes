@@ -554,6 +554,13 @@ export interface EmailSendAttachment {
   base64Content: string
 }
 
+export interface EmailSignature {
+  id: string
+  name: string
+  html: string
+  isDefault: boolean
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

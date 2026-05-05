@@ -140,3 +140,19 @@ public class CreateEmailRecipientGroupRequest
     public string Name { get; set; } = string.Empty;
     public List<string> Emails { get; set; } = new();
 }
+
+public class EmailSignatureDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Html { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+}
+
+public class SaveEmailSignatureRequest
+{
+    public string? Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Html { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+}

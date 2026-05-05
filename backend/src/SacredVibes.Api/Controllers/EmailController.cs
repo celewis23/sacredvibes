@@ -160,4 +160,41 @@ public class EmailController : ControllerBase
         var contacts = await _mailbox.GetGroupRecipientsAsync(Uri.UnescapeDataString(groupId), ct);
         return Ok(ApiResponse<List<EmailContactDto>>.Ok(contacts));
     }
+
+    [HttpGet("signatures")]
+    public async Task<ActionResult<ApiResponse<List<EmailSignatureDto>>>> GetSignatures(CancellationToken ct)
+    {
+        var signatures = await _mailbox.GetSignaturesAsync(ct);
+        return Ok(ApiResponse<List<EmailSignatureDto>>.Ok(signatures));
+    }
+
+    [HttpPut("signatures")]
+    public async Task<ActionResult<ApiResponse<EmailSignatureDto>>> SaveSignature(
+        [FromBody] SaveEmailSignatureRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var signature = await _mailbox.SaveSignatureAsync(request, ct);
+            return Ok(ApiResponse<EmailSignatureDto>.Ok(signature));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmailSignatureDto>.Fail(ex.Message));
+        }
+    }
+
+    [HttpDelete("signatures/{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteSignature(string id, CancellationToken ct)
+    {
+        try
+        {
+            await _mailbox.DeleteSignatureAsync(id, ct);
+            return Ok(ApiResponse<object>.Ok(new { message = "Signature deleted" }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
 }

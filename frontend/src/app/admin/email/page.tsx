@@ -11,13 +11,13 @@ import Placeholder from '@tiptap/extension-placeholder'
 import {
   Archive, Bold, ChevronLeft, ChevronRight, Flame, Heading2, Image as ImageIcon, Inbox,
   Italic, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
-  PenLine, Quote, RefreshCw, RotateCcw, RotateCw, Search, Send, Settings, SquarePen,
+  PenLine, Plus, Quote, RefreshCw, RotateCcw, RotateCw, Save, Search, Send, Settings, SquarePen,
   Trash2, X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { emailApi } from '@/lib/api'
-import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary, EmailSendAttachment } from '@/types'
+import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary, EmailSendAttachment, EmailSignature } from '@/types'
 
 type PanelMode = 'message' | 'compose' | 'settings'
 
@@ -374,6 +374,11 @@ function ComposePanel({
   const [contactSearch, setContactSearch] = useState('')
   const [groupName, setGroupName] = useState('')
   const [attachments, setAttachments] = useState<EmailSendAttachment[]>([])
+  const [signaturePanelOpen, setSignaturePanelOpen] = useState(false)
+  const [signatureId, setSignatureId] = useState('')
+  const [signatureName, setSignatureName] = useState('')
+  const [signatureHtml, setSignatureHtml] = useState('')
+  const [signatureIsDefault, setSignatureIsDefault] = useState(true)
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -408,6 +413,20 @@ function ComposePanel({
     queryKey: ['email-recipient-groups'],
     queryFn: () => emailApi.getRecipientGroups().then(r => r.data.data ?? []),
   })
+
+  const { data: signatures = [] } = useQuery({
+    queryKey: ['email-signatures'],
+    queryFn: () => emailApi.getSignatures().then(r => r.data.data ?? []),
+  })
+
+  useEffect(() => {
+    if (signatureId || signatures.length === 0) return
+    const defaultSignature = signatures.find(signature => signature.isDefault) ?? signatures[0]
+    setSignatureId(defaultSignature.id)
+    setSignatureName(defaultSignature.name)
+    setSignatureHtml(defaultSignature.html)
+    setSignatureIsDefault(defaultSignature.isDefault)
+  }, [signatureId, signatures])
 
   const sendMutation = useMutation({
     mutationFn: () => emailApi.send({
@@ -466,6 +485,61 @@ function ComposePanel({
       queryClient.invalidateQueries({ queryKey: ['email-contacts'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not create recipient group')),
+  })
+
+  const selectedSignature = signatures.find(signature => signature.id === signatureId)
+
+  const selectSignature = (id: string) => {
+    if (!id) {
+      setSignatureId('')
+      setSignatureName('')
+      setSignatureHtml('')
+      setSignatureIsDefault(true)
+      return
+    }
+
+    const signature = signatures.find(item => item.id === id)
+    if (!signature) return
+    setSignatureId(signature.id)
+    setSignatureName(signature.name)
+    setSignatureHtml(signature.html)
+    setSignatureIsDefault(signature.isDefault)
+  }
+
+  const insertSignature = (signature?: EmailSignature) => {
+    if (!editor || !signature) return
+    editor.chain().focus().insertContent(`<p></p>${signature.html}`).run()
+  }
+
+  const saveSignatureMutation = useMutation({
+    mutationFn: () => emailApi.saveSignature({
+      id: signatureId || undefined,
+      name: signatureName,
+      html: signatureHtml,
+      isDefault: signatureIsDefault,
+    }),
+    onSuccess: (res) => {
+      const saved = res.data.data
+      toast.success('Signature saved')
+      queryClient.invalidateQueries({ queryKey: ['email-signatures'] })
+      if (saved) {
+        setSignatureId(saved.id)
+        setSignatureName(saved.name)
+        setSignatureHtml(saved.html)
+        setSignatureIsDefault(saved.isDefault)
+      }
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save signature')),
+  })
+
+  const deleteSignatureMutation = useMutation({
+    mutationFn: (id: string) => emailApi.deleteSignature(id),
+    onSuccess: () => {
+      toast.success('Signature deleted')
+      selectSignature('')
+      queryClient.invalidateQueries({ queryKey: ['email-signatures'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not delete signature')),
   })
 
   const attachFiles = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -613,6 +687,97 @@ function ComposePanel({
           <input value={bcc} onChange={e => setBcc(e.target.value)} placeholder="Bcc" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
         </div>
         <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={signatureId}
+            onChange={e => selectSignature(e.target.value)}
+            className="min-w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+          >
+            {signatures.map(signature => (
+              <option key={signature.id} value={signature.id}>{signature.name}{signature.isDefault ? ' (default)' : ''}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => insertSignature(selectedSignature)}
+            disabled={!selectedSignature || !editor}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <PenLine size={14} /> Insert Signature
+          </button>
+          <button
+            type="button"
+            onClick={() => setSignaturePanelOpen(v => !v)}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+          >
+            <Settings size={14} /> Edit Signatures
+          </button>
+        </div>
+        {signaturePanelOpen && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSignatureId('')
+                  setSignatureName('New Signature')
+                  setSignatureHtml('<div><p>Warm regards,</p><p><img src="https://sacredvibes.vercel.app/images/ShannaEmailSignature.png" alt="Sacred Vibes Yoga" style="max-width: 360px; width: 100%; height: auto;" /></p><p><a href="https://sacredvibes.vercel.app">sacredvibes.vercel.app</a></p></div>')
+                  setSignatureIsDefault(false)
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+              >
+                <Plus size={14} /> New
+              </button>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={signatureIsDefault}
+                  onChange={e => setSignatureIsDefault(e.target.checked)}
+                  className="rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+                />
+                Default
+              </label>
+            </div>
+            <input
+              value={signatureName}
+              onChange={e => setSignatureName(e.target.value)}
+              placeholder="Signature name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+            <textarea
+              value={signatureHtml}
+              onChange={e => setSignatureHtml(e.target.value)}
+              rows={7}
+              placeholder="Signature HTML"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+            {signatureHtml && (
+              <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm">
+                <div dangerouslySetInnerHTML={{ __html: signatureHtml }} />
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => saveSignatureMutation.mutate()}
+                disabled={saveSignatureMutation.isPending || !signatureName.trim() || !signatureHtml.trim()}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50"
+              >
+                <Save size={14} /> {saveSignatureMutation.isPending ? 'Saving...' : 'Save Signature'}
+              </button>
+              {signatureId && (
+                <button
+                  type="button"
+                  onClick={() => deleteSignatureMutation.mutate(signatureId)}
+                  disabled={deleteSignatureMutation.isPending}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <div className="border-b border-gray-100">
         <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 px-4 py-2">
