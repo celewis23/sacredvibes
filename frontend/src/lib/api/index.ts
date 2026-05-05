@@ -339,7 +339,7 @@ export const emailApi = {
     attachments?: EmailSendAttachment[]
     replyToMessageId?: string
     replyToFolderId?: string
-  }) => apiClient.post('/email/send', data),
+  }) => apiClient.post('/email/send', data, { timeout: 60000 }),
 
   markRead: (id: string, folderId: string | undefined, isRead: boolean) =>
     apiClient.patch(`/email/messages/${id}/read`, { isRead }, { params: { folderId } }),

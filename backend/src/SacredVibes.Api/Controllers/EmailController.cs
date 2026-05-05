@@ -72,8 +72,19 @@ public class EmailController : ControllerBase
     [HttpPost("send")]
     public async Task<ActionResult> Send([FromBody] SendEmailRequest request, CancellationToken ct)
     {
-        await _mailbox.SendAsync(request, ct);
-        return Ok(new { message = "Email sent" });
+        try
+        {
+            await _mailbox.SendAsync(request, ct);
+            return Ok(new { message = "Email sent" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (FormatException)
+        {
+            return BadRequest(ApiResponse<object>.Fail("One or more attachments could not be read. Remove the attachment and try again."));
+        }
     }
 
     [HttpPatch("messages/{id}/read")]

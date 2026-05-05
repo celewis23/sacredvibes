@@ -64,6 +64,7 @@ function uniqueEmails(values: string[]) {
 
 function getApiErrorMessage(error: unknown, fallback: string) {
   const axiosError = error as AxiosError<{ errors?: string[]; message?: string }>
+  if (axiosError.code === 'ECONNABORTED') return 'The request timed out. The mail server may still be trying to send, or the SMTP connection is not responding.'
   return axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message ?? fallback
 }
 
@@ -425,7 +426,7 @@ function ComposePanel({
       queryClient.invalidateQueries({ queryKey: ['email-messages'] })
       onClose()
     },
-    onError: () => toast.error('Could not send email'),
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not send email')),
   })
 
   const addRecipient = (email: string) => {

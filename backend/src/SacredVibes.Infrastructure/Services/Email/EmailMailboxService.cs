@@ -20,6 +20,7 @@ namespace SacredVibes.Infrastructure.Services.Email;
 public class EmailMailboxService : IEmailMailboxService
 {
     private const string Provider = "Email";
+    private static readonly TimeSpan SmtpSendTimeout = TimeSpan.FromSeconds(45);
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
 
@@ -234,11 +235,29 @@ public class EmailMailboxService : IEmailMailboxService
 
         message.Body = bodyBuilder.ToMessageBody();
 
-        using var smtp = new SmtpClient();
-        await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SocketOptions(settings.SmtpUseSsl), ct);
-        await smtp.AuthenticateAsync(settings.Username, settings.Password, ct);
-        await smtp.SendAsync(message, ct);
-        await smtp.DisconnectAsync(true, ct);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(SmtpSendTimeout);
+
+        try
+        {
+            using var smtp = new SmtpClient { Timeout = (int)SmtpSendTimeout.TotalMilliseconds };
+            await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SocketOptions(settings.SmtpUseSsl), timeoutCts.Token);
+            await smtp.AuthenticateAsync(settings.Username, settings.Password, timeoutCts.Token);
+            await smtp.SendAsync(message, timeoutCts.Token);
+            await smtp.DisconnectAsync(true, timeoutCts.Token);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("Sending mail timed out while connecting to the mailbox SMTP server. Try a smaller message or verify the SMTP host, port, SSL setting, and cPanel mailbox password.", ex);
+        }
+        catch (SmtpCommandException ex)
+        {
+            throw new InvalidOperationException($"SMTP rejected the message: {ex.Message}", ex);
+        }
+        catch (SmtpProtocolException ex)
+        {
+            throw new InvalidOperationException($"SMTP protocol error while sending: {ex.Message}", ex);
+        }
     }
 
     public async Task MarkReadAsync(string id, string? folderId, bool isRead, CancellationToken ct = default)
