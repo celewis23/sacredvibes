@@ -388,6 +388,7 @@ export default function AdminEventsPage() {
               <p className="mt-1 text-xs text-gray-500">
                 Token: {eventbriteDiagnostics.tokenConfigured ? 'configured' : 'missing'} ·
                 Configured org: {eventbriteDiagnostics.configuredOrganizationId || 'auto-discover'} ·
+                Organizer: {eventbriteDiagnostics.configuredOrganizerId || 'not set'} ·
                 Resolved org: {eventbriteDiagnostics.resolvedOrganizationId || 'none'}
               </p>
             </div>

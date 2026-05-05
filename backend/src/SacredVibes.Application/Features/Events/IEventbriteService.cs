@@ -41,6 +41,7 @@ public class EventbriteDiagnosticsResult
 {
     public bool TokenConfigured { get; set; }
     public string? ConfiguredOrganizationId { get; set; }
+    public string? ConfiguredOrganizerId { get; set; }
     public string? ResolvedOrganizationId { get; set; }
     public int OrganizationCount { get; set; }
     public List<EventbriteOrganizationSummary> Organizations { get; set; } = new();

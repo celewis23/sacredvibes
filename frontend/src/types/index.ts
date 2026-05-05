@@ -249,6 +249,7 @@ export interface EventbriteEventSummary {
 export interface EventbriteDiagnosticsResult {
   tokenConfigured: boolean
   configuredOrganizationId?: string
+  configuredOrganizerId?: string
   resolvedOrganizationId?: string
   organizationCount: number
   organizations: EventbriteOrganizationSummary[]

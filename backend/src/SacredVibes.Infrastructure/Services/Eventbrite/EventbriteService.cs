@@ -20,6 +20,7 @@ public class EventbriteService : IEventbriteService
 
     private string PrivateToken => _config["Eventbrite:PrivateToken"] ?? throw new InvalidOperationException("Eventbrite:PrivateToken not configured");
     private string? ConfiguredOrganizationId => _config["Eventbrite:OrganizationId"];
+    private string? ConfiguredOrganizerId => _config["Eventbrite:OrganizerId"];
     private string? DefaultVenueId => _config["Eventbrite:DefaultVenueId"];
     private bool PublishOnCreate => bool.TryParse(_config["Eventbrite:PublishOnCreate"], out var publish) && publish;
 
@@ -42,7 +43,7 @@ public class EventbriteService : IEventbriteService
 
         do
         {
-            var path = $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status=all";
+            var path = GetImportEventsPath(organizationId);
             if (!string.IsNullOrWhiteSpace(continuation))
             {
                 path += $"&continuation={Uri.EscapeDataString(continuation)}";
@@ -53,7 +54,7 @@ public class EventbriteService : IEventbriteService
 
             if (!response.IsSuccessStatusCode)
             {
-                if (response.StatusCode == System.Net.HttpStatusCode.NotFound && HasConfiguredOrganizationId())
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound && HasConfiguredOrganizationId() && !HasConfiguredOrganizerId())
                 {
                     var fallbackOrganizationId = await DiscoverOrganizationIdAsync(ct);
                     if (!string.Equals(fallbackOrganizationId, organizationId, StringComparison.Ordinal))
@@ -103,7 +104,8 @@ public class EventbriteService : IEventbriteService
         var result = new EventbriteDiagnosticsResult
         {
             TokenConfigured = HasConfiguredPrivateToken(),
-            ConfiguredOrganizationId = ConfiguredOrganizationId
+            ConfiguredOrganizationId = ConfiguredOrganizationId,
+            ConfiguredOrganizerId = ConfiguredOrganizerId
         };
 
         if (!result.TokenConfigured)
@@ -147,7 +149,9 @@ public class EventbriteService : IEventbriteService
                 return result;
             }
 
-            result.EventsEndpoint = $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status=all&page_size=5";
+            result.EventsEndpoint = HasConfiguredOrganizerId()
+                ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status=all&page_size=5"
+                : $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status=all&page_size=5";
             var eventsResponse = await _http.GetAsync(result.EventsEndpoint, ct);
             var eventsBody = await eventsResponse.Content.ReadAsStringAsync(ct);
             if (!eventsResponse.IsSuccessStatusCode)
@@ -397,6 +401,19 @@ public class EventbriteService : IEventbriteService
     {
         return !string.IsNullOrWhiteSpace(ConfiguredOrganizationId)
             && !ConfiguredOrganizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool HasConfiguredOrganizerId()
+    {
+        return !string.IsNullOrWhiteSpace(ConfiguredOrganizerId)
+            && !ConfiguredOrganizerId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string GetImportEventsPath(string organizationId)
+    {
+        return HasConfiguredOrganizerId()
+            ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status=all"
+            : $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status=all";
     }
 
     private bool HasConfiguredPrivateToken()
