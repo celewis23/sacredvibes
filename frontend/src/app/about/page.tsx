@@ -2,12 +2,14 @@ import Link from 'next/link'
 import { headers } from 'next/headers'
 import type { Metadata } from 'next'
 import EditablePageSections from '@/components/page-editor/EditablePageSections'
+import SacredHandsAbout from '@/components/site/SacredHandsAbout'
+import SacredSoundAbout from '@/components/site/SacredSoundAbout'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { getPublicPageBySlug } from '@/lib/api'
 
 export const metadata: Metadata = {
   title: 'About — Sacred Vibes',
-  description: 'Learn about Sacred Vibes Yoga and our mission to make wellness accessible to every body.',
+  description: 'Learn about Sacred Vibes Healing & Wellness and our family of transformative experiences.',
 }
 
 export default async function AboutPage() {
@@ -15,7 +17,7 @@ export default async function AboutPage() {
   const brand = getCurrentBrand(headersList)
   const page = await getPublicPageBySlug('about', brand.slug)
 
-  // If the page has been edited via the CMS, render from contentJson
+  // CMS content takes priority for any brand
   if (page?.contentJson) {
     return (
       <main>
@@ -24,7 +26,11 @@ export default async function AboutPage() {
     )
   }
 
-  // Fallback: original hardcoded content
+  // Brand-specific about pages
+  if (brand.slug === 'sacred-hands') return <SacredHandsAbout />
+  if (brand.slug === 'sacred-sound') return <SacredSoundAbout />
+
+  // Main Sacred Vibes Yoga about page
   return (
     <main>
       {/* Hero */}
@@ -78,6 +84,59 @@ export default async function AboutPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Experience Teasers */}
+      <section className="section bg-sacred-50">
+        <div className="container-sacred max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-xs font-medium uppercase tracking-widest text-sacred-400 mb-3">Our Experiences</p>
+            <h2 className="font-heading text-3xl text-sacred-900 mb-4">
+              A Family of Healing Modalities
+            </h2>
+            <p className="text-sacred-600 max-w-xl mx-auto leading-relaxed">
+              Sacred Vibes is home to distinct healing experiences — each with its own depth, practice, and philosophy. Explore what calls to you.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Sacred Hands */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-soft group">
+              <div className="h-2 bg-gradient-to-r from-hands-400 to-hands-600" />
+              <div className="p-8">
+                <p className="text-xs font-medium uppercase tracking-widest text-hands-500 mb-2">Sacred Hands</p>
+                <h3 className="font-heading text-2xl text-sacred-900 mb-3">Healing Through Touch</h3>
+                <p className="text-sacred-600 text-sm leading-relaxed mb-6">
+                  Transformative massage therapy rooted in the belief that touch is medicine. Our practitioners blend technique with intuition to create sessions that restore body, mind, and spirit.
+                </p>
+                <Link
+                  href="/hands/about"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-hands-600 hover:text-hands-800 transition-colors"
+                >
+                  Learn about Sacred Hands →
+                </Link>
+              </div>
+            </div>
+
+            {/* Sacred Sound */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-soft group">
+              <div className="h-2 bg-gradient-to-r from-sound-400 to-sound-600" />
+              <div className="p-8">
+                <p className="text-xs font-medium uppercase tracking-widest text-sound-500 mb-2">Sacred Sound</p>
+                <h3 className="font-heading text-2xl text-sacred-900 mb-3">Vibrate Higher</h3>
+                <p className="text-sacred-600 text-sm leading-relaxed mb-6">
+                  Sound healing through singing bowls, gongs, and sacred instruments. Let vibrational medicine quiet the mind, regulate the nervous system, and return you to your natural frequency.
+                </p>
+                <Link
+                  href="/sound/about"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-sound-600 hover:text-sound-800 transition-colors"
+                >
+                  Learn about Sacred Sound →
+                </Link>
+              </div>
             </div>
           </div>
         </div>
