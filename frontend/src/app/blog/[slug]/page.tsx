@@ -5,12 +5,13 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCurrentBrand } from '@/lib/brand/current'
 import { toBrandPath } from '@/lib/brand/resolution'
+import type { BlogPost } from '@/types'
 
 export const revalidate = 60
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
 
-async function fetchPost(slug: string, brandSlug: string) {
+async function fetchPost(slug: string, brandSlug: string): Promise<BlogPost | null> {
   const res = await fetch(
     `${API_BASE}/api/blog/posts/${slug}?brandSlug=${brandSlug}`,
     { next: { revalidate: 60 } },
