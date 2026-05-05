@@ -111,3 +111,24 @@ public class EmailTestResultDto
     public bool Success { get; set; }
     public string Message { get; set; } = string.Empty;
 }
+
+public class EmailContactDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+}
+
+public class EmailRecipientGroupDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
+public class CreateEmailRecipientGroupRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public List<string> Emails { get; set; } = new();
+}

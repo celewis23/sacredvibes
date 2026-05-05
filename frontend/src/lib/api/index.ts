@@ -5,7 +5,7 @@ import type {
   Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
-  EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage,
+  EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -347,4 +347,16 @@ export const emailApi = {
 
   delete: (id: string, folderId?: string) =>
     apiClient.delete(`/email/messages/${id}`, { params: { folderId } }),
+
+  searchContacts: (params?: { search?: string; limit?: number }) =>
+    apiClient.get<ApiResponse<EmailContact[]>>('/email/contacts', { params }),
+
+  getRecipientGroups: () =>
+    apiClient.get<ApiResponse<EmailRecipientGroup[]>>('/email/recipient-groups'),
+
+  createRecipientGroup: (data: { name: string; emails: string[] }) =>
+    apiClient.post<ApiResponse<EmailRecipientGroup>>('/email/recipient-groups', data),
+
+  getRecipientGroupContacts: (groupId: string) =>
+    apiClient.get<ApiResponse<EmailContact[]>>(`/email/recipient-groups/${encodeURIComponent(groupId)}/contacts`),
 }

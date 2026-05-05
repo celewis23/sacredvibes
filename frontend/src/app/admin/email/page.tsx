@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Archive, CheckCircle2, ChevronLeft, ChevronRight, Inbox, Mail, MailOpen,
-  PenLine, RefreshCw, Search, Send, Settings, Trash2, X
+  Archive, ChevronLeft, ChevronRight, Flame, Inbox, Mail, MailOpen,
+  Menu, PenLine, RefreshCw, Search, Send, Settings, SquarePen, Trash2, X
 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { AxiosError } from 'axios'
 import { emailApi } from '@/lib/api'
-import type { EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary } from '@/types'
+import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary } from '@/types'
 
 type PanelMode = 'message' | 'compose' | 'settings'
 
@@ -49,24 +50,44 @@ function splitAddresses(value: string) {
     .filter(Boolean)
 }
 
+function uniqueEmails(values: string[]) {
+  return Array.from(new Set(values.map(v => v.trim().toLowerCase()).filter(Boolean)))
+}
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const axiosError = error as AxiosError<{ errors?: string[]; message?: string }>
+  return axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message ?? fallback
+}
+
 function FolderButton({
   folder,
   active,
+  collapsed,
   onClick,
 }: {
   folder: EmailFolder
   active: boolean
+  collapsed: boolean
   onClick: () => void
 }) {
+  const name = folder.name.toLowerCase()
+  const Icon = name.includes('draft') ? SquarePen
+    : name.includes('sent') ? Send
+      : name.includes('junk') || name.includes('spam') ? Flame
+        : name.includes('trash') || name.includes('deleted') ? Trash2
+          : name.includes('archive') ? Archive
+            : Inbox
+
   return (
     <button
       onClick={onClick}
+      title={folder.name}
       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
         active ? 'bg-sacred-800 text-white' : 'text-gray-700 hover:bg-gray-100'
       }`}
     >
-      <Inbox size={15} className="shrink-0" />
-      <span className="truncate">{folder.name}</span>
+      <Icon size={15} className="shrink-0" />
+      {!collapsed && <span className="truncate">{folder.name}</span>}
       {typeof folder.unreadCount === 'number' && folder.unreadCount > 0 && (
         <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${
           active ? 'bg-white/20 text-white' : 'bg-sacred-100 text-sacred-700'
@@ -123,9 +144,11 @@ function SettingsPanel({
 }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState({ ...(settings ?? DEFAULT_SETTINGS), password: '' })
+  const [testResult, setTestResult] = useState<string | null>(settings?.lastSyncResult ?? null)
 
   useEffect(() => {
     setForm({ ...(settings ?? DEFAULT_SETTINGS), password: '' })
+    setTestResult(settings?.lastSyncResult ?? null)
   }, [settings])
 
   const saveMutation = useMutation({
@@ -135,17 +158,24 @@ function SettingsPanel({
       queryClient.invalidateQueries({ queryKey: ['email-settings'] })
       queryClient.invalidateQueries({ queryKey: ['email-folders'] })
     },
-    onError: () => toast.error('Could not save email settings'),
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save email settings')),
   })
 
   const testMutation = useMutation({
     mutationFn: () => emailApi.testConnection(),
-    onSuccess: () => {
-      toast.success('Mailbox connection succeeded')
+    onSuccess: (res) => {
+      const message = res.data.data?.message ?? 'Mailbox connection succeeded'
+      setTestResult(message)
+      toast.success(message)
       queryClient.invalidateQueries({ queryKey: ['email-settings'] })
       queryClient.invalidateQueries({ queryKey: ['email-folders'] })
     },
-    onError: () => toast.error('Mailbox connection failed'),
+    onError: (err) => {
+      const message = getApiErrorMessage(err, 'Mailbox connection failed')
+      setTestResult(message)
+      toast.error(message)
+      queryClient.invalidateQueries({ queryKey: ['email-settings'] })
+    },
   })
 
   const set = (key: keyof typeof form, value: string | number | boolean) => {
@@ -242,8 +272,14 @@ function SettingsPanel({
           </div>
         </div>
 
-        {settings?.lastSyncResult && (
-          <p className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3">{settings.lastSyncResult}</p>
+        {testResult && (
+          <p className={`text-xs rounded-lg p-3 ${
+            testResult.toLowerCase().includes('failed')
+              ? 'bg-red-50 text-red-700 border border-red-100'
+              : 'bg-gray-50 text-gray-500'
+          }`}>
+            {testResult}
+          </p>
         )}
 
         <div className="flex flex-wrap gap-3">
@@ -269,15 +305,28 @@ function ComposePanel({
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
-  const [to, setTo] = useState(replyTo?.from?.address ?? '')
+  const [to, setTo] = useState<string[]>(replyTo?.from?.address ? [replyTo.from.address] : [])
+  const [toInput, setToInput] = useState('')
   const [cc, setCc] = useState('')
   const [bcc, setBcc] = useState('')
   const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject.replace(/^Re:\s*/i, '')}` : '')
   const [body, setBody] = useState('')
+  const [contactSearch, setContactSearch] = useState('')
+  const [groupName, setGroupName] = useState('')
+
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['email-contacts', contactSearch],
+    queryFn: () => emailApi.searchContacts({ search: contactSearch || undefined, limit: 12 }).then(r => r.data.data ?? []),
+  })
+
+  const { data: groups = [] } = useQuery({
+    queryKey: ['email-recipient-groups'],
+    queryFn: () => emailApi.getRecipientGroups().then(r => r.data.data ?? []),
+  })
 
   const sendMutation = useMutation({
     mutationFn: () => emailApi.send({
-      to: splitAddresses(to),
+      to,
       cc: splitAddresses(cc),
       bcc: splitAddresses(bcc),
       subject,
@@ -294,6 +343,45 @@ function ComposePanel({
     onError: () => toast.error('Could not send email'),
   })
 
+  const addRecipient = (email: string) => {
+    setTo(prev => uniqueEmails([...prev, email]))
+    setToInput('')
+    setContactSearch('')
+  }
+
+  const addTypedRecipients = () => {
+    const typed = splitAddresses(toInput)
+    if (typed.length === 0) return
+    setTo(prev => uniqueEmails([...prev, ...typed]))
+    setToInput('')
+    setContactSearch('')
+  }
+
+  const addGroupMutation = useMutation({
+    mutationFn: (groupId: string) => emailApi.getRecipientGroupContacts(groupId).then(r => r.data.data ?? []),
+    onSuccess: (recipients: EmailContact[]) => {
+      setBcc(prev => uniqueEmails([...splitAddresses(prev), ...recipients.map(r => r.email)]).join(', '))
+      toast.success(`Added ${recipients.length} recipients to Bcc`)
+    },
+    onError: () => toast.error('Could not add recipient group'),
+  })
+
+  const allRecipients = useMemo(
+    () => uniqueEmails([...to, ...splitAddresses(cc), ...splitAddresses(bcc)]),
+    [to, cc, bcc],
+  )
+
+  const createGroupMutation = useMutation({
+    mutationFn: () => emailApi.createRecipientGroup({ name: groupName, emails: allRecipients }),
+    onSuccess: (res) => {
+      toast.success(`Created ${res.data.data?.name ?? 'recipient group'}`)
+      setGroupName('')
+      queryClient.invalidateQueries({ queryKey: ['email-recipient-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['email-contacts'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not create recipient group')),
+  })
+
   return (
     <div className="h-full bg-white flex flex-col">
       <div className="border-b border-gray-200 px-5 py-4 flex items-center gap-3">
@@ -305,7 +393,89 @@ function ComposePanel({
         <button onClick={onClose} className="ml-auto text-gray-400 hover:text-gray-700"><X size={18} /></button>
       </div>
       <div className="p-5 space-y-3 border-b border-gray-100">
-        <input value={to} onChange={e => setTo(e.target.value)} placeholder="To" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
+        <div>
+          <label className="block text-xs font-medium text-gray-600 mb-1">To</label>
+          <div className="min-h-10 w-full px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus-within:ring-2 focus-within:ring-sacred-500">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {to.map(email => (
+                <span key={email} className="inline-flex items-center gap-1 rounded-full bg-sacred-100 text-sacred-800 px-2 py-1 text-xs">
+                  {email}
+                  <button onClick={() => setTo(prev => prev.filter(v => v !== email))} className="text-sacred-500 hover:text-sacred-900">
+                    <X size={12} />
+                  </button>
+                </span>
+              ))}
+              <input
+                value={toInput}
+                onChange={e => {
+                  setToInput(e.target.value)
+                  setContactSearch(e.target.value)
+                }}
+                onBlur={addTypedRecipients}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault()
+                    addTypedRecipients()
+                  }
+                }}
+                placeholder={to.length ? 'Add another recipient' : 'Start typing a name or email'}
+                className="min-w-48 flex-1 px-1 py-1 focus:outline-none"
+              />
+            </div>
+          </div>
+          {toInput && contacts.length > 0 && (
+            <div className="mt-1 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+              {contacts.map(contact => (
+                <button
+                  key={`${contact.email}-${contact.source}`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => addRecipient(contact.email)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between gap-3"
+                >
+                  <span className="min-w-0">
+                    <span className="font-medium text-gray-800">{contact.name || contact.email}</span>
+                    {contact.name && <span className="text-gray-400"> &lt;{contact.email}&gt;</span>}
+                  </span>
+                  <span className="text-xs text-gray-400 shrink-0">{contact.source}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            defaultValue=""
+            onChange={e => {
+              if (!e.target.value) return
+              addGroupMutation.mutate(e.target.value)
+              e.target.value = ''
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+          >
+            <option value="">Add recipient group...</option>
+            {groups.map(group => (
+              <option key={group.id} value={group.id}>
+                {group.name} ({group.count})
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400">Groups are added to Bcc so recipients do not see the full list.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={groupName}
+            onChange={e => setGroupName(e.target.value)}
+            placeholder="New group name"
+            className="min-w-56 flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+          />
+          <button
+            onClick={() => createGroupMutation.mutate()}
+            disabled={createGroupMutation.isPending || !groupName.trim() || allRecipients.length === 0}
+            className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            {createGroupMutation.isPending ? 'Saving...' : 'Save Recipients as Group'}
+          </button>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <input value={cc} onChange={e => setCc(e.target.value)} placeholder="Cc" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
           <input value={bcc} onChange={e => setBcc(e.target.value)} placeholder="Bcc" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500" />
@@ -316,7 +486,7 @@ function ComposePanel({
       <div className="border-t border-gray-200 px-5 py-4 flex justify-end">
         <button
           onClick={() => sendMutation.mutate()}
-          disabled={sendMutation.isPending || splitAddresses(to).length === 0 || !subject.trim()}
+          disabled={sendMutation.isPending || allRecipients.length === 0 || !subject.trim()}
           className="inline-flex items-center gap-2 px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50"
         >
           <Send size={15} />
@@ -439,6 +609,7 @@ export default function AdminEmailPage() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [mode, setMode] = useState<PanelMode>('message')
   const [replyTo, setReplyTo] = useState<EmailMessage | undefined>()
+  const [folderRailCollapsed, setFolderRailCollapsed] = useState(false)
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['email-settings'],
@@ -522,14 +693,22 @@ export default function AdminEmailPage() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-[220px_minmax(320px,430px)_1fr]">
+      <div className={`flex-1 min-h-0 grid ${folderRailCollapsed ? 'grid-cols-[64px_minmax(320px,430px)_1fr]' : 'grid-cols-[220px_minmax(320px,430px)_1fr]'}`}>
         <aside className="bg-white border-r border-gray-200 p-3 overflow-y-auto">
+          <button
+            onClick={() => setFolderRailCollapsed(v => !v)}
+            className="mb-3 w-full flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+            title={folderRailCollapsed ? 'Expand folders' : 'Collapse folders'}
+          >
+            <Menu size={15} />
+          </button>
           <div className="space-y-1">
             {folders.map(folder => (
               <FolderButton
                 key={folder.id}
                 folder={folder}
                 active={folder.id === folderId}
+                collapsed={folderRailCollapsed}
                 onClick={() => {
                   setFolderId(folder.id)
                   setPage(1)

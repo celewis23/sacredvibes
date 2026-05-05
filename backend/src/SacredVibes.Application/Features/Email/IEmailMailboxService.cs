@@ -14,4 +14,8 @@ public interface IEmailMailboxService
     Task MarkReadAsync(string id, string? folderId, bool isRead, CancellationToken ct = default);
     Task MoveAsync(string id, string? folderId, string destinationFolderId, CancellationToken ct = default);
     Task DeleteAsync(string id, string? folderId, CancellationToken ct = default);
+    Task<List<EmailContactDto>> SearchContactsAsync(string? search, int limit = 20, CancellationToken ct = default);
+    Task<List<EmailRecipientGroupDto>> GetRecipientGroupsAsync(CancellationToken ct = default);
+    Task<List<EmailContactDto>> GetGroupRecipientsAsync(string groupId, CancellationToken ct = default);
+    Task<EmailRecipientGroupDto> CreateRecipientGroupAsync(CreateEmailRecipientGroupRequest request, CancellationToken ct = default);
 }

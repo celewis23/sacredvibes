@@ -535,6 +535,19 @@ export interface EmailMessageList {
   items: EmailMessageSummary[]
 }
 
+export interface EmailContact {
+  email: string
+  name: string
+  source: string
+}
+
+export interface EmailRecipientGroup {
+  id: string
+  name: string
+  type: string
+  count: number
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

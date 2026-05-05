@@ -104,4 +104,39 @@ public class EmailController : ControllerBase
         await _mailbox.DeleteAsync(id, folderId, ct);
         return Ok(new { message = "Message deleted" });
     }
+
+    [HttpGet("contacts")]
+    public async Task<ActionResult<ApiResponse<List<EmailContactDto>>>> SearchContacts(
+        [FromQuery] string? search,
+        [FromQuery] int limit = 20,
+        CancellationToken ct = default)
+    {
+        var contacts = await _mailbox.SearchContactsAsync(search, limit, ct);
+        return Ok(ApiResponse<List<EmailContactDto>>.Ok(contacts));
+    }
+
+    [HttpGet("recipient-groups")]
+    public async Task<ActionResult<ApiResponse<List<EmailRecipientGroupDto>>>> GetRecipientGroups(CancellationToken ct)
+    {
+        var groups = await _mailbox.GetRecipientGroupsAsync(ct);
+        return Ok(ApiResponse<List<EmailRecipientGroupDto>>.Ok(groups));
+    }
+
+    [HttpPost("recipient-groups")]
+    public async Task<ActionResult<ApiResponse<EmailRecipientGroupDto>>> CreateRecipientGroup(
+        [FromBody] CreateEmailRecipientGroupRequest request,
+        CancellationToken ct)
+    {
+        var group = await _mailbox.CreateRecipientGroupAsync(request, ct);
+        return Ok(ApiResponse<EmailRecipientGroupDto>.Ok(group));
+    }
+
+    [HttpGet("recipient-groups/{groupId}/contacts")]
+    public async Task<ActionResult<ApiResponse<List<EmailContactDto>>>> GetRecipientGroupContacts(
+        string groupId,
+        CancellationToken ct)
+    {
+        var contacts = await _mailbox.GetGroupRecipientsAsync(Uri.UnescapeDataString(groupId), ct);
+        return Ok(ApiResponse<List<EmailContactDto>>.Ok(contacts));
+    }
 }

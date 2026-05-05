@@ -12,6 +12,7 @@ using MimeKit;
 using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Email.DTOs;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
 
 namespace SacredVibes.Infrastructure.Services.Email;
@@ -39,15 +40,16 @@ public class EmailMailboxService : IEmailMailboxService
     {
         var setting = await GetOrCreateSettingAsync(ct);
         var existing = ReadSettings(setting);
+        var defaultHost = DefaultMailHost(request.EmailAddress);
 
         var next = new StoredEmailSettings
         {
             EmailAddress = Normalize(request.EmailAddress),
             FromName = request.FromName.Trim(),
-            ImapHost = Normalize(request.ImapHost),
+            ImapHost = Normalize(request.ImapHost) is { Length: > 0 } imapHost ? imapHost : defaultHost,
             ImapPort = request.ImapPort <= 0 ? 993 : request.ImapPort,
             ImapUseSsl = request.ImapUseSsl,
-            SmtpHost = Normalize(request.SmtpHost),
+            SmtpHost = Normalize(request.SmtpHost) is { Length: > 0 } smtpHost ? smtpHost : defaultHost,
             SmtpPort = request.SmtpPort <= 0 ? 465 : request.SmtpPort,
             SmtpUseSsl = request.SmtpUseSsl,
             Username = Normalize(request.Username),
@@ -69,18 +71,34 @@ public class EmailMailboxService : IEmailMailboxService
         try
         {
             var settings = await GetRequiredSettingsAsync(ct);
-            using var imap = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
-            var inbox = imap.Inbox;
-            await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
-            await imap.DisconnectAsync(true, ct);
+            int inboxCount;
+            try
+            {
+                using var imap = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+                var inbox = imap.Inbox;
+                await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
+                inboxCount = inbox.Count;
+                await imap.DisconnectAsync(true, ct);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"IMAP failed for {settings.ImapHost}:{settings.ImapPort}: {ex.Message}", ex);
+            }
 
-            using var smtp = new SmtpClient();
-            await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SocketOptions(settings.SmtpUseSsl), ct);
-            await smtp.AuthenticateAsync(settings.Username, settings.Password, ct);
-            await smtp.DisconnectAsync(true, ct);
+            try
+            {
+                using var smtp = new SmtpClient();
+                await smtp.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SocketOptions(settings.SmtpUseSsl), ct);
+                await smtp.AuthenticateAsync(settings.Username, settings.Password, ct);
+                await smtp.DisconnectAsync(true, ct);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"SMTP failed for {settings.SmtpHost}:{settings.SmtpPort}: {ex.Message}", ex);
+            }
 
-            await UpdateSyncResultAsync(true, $"Connected to inbox with {inbox.Count} messages", ct);
-            return new EmailTestResultDto { Success = true, Message = "Mailbox connection succeeded." };
+            await UpdateSyncResultAsync(true, $"Connected to inbox with {inboxCount} messages", ct);
+            return new EmailTestResultDto { Success = true, Message = $"Mailbox connection succeeded. Inbox has {inboxCount} messages." };
         }
         catch (Exception ex)
         {
@@ -177,7 +195,12 @@ public class EmailMailboxService : IEmailMailboxService
 
     public async Task SendAsync(SendEmailRequest request, CancellationToken ct = default)
     {
-        if (request.To.Count == 0) throw new InvalidOperationException("At least one recipient is required.");
+        request.To ??= new List<string>();
+        request.Cc ??= new List<string>();
+        request.Bcc ??= new List<string>();
+
+        if (request.To.Count + request.Cc.Count + request.Bcc.Count == 0)
+            throw new InvalidOperationException("At least one recipient is required.");
 
         var settings = await GetRequiredSettingsAsync(ct);
         var message = new MimeMessage();
@@ -234,6 +257,236 @@ public class EmailMailboxService : IEmailMailboxService
         await client.DisconnectAsync(true, ct);
     }
 
+    public async Task<List<EmailContactDto>> SearchContactsAsync(string? search, int limit = 20, CancellationToken ct = default)
+    {
+        limit = Math.Clamp(limit, 1, 50);
+        var needle = Normalize(search);
+        var contacts = new Dictionary<string, EmailContactDto>(StringComparer.OrdinalIgnoreCase);
+
+        var subscriberQuery = _db.Subscribers.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(needle))
+        {
+            subscriberQuery = subscriberQuery.Where(s =>
+                s.Email.Contains(needle) ||
+                (s.FirstName != null && s.FirstName.Contains(needle)) ||
+                (s.LastName != null && s.LastName.Contains(needle)));
+        }
+
+        var subscribers = await subscriberQuery
+            .OrderByDescending(s => s.IsSubscribed)
+            .ThenBy(s => s.Email)
+            .Take(limit)
+            .Select(s => new
+            {
+                s.Email,
+                s.FirstName,
+                s.LastName,
+                Source = $"Subscriber: {s.Source}"
+            })
+            .ToListAsync(ct);
+
+        foreach (var s in subscribers)
+            AddContact(contacts, s.Email, JoinName(s.FirstName, s.LastName), s.Source);
+
+        if (contacts.Count < limit)
+        {
+            var leadQuery = _db.Leads.Where(l => l.Email != null && l.Email != "");
+            if (!string.IsNullOrWhiteSpace(needle))
+            {
+                leadQuery = leadQuery.Where(l =>
+                    l.Email!.Contains(needle) ||
+                    (l.FirstName != null && l.FirstName.Contains(needle)) ||
+                    (l.LastName != null && l.LastName.Contains(needle)));
+            }
+
+            var leads = await leadQuery
+                .OrderByDescending(l => l.CreatedAt)
+                .Take(limit)
+                .Select(l => new { Email = l.Email!, l.FirstName, l.LastName })
+                .ToListAsync(ct);
+
+            foreach (var l in leads)
+                AddContact(contacts, l.Email, JoinName(l.FirstName, l.LastName), "Lead");
+        }
+
+        if (contacts.Count < limit)
+        {
+            var bookingQuery = _db.Bookings.Where(b => b.CustomerEmail != "");
+            if (!string.IsNullOrWhiteSpace(needle))
+            {
+                bookingQuery = bookingQuery.Where(b =>
+                    b.CustomerEmail.Contains(needle) ||
+                    b.CustomerName.Contains(needle));
+            }
+
+            var bookings = await bookingQuery
+                .OrderByDescending(b => b.CreatedAt)
+                .Take(limit)
+                .Select(b => new { Email = b.CustomerEmail, Name = b.CustomerName })
+                .ToListAsync(ct);
+
+            foreach (var b in bookings)
+                AddContact(contacts, b.Email, b.Name, "Booking");
+        }
+
+        return contacts.Values
+            .OrderBy(c => c.Name.Length == 0 ? c.Email : c.Name)
+            .Take(limit)
+            .ToList();
+    }
+
+    public async Task<List<EmailRecipientGroupDto>> GetRecipientGroupsAsync(CancellationToken ct = default)
+    {
+        var groups = new List<EmailRecipientGroupDto>
+        {
+            new()
+            {
+                Id = "subscribers:all",
+                Name = "All subscribers",
+                Type = "Subscriber List",
+                Count = await _db.Subscribers.CountAsync(ct)
+            },
+            new()
+            {
+                Id = "subscribers:subscribed",
+                Name = "Subscribed contacts",
+                Type = "Subscriber List",
+                Count = await _db.Subscribers.CountAsync(s => s.IsSubscribed, ct)
+            }
+        };
+
+        var sourceGroups = await _db.Subscribers
+            .GroupBy(s => s.Source)
+            .Select(g => new EmailRecipientGroupDto
+            {
+                Id = "source:" + g.Key.ToString(),
+                Name = g.Key + " contacts",
+                Type = "Import Source",
+                Count = g.Count()
+            })
+            .ToListAsync(ct);
+        groups.AddRange(sourceGroups);
+
+        var tagGroups = await _db.SubscriberTags
+            .Select(t => new EmailRecipientGroupDto
+            {
+                Id = "tag:" + t.Id,
+                Name = t.Name,
+                Type = "Subscriber Tag",
+                Count = t.SubscriberTagMaps.Count
+            })
+            .OrderBy(t => t.Name)
+            .ToListAsync(ct);
+        groups.AddRange(tagGroups);
+
+        return groups.Where(g => g.Count > 0).ToList();
+    }
+
+    public async Task<List<EmailContactDto>> GetGroupRecipientsAsync(string groupId, CancellationToken ct = default)
+    {
+        var query = _db.Subscribers.AsQueryable();
+
+        if (groupId.Equals("subscribers:subscribed", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(s => s.IsSubscribed);
+        }
+        else if (groupId.StartsWith("source:", StringComparison.OrdinalIgnoreCase))
+        {
+            var sourceText = groupId["source:".Length..];
+            if (!Enum.TryParse<ImportSource>(sourceText, true, out var source))
+                throw new InvalidOperationException("Unknown recipient source group.");
+            query = query.Where(s => s.Source == source);
+        }
+        else if (groupId.StartsWith("tag:", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Guid.TryParse(groupId["tag:".Length..], out var tagId))
+                throw new InvalidOperationException("Unknown recipient tag group.");
+            query = query.Where(s => s.SubscriberTagMaps.Any(m => m.SubscriberTagId == tagId));
+        }
+        else if (!groupId.Equals("subscribers:all", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Unknown recipient group.");
+        }
+
+        return await query
+            .OrderBy(s => s.Email)
+            .Select(s => new EmailContactDto
+            {
+                Email = s.Email,
+                Name = ((s.FirstName ?? "") + " " + (s.LastName ?? "")).Trim(),
+                Source = "Subscriber: " + s.Source
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<EmailRecipientGroupDto> CreateRecipientGroupAsync(CreateEmailRecipientGroupRequest request, CancellationToken ct = default)
+    {
+        var name = Normalize(request.Name);
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Group name is required.");
+
+        var emails = UniqueEmails(request.Emails ?? Enumerable.Empty<string>());
+        if (emails.Count == 0)
+            throw new InvalidOperationException("At least one recipient is required to create a group.");
+
+        var baseSlug = Slugify(name);
+        var slug = baseSlug;
+        var suffix = 2;
+        while (await _db.SubscriberTags.AnyAsync(t => t.Slug == slug, ct))
+        {
+            slug = $"{baseSlug}-{suffix++}";
+        }
+
+        var tag = new SubscriberTag
+        {
+            Name = name,
+            Slug = slug,
+            Color = "#7B6E5D",
+            Description = "Email recipient group"
+        };
+        await _db.SubscriberTags.AddAsync(tag, ct);
+
+        var existingSubscribers = await _db.Subscribers
+            .Where(s => emails.Contains(s.Email.ToLower()))
+            .ToListAsync(ct);
+        var subscribersByEmail = existingSubscribers.ToDictionary(s => s.Email.ToLowerInvariant(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var email in emails)
+        {
+            if (!subscribersByEmail.TryGetValue(email, out var subscriber))
+            {
+                subscriber = new Subscriber
+                {
+                    Email = email,
+                    Source = ImportSource.Manual,
+                    IsSubscribed = true,
+                    ConsentStatus = ConsentStatus.Unknown,
+                    ConsentMethod = "Admin email group"
+                };
+                await _db.Subscribers.AddAsync(subscriber, ct);
+                subscribersByEmail[email] = subscriber;
+            }
+
+            subscriber.SubscriberTagMaps.Add(new SubscriberTagMap
+            {
+                Subscriber = subscriber,
+                SubscriberTag = tag,
+                TaggedAt = DateTime.UtcNow,
+                TaggedBy = "Admin email"
+            });
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return new EmailRecipientGroupDto
+        {
+            Id = "tag:" + tag.Id,
+            Name = tag.Name,
+            Type = "Subscriber Tag",
+            Count = emails.Count
+        };
+    }
+
     private async Task<IntegrationSetting> GetOrCreateSettingAsync(CancellationToken ct)
     {
         var setting = await _db.IntegrationSettings.FirstOrDefaultAsync(i => i.Provider == Provider, ct);
@@ -252,15 +505,7 @@ public class EmailMailboxService : IEmailMailboxService
 
         var stored = ReadSettings(setting);
         var password = ResolvePassword(stored);
-        if (string.IsNullOrWhiteSpace(stored.ImapHost) ||
-            string.IsNullOrWhiteSpace(stored.SmtpHost) ||
-            string.IsNullOrWhiteSpace(stored.Username) ||
-            string.IsNullOrWhiteSpace(password))
-        {
-            throw new InvalidOperationException("Email inbox integration is missing IMAP/SMTP settings.");
-        }
-
-        return new ResolvedEmailSettings
+        var resolved = new ResolvedEmailSettings
         {
             EmailAddress = ResolveValue("EMAIL_FROM_ADDRESS", stored.EmailAddress),
             FromName = ResolveValue("EMAIL_FROM_NAME", stored.FromName),
@@ -273,6 +518,16 @@ public class EmailMailboxService : IEmailMailboxService
             Username = ResolveValue("EMAIL_USERNAME", stored.Username),
             Password = password
         };
+
+        if (string.IsNullOrWhiteSpace(resolved.ImapHost) ||
+            string.IsNullOrWhiteSpace(resolved.SmtpHost) ||
+            string.IsNullOrWhiteSpace(resolved.Username) ||
+            string.IsNullOrWhiteSpace(resolved.Password))
+        {
+            throw new InvalidOperationException("Email inbox integration is missing IMAP/SMTP settings or mailbox password.");
+        }
+
+        return resolved;
     }
 
     private StoredEmailSettings ReadSettings(IntegrationSetting setting)
@@ -468,6 +723,38 @@ public class EmailMailboxService : IEmailMailboxService
         }
     }
 
+    private static void AddContact(Dictionary<string, EmailContactDto> contacts, string? email, string name, string source)
+    {
+        var normalizedEmail = Normalize(email).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || contacts.ContainsKey(normalizedEmail)) return;
+        contacts[normalizedEmail] = new EmailContactDto
+        {
+            Email = normalizedEmail,
+            Name = name,
+            Source = source
+        };
+    }
+
+    private static List<string> UniqueEmails(IEnumerable<string> emails) =>
+        emails
+            .SelectMany(e => e.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(e => Normalize(e).ToLowerInvariant())
+            .Where(e => e.Contains('@'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static string Slugify(string value)
+    {
+        var slug = System.Text.RegularExpressions.Regex
+            .Replace(value.Trim().ToLowerInvariant(), "[^a-z0-9]+", "-")
+            .Trim('-');
+
+        return string.IsNullOrWhiteSpace(slug) ? "email-group" : slug;
+    }
+
+    private static string JoinName(string? firstName, string? lastName) =>
+        $"{firstName} {lastName}".Trim();
+
     private static UniqueId ParseUid(string id) =>
         uint.TryParse(id, out var value) ? new UniqueId(value) : throw new InvalidOperationException("Invalid message id.");
 
@@ -486,6 +773,13 @@ public class EmailMailboxService : IEmailMailboxService
         bool.TryParse(ResolveValue(envName, string.Empty), out var value) ? value : fallback;
 
     private static string Normalize(string? value) => value?.Trim() ?? string.Empty;
+
+    private static string DefaultMailHost(string? emailAddress)
+    {
+        var email = Normalize(emailAddress);
+        var atIndex = email.IndexOf('@');
+        return atIndex >= 0 && atIndex < email.Length - 1 ? $"mail.{email[(atIndex + 1)..]}" : string.Empty;
+    }
 
     private static bool Contains(string? value, string needle) =>
         value?.Contains(needle, StringComparison.OrdinalIgnoreCase) == true;
