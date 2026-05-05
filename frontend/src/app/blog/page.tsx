@@ -8,10 +8,14 @@ import type { BlogPostSummary } from '@/types'
 
 export const revalidate = 300
 
-async function getVariantUrl(post: BlogPostSummary): Promise<string> {
-  return post.featuredImage?.variantsJson
-    ? (() => { try { return JSON.parse(post.featuredImage!.variantsJson!).medium ?? post.featuredImage!.publicUrl ?? '' } catch { return post.featuredImage!.publicUrl ?? '' } })()
-    : ''
+function getVariantUrl(post: BlogPostSummary): string {
+  if (!post.featuredImage) return ''
+  if (post.featuredImage.variantsJson) {
+    try {
+      return JSON.parse(post.featuredImage.variantsJson).medium ?? post.featuredImage.publicUrl ?? ''
+    } catch { /* fall through */ }
+  }
+  return post.featuredImage.publicUrl ?? ''
 }
 
 export default async function BlogPage({
@@ -68,16 +72,16 @@ export default async function BlogPage({
               >
                 <div className="grid md:grid-cols-2">
                   <div className="relative aspect-[4/3] md:aspect-auto bg-sacred-100">
-                    {heroPost.featuredImage && (
+                    {(() => { const url = getVariantUrl(heroPost); return url ? (
                       <Image
-                        src={getVariantUrl(heroPost) as unknown as string}
-                        alt={heroPost.featuredImage.altText ?? heroPost.title}
+                        src={url}
+                        alt={heroPost.featuredImage?.altText ?? heroPost.title}
                         fill
                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                         sizes="(max-width: 768px) 100vw, 50vw"
                         priority
                       />
-                    )}
+                    ) : null })()}
                   </div>
                   <div className="p-8 md:p-10 flex flex-col justify-center bg-white">
                     {heroPost.categoryNames.length > 0 && (
@@ -114,17 +118,17 @@ export default async function BlogPage({
                     href={toBrandPath(brand, `/blog/${post.slug}`)}
                     className="group block rounded-2xl overflow-hidden border border-sacred-100 hover:shadow-card transition-shadow bg-white"
                   >
-                    {post.featuredImage && (
+                    {(() => { const url = getVariantUrl(post); return url ? (
                       <div className="relative aspect-[16/9] bg-sacred-100 overflow-hidden">
                         <Image
-                          src={getVariantUrl(post) as unknown as string}
-                          alt={post.featuredImage.altText ?? post.title}
+                          src={url}
+                          alt={post.featuredImage?.altText ?? post.title}
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
                       </div>
-                    )}
+                    ) : null })()}
                     <div className="p-5">
                       {post.categoryNames.length > 0 && (
                         <p className="text-xs font-medium uppercase tracking-widest text-sacred-500 mb-2">
