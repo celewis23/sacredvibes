@@ -125,7 +125,7 @@ Use .NET double-underscore names in Railway/Vercel-style environment variables:
 | Key | Description |
 |-----|-------------|
 | `Eventbrite__PrivateToken` | Private token used by the backend. Do not expose this in the frontend. |
-| `Eventbrite__OrganizationId` | Eventbrite organization ID used for listing and creating events. |
+| `Eventbrite__OrganizationId` | Optional Eventbrite API organization ID used for listing and creating events. Leave blank to auto-discover from the private token. |
 | `Eventbrite__DefaultVenueId` | Optional Eventbrite venue ID attached when pushing in-person events. |
 | `Eventbrite__PublishOnCreate` | `true` to publish immediately after creation, `false` to leave pushed events as drafts. |
 
@@ -141,6 +141,8 @@ The Admin Events page provides:
 - **Push** on an individual event — creates or updates that event in Eventbrite.
 
 Imported events are matched by `ExternalEventbriteId` first. If no match exists, the importer falls back to matching by event name and start time for the selected brand. Synced events store the Eventbrite URL in `ExternalUrl`, and public event cards link registration buttons to Eventbrite when that URL exists.
+
+If Eventbrite returns `404 NOT_FOUND` with "The path you requested does not exist", the organization ID is usually wrong. The API organization ID is not always the number shown on a public organizer page. Either leave `Eventbrite__OrganizationId` blank so the app calls `GET /users/me/organizations/`, or set it to the `id` returned from that endpoint.
 
 ### Create / Update Behavior
 

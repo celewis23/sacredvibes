@@ -22,7 +22,8 @@ Before deploying to production, complete all items in this checklist.
 
 ### Eventbrite
 - [ ] Create an Eventbrite API key and copy the private token
-- [ ] Set `Eventbrite__PrivateToken` and `Eventbrite__OrganizationId` on the backend host
+- [ ] Set `Eventbrite__PrivateToken` on the backend host
+- [ ] Optional: set `Eventbrite__OrganizationId`, or leave it blank to auto-discover from the private token
 - [ ] Optional: set `Eventbrite__DefaultVenueId` for in-person event creation
 - [ ] Keep `Eventbrite__PublishOnCreate=false` until test event sync is verified
 - [ ] Run **Import Eventbrite** from Admin Events for the correct brand

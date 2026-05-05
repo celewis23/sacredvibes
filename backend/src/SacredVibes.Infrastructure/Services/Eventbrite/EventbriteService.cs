@@ -19,7 +19,7 @@ public class EventbriteService : IEventbriteService
     private readonly HttpClient _http;
 
     private string PrivateToken => _config["Eventbrite:PrivateToken"] ?? throw new InvalidOperationException("Eventbrite:PrivateToken not configured");
-    private string OrganizationId => _config["Eventbrite:OrganizationId"] ?? throw new InvalidOperationException("Eventbrite:OrganizationId not configured");
+    private string? ConfiguredOrganizationId => _config["Eventbrite:OrganizationId"];
     private string? DefaultVenueId => _config["Eventbrite:DefaultVenueId"];
     private bool PublishOnCreate => bool.TryParse(_config["Eventbrite:PublishOnCreate"], out var publish) && publish;
 
@@ -37,11 +37,12 @@ public class EventbriteService : IEventbriteService
         ConfigureHeaders();
 
         var result = new EventbriteEventSyncResult();
+        var organizationId = await ResolveOrganizationIdAsync(ct);
         string? continuation = null;
 
         do
         {
-            var path = $"organizations/{OrganizationId}/events/?expand=venue&order_by=start_asc";
+            var path = $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc";
             if (!string.IsNullOrWhiteSpace(continuation))
             {
                 path += $"&continuation={Uri.EscapeDataString(continuation)}";
@@ -52,8 +53,19 @@ public class EventbriteService : IEventbriteService
 
             if (!response.IsSuccessStatusCode)
             {
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound && HasConfiguredOrganizationId())
+                {
+                    var fallbackOrganizationId = await DiscoverOrganizationIdAsync(ct);
+                    if (!string.Equals(fallbackOrganizationId, organizationId, StringComparison.Ordinal))
+                    {
+                        organizationId = fallbackOrganizationId;
+                        continuation = null;
+                        continue;
+                    }
+                }
+
                 result.Errors++;
-                result.ErrorMessages.Add($"Eventbrite import failed: {(int)response.StatusCode} {body}");
+                result.ErrorMessages.Add(GetEventbriteErrorMessage("import", response, body));
                 break;
             }
 
@@ -146,9 +158,10 @@ public class EventbriteService : IEventbriteService
     {
         ConfigureHeaders();
 
+        var organizationId = await ResolveOrganizationIdAsync(ct);
         var payload = BuildEventPayload(ev);
         var path = string.IsNullOrWhiteSpace(ev.ExternalEventbriteId)
-            ? $"organizations/{OrganizationId}/events/"
+            ? $"organizations/{organizationId}/events/"
             : $"events/{ev.ExternalEventbriteId}/";
 
         var response = await _http.PostAsJsonAsync(path, payload, ct);
@@ -160,7 +173,7 @@ public class EventbriteService : IEventbriteService
             {
                 Success = false,
                 EventbriteEventId = ev.ExternalEventbriteId,
-                Error = $"Eventbrite push failed: {(int)response.StatusCode} {body}"
+                Error = GetEventbriteErrorMessage("push", response, body)
             };
         }
 
@@ -286,6 +299,72 @@ public class EventbriteService : IEventbriteService
     private void ConfigureHeaders()
     {
         _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", PrivateToken);
+    }
+
+    private async Task<string> ResolveOrganizationIdAsync(CancellationToken ct)
+    {
+        if (HasConfiguredOrganizationId())
+        {
+            return ConfiguredOrganizationId!.Trim();
+        }
+
+        return await DiscoverOrganizationIdAsync(ct);
+    }
+
+    private bool HasConfiguredOrganizationId()
+    {
+        return !string.IsNullOrWhiteSpace(ConfiguredOrganizationId)
+            && !ConfiguredOrganizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<string> DiscoverOrganizationIdAsync(CancellationToken ct)
+    {
+        ConfigureHeaders();
+
+        var response = await _http.GetAsync("users/me/organizations/", ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(GetEventbriteErrorMessage("organization lookup", response, body));
+        }
+
+        var root = JsonNode.Parse(body)?.AsObject();
+        var organizations = root?["organizations"]?.AsArray() ?? new JsonArray();
+        var organizationId = organizations
+            .OfType<JsonObject>()
+            .Select(org => GetString(org, "id"))
+            .FirstOrDefault(id => !string.IsNullOrWhiteSpace(id));
+
+        if (string.IsNullOrWhiteSpace(organizationId))
+        {
+            throw new InvalidOperationException("Eventbrite organization lookup returned no organizations for this private token. Confirm the token belongs to the Eventbrite account that owns the events.");
+        }
+
+        return organizationId;
+    }
+
+    private static string GetEventbriteErrorMessage(string action, HttpResponseMessage response, string body)
+    {
+        var details = TryGetEventbriteErrorDescription(body) ?? body;
+        var hint = response.StatusCode == System.Net.HttpStatusCode.NotFound
+            ? " This usually means Eventbrite__OrganizationId is not an API organization ID for this token. Clear Eventbrite__OrganizationId to auto-discover it, or set the value returned by /users/me/organizations/."
+            : string.Empty;
+
+        return $"Eventbrite {action} failed: {(int)response.StatusCode} {details}{hint}";
+    }
+
+    private static string? TryGetEventbriteErrorDescription(string body)
+    {
+        try
+        {
+            var root = JsonNode.Parse(body)?.AsObject();
+            return GetString(root, "error_description") ?? GetString(root, "error");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private async Task<string> UniqueSlugAsync(string baseSlug, Guid brandId, CancellationToken ct)
