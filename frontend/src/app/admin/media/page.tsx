@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDropzone } from 'react-dropzone'
 import { toast } from 'sonner'
-import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Trash2, Copy } from 'lucide-react'
+import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Music, Video, FileText, Trash2, Copy, Hash } from 'lucide-react'
 import NextImage from 'next/image'
 import { assetsApi } from '@/lib/api'
 import type { Asset } from '@/types'
@@ -59,13 +59,30 @@ export default function MediaLibraryPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'], 'application/pdf': ['.pdf'] },
-    maxSize: 25 * 1024 * 1024,
+    accept: {
+      'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
+      'audio/*': ['.mp3', '.m4a', '.ogg', '.wav', '.aac', '.flac'],
+      'video/*': ['.mp4', '.mov', '.webm', '.m4v'],
+      'application/pdf': ['.pdf'],
+    },
+    maxSize: 500 * 1024 * 1024,
   })
 
   const copyUrl = (url: string) => {
     navigator.clipboard.writeText(url)
     toast.success('URL copied')
+  }
+
+  const copyId = (id: string) => {
+    navigator.clipboard.writeText(id)
+    toast.success('Asset ID copied')
+  }
+
+  const assetIcon = (asset: Asset) => {
+    if (asset.assetType === 'Audio') return <Music size={24} className="text-sacred-400" />
+    if (asset.assetType === 'Video') return <Video size={24} className="text-sacred-400" />
+    if (asset.assetType === 'Document') return <FileText size={24} className="text-sacred-400" />
+    return <ImageIcon size={24} className="text-sacred-400" />
   }
 
   return (
@@ -104,7 +121,7 @@ export default function MediaLibraryPage() {
         <p className="text-sm font-medium text-sacred-700">
           {isUploading ? 'Uploading...' : isDragActive ? 'Drop files here' : 'Drag & drop or click to upload'}
         </p>
-        <p className="text-xs text-sacred-400 mt-1">Images and PDFs up to 25 MB</p>
+        <p className="text-xs text-sacred-400 mt-1">Images, audio, video, PDFs · up to 500 MB</p>
       </div>
 
       {/* Search */}
@@ -145,8 +162,11 @@ export default function MediaLibraryPage() {
                       />
                     </div>
                   ) : (
-                    <div className="w-full h-full bg-sacred-100 flex items-center justify-center">
-                      <ImageIcon size={24} className="text-sacred-400" />
+                    <div className="w-full h-full bg-sacred-100 flex flex-col items-center justify-center gap-1 p-2">
+                      {assetIcon(asset)}
+                      <span className="text-[9px] text-sacred-500 truncate w-full text-center px-1 leading-tight">
+                        {asset.originalFileName}
+                      </span>
                     </div>
                   )}
                 </button>
@@ -181,6 +201,13 @@ export default function MediaLibraryPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => copyId(asset.id)}
+                            className="p-1.5 text-sacred-400 hover:text-yoga-600 rounded transition-colors"
+                            title="Copy Asset ID (for Digital Studio)"
+                          >
+                            <Hash size={14} />
+                          </button>
                           {asset.publicUrl && (
                             <button
                               onClick={() => copyUrl(asset.publicUrl!)}
@@ -240,7 +267,17 @@ export default function MediaLibraryPage() {
                 {selected.width && <div><span className="font-medium text-sacred-800">Dimensions:</span> {selected.width} × {selected.height}px</div>}
                 {selected.altText && <div><span className="font-medium text-sacred-800">Alt text:</span> {selected.altText}</div>}
               </div>
-              <div className="mt-4 flex flex-col gap-2">
+
+              {/* Asset ID — useful for Digital Studio */}
+              <div className="mt-3 p-2.5 bg-sacred-50 rounded-lg border border-sacred-100">
+                <p className="text-[10px] font-semibold text-sacred-500 uppercase tracking-wider mb-1">Asset ID</p>
+                <p className="text-[10px] font-mono text-sacred-700 break-all leading-relaxed">{selected.id}</p>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2">
+                <Button variant="primary" size="sm" fullWidth onClick={() => copyId(selected.id)}>
+                  <Hash size={14} /> Copy Asset ID
+                </Button>
                 {selected.publicUrl && (
                   <Button variant="secondary" size="sm" fullWidth onClick={() => copyUrl(selected.publicUrl!)}>
                     <Copy size={14} /> Copy URL

@@ -23,10 +23,17 @@ public class AssetsController : ControllerBase
 
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
-        "application/pdf", "image/svg+xml"
+        // Images
+        "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/svg+xml",
+        // Documents
+        "application/pdf",
+        // Audio
+        "audio/mpeg", "audio/mp3", "audio/mp4", "audio/m4a", "audio/ogg", "audio/wav",
+        "audio/aac", "audio/flac", "audio/x-flac", "audio/x-m4a",
+        // Video
+        "video/mp4", "video/quicktime", "video/webm", "video/x-m4v",
     };
-    private const long MaxFileSizeBytes = 25 * 1024 * 1024; // 25 MB
+    private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
     public AssetsController(AppDbContext db, IStorageService storage, IImageProcessingService imageProcessor)
     {
@@ -71,7 +78,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(25 * 1024 * 1024)]
+    [RequestSizeLimit(500 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<List<AssetDto>>>> Upload(
         [FromForm] UploadAssetRequest metadata,
         [FromForm] IFormFileCollection files,
@@ -89,7 +96,7 @@ public class AssetsController : ControllerBase
         {
             if (file.Length > MaxFileSizeBytes)
             {
-                ModelState.AddModelError(file.FileName, $"File {file.FileName} exceeds 25 MB limit");
+                ModelState.AddModelError(file.FileName, $"File {file.FileName} exceeds 500 MB limit");
                 continue;
             }
 
@@ -134,6 +141,8 @@ public class AssetsController : ControllerBase
                 TagsJson = JsonSerializer.Serialize(metadata.Tags),
                 UploadedByUserId = userId,
                 AssetType = contentType.StartsWith("image/") ? AssetType.Image :
+                            contentType.StartsWith("audio/") ? AssetType.Audio :
+                            contentType.StartsWith("video/") ? AssetType.Video :
                             contentType == "application/pdf" ? AssetType.Document : AssetType.Other
             };
 

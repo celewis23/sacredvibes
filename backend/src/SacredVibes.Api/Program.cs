@@ -9,6 +9,10 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow large uploads (audio/video for Digital Studio)
+builder.WebHost.ConfigureKestrel(opts =>
+    opts.Limits.MaxRequestBodySize = 500L * 1024 * 1024);
+
 static bool IsAllowedFrontendOrigin(string? origin)
 {
     if (string.IsNullOrWhiteSpace(origin)) return false;

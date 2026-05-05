@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import Input from '@/components/ui/input'
 import Button from '@/components/ui/button'
+import AssetPicker from '@/components/admin/AssetPicker'
 import { studioApi } from '@/lib/api'
 
 const schema = z.object({
@@ -26,12 +27,12 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 const CATEGORIES = [
-  { value: 'SoundHealing',        label: 'Sound Healing' },
-  { value: 'YogaFlows',           label: 'Yoga Flows' },
-  { value: 'Breathwork',          label: 'Breathwork' },
-  { value: 'GuidedMeditation',    label: 'Guided Meditation' },
-  { value: 'CeremoniesAndRituals',label: 'Ceremonies & Rituals' },
-  { value: 'EnergyWork',          label: 'Energy Work' },
+  { value: 'SoundHealing',         label: 'Sound Healing' },
+  { value: 'YogaFlows',            label: 'Yoga Flows' },
+  { value: 'Breathwork',           label: 'Breathwork' },
+  { value: 'GuidedMeditation',     label: 'Guided Meditation' },
+  { value: 'CeremoniesAndRituals', label: 'Ceremonies & Rituals' },
+  { value: 'EnergyWork',           label: 'Energy Work' },
 ]
 
 const TIERS = [
@@ -46,7 +47,7 @@ export default function AdminStudioEditorPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(!isNew)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const { register, handleSubmit, reset, control, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: '',
@@ -139,7 +140,7 @@ export default function AdminStudioEditorPage() {
             <textarea
               {...register('description')}
               rows={3}
-              placeholder="A brief description of this session..."
+              placeholder="A brief description of this session…"
               className="w-full rounded-lg border border-sacred-200 px-3 py-2 text-sm text-sacred-900 placeholder:text-sacred-400 focus:outline-none focus:ring-2 focus:ring-yoga-500 focus:border-transparent resize-none"
             />
           </div>
@@ -181,20 +182,32 @@ export default function AdminStudioEditorPage() {
             />
           </div>
 
-          <Input
-            {...register('assetId')}
-            label="Media Asset ID (UUID)"
-            placeholder="Leave blank to set later"
-            error={errors.assetId?.message}
-            fullWidth
+          {/* Media asset picker */}
+          <Controller
+            name="assetId"
+            control={control}
+            render={({ field }) => (
+              <AssetPicker
+                label="Media File (audio or video)"
+                accept="any"
+                value={field.value || undefined}
+                onChange={v => field.onChange(v ?? '')}
+              />
+            )}
           />
 
-          <Input
-            {...register('thumbnailAssetId')}
-            label="Thumbnail Asset ID (UUID)"
-            placeholder="Leave blank to set later"
-            error={errors.thumbnailAssetId?.message}
-            fullWidth
+          {/* Thumbnail picker */}
+          <Controller
+            name="thumbnailAssetId"
+            control={control}
+            render={({ field }) => (
+              <AssetPicker
+                label="Thumbnail Image"
+                accept="image"
+                value={field.value || undefined}
+                onChange={v => field.onChange(v ?? '')}
+              />
+            )}
           />
 
           <div className="flex items-center gap-2">
