@@ -42,7 +42,7 @@ public class EventbriteService : IEventbriteService
 
         do
         {
-            var path = $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc";
+            var path = $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status=all";
             if (!string.IsNullOrWhiteSpace(continuation))
             {
                 path += $"&continuation={Uri.EscapeDataString(continuation)}";

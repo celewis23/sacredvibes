@@ -262,8 +262,10 @@ export default function AdminEventsPage() {
     }
 
     const pieces = [
+      `${result.totalFetched ?? 0} fetched`,
       result.inserted ? `${result.inserted} added` : '',
       result.updated ? `${result.updated} updated` : '',
+      result.skipped ? `${result.skipped} skipped` : '',
       result.pushed ? `${result.pushed} pushed` : '',
       result.errors ? `${result.errors} error${result.errors !== 1 ? 's' : ''}` : '',
     ].filter(Boolean)

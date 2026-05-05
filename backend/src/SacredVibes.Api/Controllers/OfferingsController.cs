@@ -452,8 +452,7 @@ public class OfferingsController : ControllerBase
         var organizationId = _config["Eventbrite:OrganizationId"];
         return !string.IsNullOrWhiteSpace(token)
             && !token.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(organizationId)
-            && !organizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase);
+            && (string.IsNullOrWhiteSpace(organizationId) || !organizationId.StartsWith("REPLACE_WITH", StringComparison.OrdinalIgnoreCase));
     }
 }
 
