@@ -72,9 +72,9 @@ export default async function BlogPostPage({ params }: Props) {
             <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/50" />
             <div className="absolute bottom-0 inset-x-0 p-8 md:p-12">
               <div className="container-sacred">
-                {post.categoryNames.length > 0 && (
+                {(post.categoryNames ?? []).length > 0 && (
                   <p className="text-xs font-medium uppercase tracking-widest text-white/80 mb-3">
-                    {post.categoryNames.join(' · ')}
+                    {(post.categoryNames ?? []).join(' · ')}
                   </p>
                 )}
                 <h1 className="font-heading text-3xl md:text-5xl text-white max-w-3xl leading-tight">
@@ -86,9 +86,9 @@ export default async function BlogPostPage({ params }: Props) {
         ) : (
           <div className="section-sm bg-sacred-50">
             <div className="container-sacred">
-              {post.categoryNames.length > 0 && (
+              {(post.categoryNames ?? []).length > 0 && (
                 <p className="text-xs font-medium uppercase tracking-widest text-sacred-500 mb-3">
-                  {post.categoryNames.join(' · ')}
+                  {(post.categoryNames ?? []).join(' · ')}
                 </p>
               )}
               <h1 className="font-heading text-3xl md:text-5xl text-sacred-900 max-w-3xl">

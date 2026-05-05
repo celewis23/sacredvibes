@@ -404,6 +404,8 @@ public class BlogController : ControllerBase
             BrandId = t.BlogTag.BrandId,
             Name = t.BlogTag.Name,
             Slug = t.BlogTag.Slug
-        }).ToList()
+        }).ToList(),
+        CategoryNames = p.BlogPostCategories.Select(c => c.BlogCategory.Name).ToList(),
+        TagNames = p.BlogPostTags.Select(t => t.BlogTag.Name).ToList()
     };
 }

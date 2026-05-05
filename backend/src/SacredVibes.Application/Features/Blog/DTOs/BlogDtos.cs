@@ -25,6 +25,8 @@ public class BlogPostDto
     public DateTime UpdatedAt { get; set; }
     public List<BlogCategoryDto> Categories { get; set; } = new();
     public List<BlogTagDto> Tags { get; set; } = new();
+    public List<string> CategoryNames { get; set; } = new();
+    public List<string> TagNames { get; set; } = new();
 }
 
 public class BlogPostSummaryDto
