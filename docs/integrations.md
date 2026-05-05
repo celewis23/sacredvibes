@@ -127,6 +127,7 @@ Use .NET double-underscore names in Railway/Vercel-style environment variables:
 | `Eventbrite__PrivateToken` | Private token used by the backend. Do not expose this in the frontend. |
 | `Eventbrite__OrganizationId` | Optional Eventbrite API organization ID used for listing and creating events. Leave blank to auto-discover from the private token. |
 | `Eventbrite__OrganizerId` | Optional public organizer ID from a URL like `/o/name-17611651589`. When set, imports read events from that organizer feed. |
+| `Eventbrite__ImportStatuses` | Optional status filter for imports. Defaults to `live`; use `all` only when intentionally importing drafts, completed, or canceled Eventbrite events. |
 | `Eventbrite__DefaultVenueId` | Optional Eventbrite venue ID attached when pushing in-person events. |
 | `Eventbrite__PublishOnCreate` | `true` to publish immediately after creation, `false` to leave pushed events as drafts. |
 

@@ -21,6 +21,9 @@ public class EventbriteService : IEventbriteService
     private string PrivateToken => _config["Eventbrite:PrivateToken"] ?? throw new InvalidOperationException("Eventbrite:PrivateToken not configured");
     private string? ConfiguredOrganizationId => _config["Eventbrite:OrganizationId"];
     private string? ConfiguredOrganizerId => _config["Eventbrite:OrganizerId"];
+    private string ImportStatuses => string.IsNullOrWhiteSpace(_config["Eventbrite:ImportStatuses"])
+        ? "live"
+        : _config["Eventbrite:ImportStatuses"]!;
     private string? DefaultVenueId => _config["Eventbrite:DefaultVenueId"];
     private bool PublishOnCreate => bool.TryParse(_config["Eventbrite:PublishOnCreate"], out var publish) && publish;
 
@@ -165,8 +168,8 @@ public class EventbriteService : IEventbriteService
             }
 
             result.EventsEndpoint = HasConfiguredOrganizerId()
-                ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status=all&page_size=5"
-                : $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status=all&page_size=5";
+                ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}&page_size=5"
+                : $"organizations/{result.ResolvedOrganizationId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}&page_size=5";
             var eventsResponse = await _http.GetAsync(result.EventsEndpoint, ct);
             var eventsBody = await eventsResponse.Content.ReadAsStringAsync(ct);
             if (!eventsResponse.IsSuccessStatusCode)
@@ -321,6 +324,17 @@ public class EventbriteService : IEventbriteService
             return;
         }
 
+        if (HasConfiguredOrganizerId())
+        {
+            var sourceOrganizerId = GetString(source, "organizer_id");
+            if (!string.IsNullOrWhiteSpace(sourceOrganizerId)
+                && !string.Equals(sourceOrganizerId, ConfiguredOrganizerId!.Trim(), StringComparison.Ordinal))
+            {
+                result.Skipped++;
+                return;
+            }
+        }
+
         var name = GetNestedString(source, "name", "text") ?? GetNestedString(source, "name", "html") ?? "Untitled Event";
         var startAt = ParseEventbriteDate(source, "start") ?? DateTime.UtcNow;
         var endAt = ParseEventbriteDate(source, "end") ?? startAt.AddHours(2);
@@ -432,8 +446,8 @@ public class EventbriteService : IEventbriteService
     private string GetImportEventsPath(string organizationId)
     {
         return HasConfiguredOrganizerId()
-            ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status=all"
-            : $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status=all";
+            ? $"organizers/{ConfiguredOrganizerId!.Trim()}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}"
+            : $"organizations/{organizationId}/events/?expand=venue&order_by=start_asc&status={Uri.EscapeDataString(ImportStatuses)}";
     }
 
     private bool HasConfiguredPrivateToken()
