@@ -22,6 +22,7 @@ public static class SeedData
         await SeedServicesAsync(db);
         await SeedEventsAsync(db);
         await SeedBlogPostsAsync(db, userManager);
+        await SeedRestFest2026Async(db, userManager);
         await SeedPagesAsync(db);
         await SeedIntegrationSettingsAsync(db);
 
@@ -493,6 +494,94 @@ public static class SeedData
         };
 
         await db.BlogPosts.AddRangeAsync(posts);
+    }
+
+    private static async Task SeedRestFest2026Async(AppDbContext db, UserManager<ApplicationUser> userManager)
+    {
+        const string slug = "rest-fest-2026";
+        if (await db.BlogPosts.AnyAsync(p => p.Slug == slug)) return;
+
+        var adminEmail = Environment.GetEnvironmentVariable("ADMIN_EMAIL") ?? "admin@sacredvibesyoga.com";
+        var admin = await userManager.FindByEmailAsync(adminEmail);
+        if (admin is null) return;
+
+        var asset = new Asset
+        {
+            BrandId = WellKnownIds.ParentBrandId,
+            FileName = "restfest26.png",
+            OriginalFileName = "restfest26.png",
+            ContentType = "image/png",
+            FileSize = 0,
+            StoragePath = "images/restfest26.png",
+            PublicUrl = "/images/restfest26.png",
+            AltText = "Rest Fest 2026 — Sacred Vibes Healing & Wellness",
+            AssetType = AssetType.Image,
+            Visibility = AssetVisibility.Public,
+            Usage = AssetUsage.General,
+            UploadedByUserId = admin.Id,
+        };
+        await db.Assets.AddAsync(asset);
+        await db.SaveChangesAsync();
+
+        var eventCat = await db.BlogCategories
+            .FirstOrDefaultAsync(c => c.BrandId == WellKnownIds.ParentBrandId && c.Slug == "events");
+
+        if (eventCat is null)
+        {
+            eventCat = new BlogCategory
+            {
+                BrandId = WellKnownIds.ParentBrandId,
+                Name = "Events",
+                Slug = "events",
+            };
+            await db.BlogCategories.AddAsync(eventCat);
+            await db.SaveChangesAsync();
+        }
+
+        var post = new BlogPost
+        {
+            BrandId = WellKnownIds.ParentBrandId,
+            AuthorId = admin.Id,
+            Title = "Rest Fest 2026 is Coming",
+            Slug = slug,
+            FeaturedImageAssetId = asset.Id,
+            Excerpt = "Rest Fest is back — and this year, we're going deeper. A full day of restorative yoga, sound healing, guided breathwork, and intentional community. Save the date.",
+            Content = """
+<h2>What is Rest Fest?</h2>
+<p>Rest Fest is our annual celebration of the art of doing less. In a world that glorifies hustle, we gather once a year to practice the radical opposite — deep rest, intentional slowness, and full-body renewal. Rest Fest 2026 is our most expansive yet, and we couldn't be more excited to share it with you.</p>
+
+<h2>What to Expect</h2>
+<p>From sunrise to sunset, Rest Fest 2026 offers a full day of healing modalities, community connection, and sacred space. This is not a conference or a workout — it's an immersion in restoration.</p>
+
+<p>The day includes:</p>
+<ul>
+  <li><strong>Morning Restorative Yoga</strong> — A slow, held practice to open the day with ease and presence.</li>
+  <li><strong>Sacred Sound Bath</strong> — A full-length group sound healing ceremony with singing bowls, gong, and sacred instruments.</li>
+  <li><strong>Breathwork Journey</strong> — A guided breathwork session designed to move energy, release what no longer serves, and expand your capacity for peace.</li>
+  <li><strong>Yoga Nidra</strong> — The practice of "yogic sleep," proven to bring the body into states of profound rest and cellular repair.</li>
+  <li><strong>Community Gathering</strong> — Shared meals, connection circles, and time to be in community with like-minded souls on the path.</li>
+</ul>
+
+<h2>Who It's For</h2>
+<p>Rest Fest is for anyone who has been running too fast, too long. You don't need to be a seasoned yogi or a meditation practitioner. If your body is tired and your nervous system is asking for a break, this day was designed for you.</p>
+
+<h2>Save the Date</h2>
+<p>Rest Fest 2026 details — including date, location, and registration — will be announced soon. Join our community list to be the first to know and access early-bird pricing.</p>
+
+<p>Rest is not a reward for finishing. It's a practice. Come practice it with us.</p>
+""",
+            Status = ContentStatus.Published,
+            PublishedAt = DateTime.UtcNow,
+            ReadingTimeMinutes = "3",
+            SeoTitle = "Rest Fest 2026 | Sacred Vibes Healing & Wellness",
+            SeoDescription = "Rest Fest 2026 is coming — a full day of restorative yoga, sound healing, breathwork, and community. Save the date.",
+        };
+
+        await db.BlogPosts.AddAsync(post);
+        await db.SaveChangesAsync();
+
+        post.BlogPostCategories.Add(new BlogPostCategory { BlogPostId = post.Id, BlogCategoryId = eventCat.Id });
+        await db.SaveChangesAsync();
     }
 
     private static async Task SeedPagesAsync(AppDbContext db)
