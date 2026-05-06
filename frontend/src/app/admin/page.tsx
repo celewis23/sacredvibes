@@ -1,9 +1,14 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { dashboardApi } from '@/lib/api'
-import { Users, BookOpen, Calendar, Image, TrendingUp, Clock, AlertCircle } from 'lucide-react'
-import { format } from 'date-fns'
+import { dashboardApi, emailApi } from '@/lib/api'
+import {
+  Users, BookOpen, Calendar, TrendingUp,
+  Mail, Globe, PlayCircle, CalendarPlus,
+  ShoppingBag, Upload, PenLine, Send, Plus,
+} from 'lucide-react'
+import { format, formatDistanceToNow } from 'date-fns'
+import Link from 'next/link'
 import Card from '@/components/ui/card'
 import Badge from '@/components/ui/badge'
 
@@ -40,6 +45,17 @@ function StatCard({ label, value, sub, icon: Icon, color = 'yoga' }: StatCardPro
   )
 }
 
+const QUICK_ACTIONS = [
+  { label: 'New Blog Post',      href: '/admin/blog/new',     icon: PenLine,      text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
+  { label: 'New Page',           href: '/admin/pages/new',    icon: Globe,        text: 'text-hands-600',  bg: 'bg-hands-50'   },
+  { label: 'New Studio Content', href: '/admin/studio/new',   icon: PlayCircle,   text: 'text-sound-600',  bg: 'bg-sound-50'   },
+  { label: 'New Event',          href: '/admin/events/new',   icon: CalendarPlus, text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
+  { label: 'New Service',        href: '/admin/services/new', icon: ShoppingBag,  text: 'text-hands-600',  bg: 'bg-hands-50'   },
+  { label: 'Open Email Inbox',   href: '/admin/email',        icon: Send,         text: 'text-sound-600',  bg: 'bg-sound-50'   },
+  { label: 'Upload Media',       href: '/admin/media',        icon: Upload,       text: 'text-sacred-600', bg: 'bg-sacred-100' },
+  { label: 'New Booking',        href: '/admin/bookings',     icon: Calendar,     text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
+]
+
 export default function AdminDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -47,6 +63,15 @@ export default function AdminDashboard() {
       const res = await dashboardApi.getStats()
       return res.data?.data
     },
+  })
+
+  const { data: emailData } = useQuery({
+    queryKey: ['dashboard-email-preview'],
+    queryFn: async () => {
+      const res = await emailApi.getMessages({ page: 1, pageSize: 6 })
+      return res.data?.data
+    },
+    retry: false,
   })
 
   if (isLoading) {
@@ -104,6 +129,81 @@ export default function AdminDashboard() {
           icon={TrendingUp}
           color="neutral"
         />
+      </div>
+
+      {/* Email preview + Quick actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Email inbox preview */}
+        <Card padding="none">
+          <div className="px-6 py-4 border-b border-sacred-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Mail size={15} className="text-sacred-400" />
+              <h2 className="font-medium text-sacred-900 text-sm">Email Inbox</h2>
+            </div>
+            <Link href="/admin/email" className="text-xs text-yoga-600 hover:text-yoga-800">Open inbox</Link>
+          </div>
+          <div className="divide-y divide-sacred-50">
+            {!emailData?.items?.length ? (
+              <div className="px-6 py-8 text-center">
+                <Mail size={24} className="mx-auto mb-2 text-sacred-200" />
+                <p className="text-sm text-sacred-400">No messages yet</p>
+              </div>
+            ) : (
+              emailData.items.map(msg => (
+                <Link
+                  key={msg.id}
+                  href={`/admin/email?message=${msg.id}`}
+                  className="flex items-start gap-3 px-6 py-3.5 hover:bg-sacred-50/60 transition-colors"
+                >
+                  <div className={`w-1.5 h-1.5 rounded-full mt-2 shrink-0 ${msg.isRead ? 'bg-transparent' : 'bg-yoga-500'}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                      <p className={`text-sm truncate ${msg.isRead ? 'text-sacred-600' : 'text-sacred-900 font-medium'}`}>
+                        {msg.from?.name || msg.from?.address || 'Unknown'}
+                      </p>
+                      <span className="text-[10px] text-sacred-400 shrink-0">
+                        {msg.date ? formatDistanceToNow(new Date(msg.date), { addSuffix: true }) : ''}
+                      </span>
+                    </div>
+                    <p className={`text-xs truncate ${msg.isRead ? 'text-sacred-400' : 'text-sacred-700'}`}>
+                      {msg.subject || '(no subject)'}
+                    </p>
+                    {msg.preview && (
+                      <p className="text-[11px] text-sacred-400 truncate mt-0.5">{msg.preview}</p>
+                    )}
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </Card>
+
+        {/* Quick actions */}
+        <Card padding="none">
+          <div className="px-6 py-4 border-b border-sacred-100 flex items-center gap-2">
+            <Plus size={15} className="text-sacred-400" />
+            <h2 className="font-medium text-sacred-900 text-sm">Quick Actions</h2>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-2">
+            {QUICK_ACTIONS.map(action => {
+              const Icon = action.icon
+              return (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-sacred-100 hover:border-yoga-200 hover:bg-yoga-50/40 transition-all group"
+                >
+                  <div className={`w-8 h-8 rounded-lg ${action.bg} flex items-center justify-center shrink-0`}>
+                    <Icon size={15} className={action.text} />
+                  </div>
+                  <span className="text-sm text-sacred-700 group-hover:text-sacred-900 font-medium leading-tight">
+                    {action.label}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </Card>
       </div>
 
       {/* Two-column layout */}
