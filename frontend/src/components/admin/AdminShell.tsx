@@ -7,6 +7,7 @@ import {
   LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, ShoppingBag,
   Users, Upload, MessageSquare, Settings, LogOut, Globe, Megaphone,
   BarChart2, ChevronRight, X, UserCog, Mail, PlayCircle, AlignJustify,
+  FolderOpen,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
@@ -34,6 +35,7 @@ const navGroups: NavGroup[] = [
   {
     label: 'Content',
     items: [
+      { label: 'Projects', href: '/admin/projects', icon: FolderOpen },
       { label: 'Blog', href: '/admin/blog', icon: BookOpen },
       { label: 'Pages', href: '/admin/pages', icon: Globe },
       { label: 'Digital Studio', href: '/admin/studio', icon: PlayCircle },

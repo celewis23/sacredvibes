@@ -8,6 +8,7 @@ import type {
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
   EmailSendAttachment, EmailSignature,
   StudioLibrary, StudioContentItem, MemberSubscription,
+  ProjectSummary, Project, ProjectImage, ProjectTrack,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -407,4 +408,44 @@ export const studioApi = {
 
   adminTogglePublished: (id: string) =>
     apiClient.patch(`/studio/admin/content/${id}/toggle`),
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export const projectsApi = {
+  list: (params?: { search?: string; page?: number; pageSize?: number }) =>
+    apiClient.get<ApiResponse<PagedResult<ProjectSummary>>>('/projects', { params }),
+
+  get: (id: string) =>
+    apiClient.get<ApiResponse<Project>>(`/projects/${id}`),
+
+  create: (data: { title: string; description?: string }) =>
+    apiClient.post<ApiResponse<Project>>('/projects', data),
+
+  update: (id: string, data: { title: string; description?: string; notes?: string; coverImageUrl?: string }) =>
+    apiClient.put<ApiResponse<Project>>(`/projects/${id}`, data),
+
+  delete: (id: string) =>
+    apiClient.delete(`/projects/${id}`),
+
+  addImage: (id: string, data: { url: string; sourceUrl?: string; title?: string; description?: string; source: string }) =>
+    apiClient.post<ApiResponse<ProjectImage>>(`/projects/${id}/images`, data),
+
+  removeImage: (id: string, imageId: string) =>
+    apiClient.delete(`/projects/${id}/images/${imageId}`),
+
+  reorderImages: (id: string, ids: string[]) =>
+    apiClient.patch(`/projects/${id}/images/reorder`, { ids }),
+
+  addTrack: (id: string, data: {
+    spotifyId: string; type: string; title: string; artist?: string; albumName?: string;
+    albumArtUrl?: string; previewUrl?: string; spotifyUri: string; externalUrl?: string; durationMs: number
+  }) =>
+    apiClient.post<ApiResponse<ProjectTrack>>(`/projects/${id}/tracks`, data),
+
+  removeTrack: (id: string, trackId: string) =>
+    apiClient.delete(`/projects/${id}/tracks/${trackId}`),
+
+  reorderTracks: (id: string, ids: string[]) =>
+    apiClient.patch(`/projects/${id}/tracks/reorder`, { ids }),
 }

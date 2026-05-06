@@ -46,6 +46,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StudioContent> StudioContent => Set<StudioContent>();
     public DbSet<MemberSubscription> MemberSubscriptions => Set<MemberSubscription>();
 
+    // Projects
+    public DbSet<Project> Projects => Set<Project>();
+    public DbSet<ProjectImage> ProjectImages => Set<ProjectImage>();
+    public DbSet<ProjectTrack> ProjectTracks => Set<ProjectTrack>();
+
     // System
     public DbSet<IntegrationSetting> IntegrationSettings => Set<IntegrationSetting>();
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();

@@ -602,6 +602,53 @@ export interface EmailSignature {
   isDefault: boolean
 }
 
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+export type ProjectImageSource = 'Pinterest' | 'Manual' | 'Embedded'
+export type ProjectTrackType = 'Track' | 'Playlist'
+
+export interface ProjectSummary {
+  id: string
+  title: string
+  description?: string
+  coverImageUrl?: string
+  imageCount: number
+  trackCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectImage {
+  id: string
+  url: string
+  sourceUrl?: string
+  title?: string
+  description?: string
+  source: ProjectImageSource
+  sortOrder: number
+}
+
+export interface ProjectTrack {
+  id: string
+  spotifyId: string
+  type: ProjectTrackType
+  title: string
+  artist?: string
+  albumName?: string
+  albumArtUrl?: string
+  previewUrl?: string
+  spotifyUri: string
+  externalUrl?: string
+  durationMs: number
+  sortOrder: number
+}
+
+export interface Project extends ProjectSummary {
+  notes?: string
+  images: ProjectImage[]
+  tracks: ProjectTrack[]
+}
+
 // ── Lead/Contact ──────────────────────────────────────────────────────────────
 
 export interface Lead {

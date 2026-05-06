@@ -31,6 +31,7 @@ public class ImageProcessingService : IImageProcessingService
             await inputStream.ReadExactlyAsync(imageBytes, ct);
 
             using var image = Image.Load(imageBytes);
+            image.Mutate(x => x.AutoOrient());
             result.OriginalWidth = image.Width;
             result.OriginalHeight = image.Height;
             result.Success = true;
@@ -65,6 +66,7 @@ public class ImageProcessingService : IImageProcessingService
         inputStream.Position = 0;
         await inputStream.ReadExactlyAsync(bytes, ct);
         using var image = Image.Load(bytes);
+        image.Mutate(x => x.AutoOrient());
         var output = new MemoryStream();
         await image.SaveAsWebpAsync(output, new WebpEncoder { Quality = quality }, ct);
         output.Position = 0;
@@ -75,6 +77,7 @@ public class ImageProcessingService : IImageProcessingService
         byte[] sourceBytes, string name, int maxWidth, int maxHeight, int quality, CancellationToken ct, bool crop = false)
     {
         using var image = Image.Load(sourceBytes);
+        image.Mutate(x => x.AutoOrient());
 
         if (image.Width <= maxWidth && image.Height <= maxHeight)
         {

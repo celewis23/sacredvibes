@@ -47,6 +47,7 @@ public static class SeedData
         await EnsureAuthSchemaCompatibilityAsync(db);
         await EnsureOfferingsSchemaCompatibilityAsync(db);
         await EnsureStudioSchemaCompatibilityAsync(db);
+        await EnsureProjectsSchemaAsync(db);
         await ValidateCriticalAuthSchemaAsync(db);
     }
 
@@ -746,6 +747,82 @@ public static class SeedData
         };
 
         await db.StudioContent.AddRangeAsync(items);
+    }
+
+    private static async Task EnsureProjectsSchemaAsync(AppDbContext db)
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS projects (
+                "Id" uuid NOT NULL,
+                "Title" character varying(300) NOT NULL DEFAULT '',
+                "Description" character varying(2000) NULL,
+                "Notes" text NULL,
+                "CoverImageUrl" character varying(2000) NULL,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_projects" PRIMARY KEY ("Id")
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS project_images (
+                "Id" uuid NOT NULL,
+                "ProjectId" uuid NOT NULL,
+                "Url" character varying(2000) NOT NULL DEFAULT '',
+                "SourceUrl" character varying(2000) NULL,
+                "Title" character varying(500) NULL,
+                "Description" character varying(2000) NULL,
+                "Source" character varying(50) NOT NULL DEFAULT 'Manual',
+                "SortOrder" integer NOT NULL DEFAULT 0,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_project_images" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_project_images_projects_ProjectId"
+                    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE CASCADE
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            CREATE TABLE IF NOT EXISTS project_tracks (
+                "Id" uuid NOT NULL,
+                "ProjectId" uuid NOT NULL,
+                "SpotifyId" character varying(200) NOT NULL DEFAULT '',
+                "Type" character varying(20) NOT NULL DEFAULT 'Track',
+                "Title" character varying(500) NOT NULL DEFAULT '',
+                "Artist" character varying(500) NULL,
+                "AlbumName" character varying(500) NULL,
+                "AlbumArtUrl" character varying(2000) NULL,
+                "PreviewUrl" character varying(2000) NULL,
+                "SpotifyUri" character varying(200) NOT NULL DEFAULT '',
+                "ExternalUrl" character varying(2000) NULL,
+                "DurationMs" integer NOT NULL DEFAULT 0,
+                "SortOrder" integer NOT NULL DEFAULT 0,
+                "CreatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "UpdatedAt" timestamp with time zone NOT NULL DEFAULT NOW(),
+                "IsDeleted" boolean NOT NULL DEFAULT FALSE,
+                "DeletedAt" timestamp with time zone NULL,
+                CONSTRAINT "PK_project_tracks" PRIMARY KEY ("Id"),
+                CONSTRAINT "FK_project_tracks_projects_ProjectId"
+                    FOREIGN KEY ("ProjectId") REFERENCES projects ("Id") ON DELETE CASCADE
+            );
+            """
+        );
+
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_project_images_ProjectId_SortOrder" ON project_images ("ProjectId", "SortOrder");"""
+        );
+        await db.Database.ExecuteSqlRawAsync(
+            """CREATE INDEX IF NOT EXISTS "IX_project_tracks_ProjectId_SortOrder" ON project_tracks ("ProjectId", "SortOrder");"""
+        );
     }
 }
 
