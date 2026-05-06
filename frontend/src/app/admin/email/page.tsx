@@ -968,11 +968,13 @@ function MessagePanel({
   folders,
   onReply,
   onDeleted,
+  onBack,
 }: {
   message?: EmailMessage
   folders: EmailFolder[]
   onReply: () => void
   onDeleted: () => void
+  onBack?: () => void
 }) {
   const queryClient = useQueryClient()
 
@@ -1017,6 +1019,14 @@ function MessagePanel({
   return (
     <div className="h-full bg-white flex flex-col">
       <div className="border-b border-gray-200 px-5 py-4">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="lg:hidden flex items-center gap-1 text-sacred-700 text-sm mb-3 -ml-1 hover:text-sacred-900"
+          >
+            <ChevronLeft size={18} /> Back to inbox
+          </button>
+        )}
         <div className="flex items-center gap-2 mb-3">
           <button onClick={onReply} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sacred-800 text-white text-xs rounded-lg hover:bg-sacred-900">
             <PenLine size={13} /> Reply
@@ -1076,6 +1086,13 @@ export default function AdminEmailPage() {
   const [mode, setMode] = useState<PanelMode>('message')
   const [replyTo, setReplyTo] = useState<EmailMessage | undefined>()
   const [folderRailCollapsed, setFolderRailCollapsed] = useState(false)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
+
+  const handleMobileBack = () => {
+    setMobileView('list')
+    setSelectedMessageId(null)
+    setMode('message')
+  }
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['email-settings'],
@@ -1130,128 +1147,257 @@ export default function AdminEmailPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Email Inbox</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{settings.emailAddress}</p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <button
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['email-messages'] })}
-            className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
-            title="Refresh"
-          >
-            <RefreshCw size={16} />
-          </button>
-          <button
-            onClick={() => { setReplyTo(undefined); setMode('compose') }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900"
-          >
-            <PenLine size={15} /> Compose
-          </button>
-          <button
-            onClick={() => setMode('settings')}
-            className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
-            title="Settings"
-          >
-            <Settings size={16} />
-          </button>
-        </div>
+
+      {/* ═══════════════ MOBILE ═══════════════ */}
+      <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+        {mobileView === 'list' ? (
+          <>
+            {/* Mobile header */}
+            <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-2 shrink-0">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg font-semibold text-gray-900">Email Inbox</h1>
+                <p className="text-xs text-gray-500 truncate">{settings.emailAddress}</p>
+              </div>
+              <button
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['email-messages'] })}
+                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                title="Refresh"
+              >
+                <RefreshCw size={16} />
+              </button>
+              <button
+                onClick={() => { setReplyTo(undefined); setMode('compose'); setMobileView('detail') }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900"
+              >
+                <PenLine size={15} /> Compose
+              </button>
+              <button
+                onClick={() => { setMode('settings'); setMobileView('detail') }}
+                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+                title="Settings"
+              >
+                <Settings size={16} />
+              </button>
+            </div>
+
+            {/* Folder chips */}
+            {folders.length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5 border-b border-gray-100 bg-white shrink-0">
+                {folders.map(folder => (
+                  <button
+                    key={folder.id}
+                    onClick={() => { setFolderId(folder.id); setPage(1); setSelectedMessageId(null) }}
+                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                      folder.id === folderId ? 'bg-sacred-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {folder.name}
+                    {(folder.unreadCount ?? 0) > 0 && ` · ${folder.unreadCount}`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="px-4 py-2.5 bg-white border-b border-gray-100 shrink-0">
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  placeholder="Search sender or subject"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                />
+              </div>
+            </div>
+
+            {/* Message list */}
+            <div className="flex-1 overflow-y-auto bg-white">
+              {messagesLoading ? (
+                <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
+              ) : (messages?.items.length ?? 0) === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">No messages found.</div>
+              ) : (
+                messages?.items.map(message => (
+                  <MessageRow
+                    key={message.id}
+                    message={message}
+                    active={selectedMessageId === message.id}
+                    onClick={() => {
+                      setSelectedMessageId(message.id)
+                      setMode('message')
+                      setMobileView('detail')
+                    }}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Pagination */}
+            {messages && messages.totalPages > 1 && (
+              <div className="bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between text-sm text-gray-500 shrink-0">
+                <span>Page {messages.page} of {messages.totalPages}</span>
+                <div className="flex items-center gap-2">
+                  <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronLeft size={15} /></button>
+                  <button disabled={page >= messages.totalPages} onClick={() => setPage(p => p + 1)} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronRight size={15} /></button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Detail view — full screen */
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            {mode === 'settings' ? (
+              <SettingsPanel settings={settings} onClose={handleMobileBack} />
+            ) : mode === 'compose' ? (
+              <ComposePanel
+                settings={settings}
+                replyTo={replyTo}
+                onClose={() => { setMode('message'); setMobileView('list') }}
+              />
+            ) : messageLoading ? (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">Loading message...</div>
+            ) : (
+              <MessagePanel
+                message={selectedMessage}
+                folders={folders}
+                onBack={handleMobileBack}
+                onReply={() => { setReplyTo(selectedMessage); setMode('compose') }}
+                onDeleted={() => { setSelectedMessageId(null); setMobileView('list') }}
+              />
+            )}
+          </div>
+        )}
       </div>
 
-      <div className={`flex-1 min-h-0 grid ${folderRailCollapsed ? 'grid-cols-[64px_minmax(320px,430px)_1fr]' : 'grid-cols-[220px_minmax(320px,430px)_1fr]'}`}>
-        <aside className="bg-white border-r border-gray-200 p-3 overflow-y-auto">
-          <button
-            onClick={() => setFolderRailCollapsed(v => !v)}
-            className="mb-3 w-full flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
-            title={folderRailCollapsed ? 'Expand folders' : 'Collapse folders'}
-          >
-            <Menu size={15} />
-          </button>
-          <div className="space-y-1">
-            {folders.map(folder => (
-              <FolderButton
-                key={folder.id}
-                folder={folder}
-                active={folder.id === folderId}
-                collapsed={folderRailCollapsed}
-                onClick={() => {
-                  setFolderId(folder.id)
-                  setPage(1)
-                  setSelectedMessageId(null)
-                  setMode('message')
-                }}
-              />
-            ))}
+      {/* ═══════════════ DESKTOP ═══════════════ */}
+      <div className="hidden lg:flex lg:flex-col flex-1 min-h-0">
+        {/* Desktop header */}
+        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Email Inbox</h1>
+            <p className="text-sm text-gray-500 mt-0.5">{settings.emailAddress}</p>
           </div>
-        </aside>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['email-messages'] })}
+              className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+              title="Refresh"
+            >
+              <RefreshCw size={16} />
+            </button>
+            <button
+              onClick={() => { setReplyTo(undefined); setMode('compose') }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900"
+            >
+              <PenLine size={15} /> Compose
+            </button>
+            <button
+              onClick={() => setMode('settings')}
+              className="p-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </button>
+          </div>
+        </div>
 
-        <section className="bg-white border-r border-gray-200 flex flex-col min-w-0">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center gap-2 mb-3">
-              <h2 className="font-semibold text-gray-900">{activeFolderName}</h2>
-              {messages && <span className="text-xs text-gray-400">{messages.totalCount} messages</span>}
-            </div>
-            <div className="relative">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1) }}
-                placeholder="Search sender or subject"
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {messagesLoading ? (
-              <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
-            ) : (messages?.items.length ?? 0) === 0 ? (
-              <div className="p-8 text-center text-sm text-gray-400">No messages found.</div>
-            ) : (
-              messages?.items.map(message => (
-                <MessageRow
-                  key={message.id}
-                  message={message}
-                  active={selectedMessageId === message.id}
+        {/* Desktop 3-column grid */}
+        <div className={`flex-1 min-h-0 grid ${folderRailCollapsed ? 'grid-cols-[64px_minmax(320px,430px)_1fr]' : 'grid-cols-[220px_minmax(320px,430px)_1fr]'}`}>
+          <aside className="bg-white border-r border-gray-200 p-3 overflow-y-auto">
+            <button
+              onClick={() => setFolderRailCollapsed(v => !v)}
+              className="mb-3 w-full flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+              title={folderRailCollapsed ? 'Expand folders' : 'Collapse folders'}
+            >
+              <Menu size={15} />
+            </button>
+            <div className="space-y-1">
+              {folders.map(folder => (
+                <FolderButton
+                  key={folder.id}
+                  folder={folder}
+                  active={folder.id === folderId}
+                  collapsed={folderRailCollapsed}
                   onClick={() => {
-                    setSelectedMessageId(message.id)
+                    setFolderId(folder.id)
+                    setPage(1)
+                    setSelectedMessageId(null)
                     setMode('message')
                   }}
                 />
-              ))
-            )}
-          </div>
-          {messages && messages.totalPages > 1 && (
-            <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between text-sm text-gray-500">
-              <span>Page {messages.page} of {messages.totalPages}</span>
-              <div className="flex items-center gap-2">
-                <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronLeft size={15} /></button>
-                <button disabled={page >= messages.totalPages} onClick={() => setPage(p => p + 1)} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronRight size={15} /></button>
+              ))}
+            </div>
+          </aside>
+
+          <section className="bg-white border-r border-gray-200 flex flex-col min-w-0">
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="font-semibold text-gray-900">{activeFolderName}</h2>
+                {messages && <span className="text-xs text-gray-400">{messages.totalCount} messages</span>}
+              </div>
+              <div className="relative">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={search}
+                  onChange={e => { setSearch(e.target.value); setPage(1) }}
+                  placeholder="Search sender or subject"
+                  className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                />
               </div>
             </div>
-          )}
-        </section>
+            <div className="flex-1 overflow-y-auto">
+              {messagesLoading ? (
+                <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
+              ) : (messages?.items.length ?? 0) === 0 ? (
+                <div className="p-8 text-center text-sm text-gray-400">No messages found.</div>
+              ) : (
+                messages?.items.map(message => (
+                  <MessageRow
+                    key={message.id}
+                    message={message}
+                    active={selectedMessageId === message.id}
+                    onClick={() => {
+                      setSelectedMessageId(message.id)
+                      setMode('message')
+                    }}
+                  />
+                ))
+              )}
+            </div>
+            {messages && messages.totalPages > 1 && (
+              <div className="border-t border-gray-200 px-4 py-3 flex items-center justify-between text-sm text-gray-500">
+                <span>Page {messages.page} of {messages.totalPages}</span>
+                <div className="flex items-center gap-2">
+                  <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronLeft size={15} /></button>
+                  <button disabled={page >= messages.totalPages} onClick={() => setPage(p => p + 1)} className="p-1.5 border border-gray-300 rounded disabled:opacity-40"><ChevronRight size={15} /></button>
+                </div>
+              </div>
+            )}
+          </section>
 
-        <section className="min-w-0">
-          {mode === 'settings' ? (
-            <SettingsPanel settings={settings} onClose={() => setMode('message')} />
-          ) : mode === 'compose' ? (
-            <ComposePanel settings={settings} replyTo={replyTo} onClose={() => setMode('message')} />
-          ) : messageLoading ? (
-            <div className="h-full flex items-center justify-center text-sm text-gray-400">Loading message...</div>
-          ) : (
-            <MessagePanel
-              message={selectedMessage}
-              folders={folders}
-              onReply={() => {
-                setReplyTo(selectedMessage)
-                setMode('compose')
-              }}
-              onDeleted={() => setSelectedMessageId(null)}
-            />
-          )}
-        </section>
+          <section className="min-w-0">
+            {mode === 'settings' ? (
+              <SettingsPanel settings={settings} onClose={() => setMode('message')} />
+            ) : mode === 'compose' ? (
+              <ComposePanel settings={settings} replyTo={replyTo} onClose={() => setMode('message')} />
+            ) : messageLoading ? (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">Loading message...</div>
+            ) : (
+              <MessagePanel
+                message={selectedMessage}
+                folders={folders}
+                onReply={() => {
+                  setReplyTo(selectedMessage)
+                  setMode('compose')
+                }}
+                onDeleted={() => setSelectedMessageId(null)}
+              />
+            )}
+          </section>
+        </div>
       </div>
+
     </div>
   )
 }
