@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
 import PwaRegister from '@/components/PwaRegister'
+import MemberBottomNav from '@/components/layout/MemberBottomNav'
 import { getCurrentBrand } from '@/lib/brand/current'
 import Providers from './providers'
 import './globals.css'
@@ -108,8 +109,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="font-body text-sacred-900 bg-white antialiased">
         <Providers>
           {!isAdminRoute && <SiteHeader brand={brand} />}
-          {children}
+          {/* Extra bottom padding on mobile for member pages so content clears the bottom nav */}
+          <div className={!isAdminRoute ? 'pb-16 lg:pb-0' : ''}>
+            {children}
+          </div>
           {!isAdminRoute && <SiteFooter brand={brand} />}
+          {!isAdminRoute && <MemberBottomNav />}
           <Toaster position="top-right" richColors closeButton />
           <PwaRegister />
         </Providers>

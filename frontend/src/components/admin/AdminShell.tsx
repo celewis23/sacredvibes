@@ -6,7 +6,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, ShoppingBag,
   Users, Upload, MessageSquare, Settings, LogOut, Globe, Megaphone,
-  BarChart2, ChevronRight, Menu, X, UserCog, Mail, PlayCircle
+  BarChart2, ChevronRight, X, UserCog, Mail, PlayCircle, AlignJustify,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
@@ -69,13 +69,20 @@ const navGroups: NavGroup[] = [
   }
 ]
 
+// Four pinned tabs + a menu toggle for everything else
+const BOTTOM_TABS = [
+  { label: 'Dashboard', href: '/admin',             icon: LayoutDashboard, exact: true  },
+  { label: 'Studio',    href: '/admin/studio',      icon: PlayCircle,      exact: false },
+  { label: 'Audience',  href: '/admin/subscribers', icon: Users,           exact: false },
+  { label: 'Email',     href: '/admin/email',        icon: Mail,            exact: false },
+]
+
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout, isLoading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Redirect to login if not authenticated
   if (!isLoading && !user && pathname !== '/admin/login') {
     router.push('/admin/login')
     return null
@@ -89,10 +96,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     router.push('/admin/login')
   }
 
-  const isActive = (href: string, exact?: boolean) => {
-    if (exact) return pathname === href
-    return pathname.startsWith(href)
-  }
+  const isActive = (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname.startsWith(href)
 
   const Sidebar = () => (
     <aside className="flex flex-col h-full bg-sacred-900 text-sacred-100 w-64 shrink-0">
@@ -165,12 +170,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-screen bg-sacred-50 overflow-hidden">
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — unchanged */}
       <div className="hidden lg:flex">
         <Sidebar />
       </div>
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile full-menu overlay (opened from bottom nav "More" tab) */}
       {sidebarOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
@@ -188,14 +193,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar */}
+        {/* Top bar — title only on mobile (no hamburger; bottom nav handles navigation) */}
         <header className="bg-white border-b border-sacred-100 h-14 flex items-center px-4 lg:px-6 gap-4 shrink-0">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden text-sacred-600 hover:text-sacred-900"
-          >
-            <Menu size={20} />
-          </button>
+          {/* Mobile: show current section name instead of hamburger */}
+          <span className="lg:hidden text-sm font-semibold text-sacred-700 truncate">
+            Sacred Vibes Admin
+          </span>
           <div className="flex-1" />
           <Link
             href="/"
@@ -207,11 +210,52 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </Link>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Page content — pb-16 on mobile so last content row clears the bottom nav */}
+        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+
+      {/* ── Mobile bottom tab bar ── */}
+      <nav
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-sacred-900 border-t border-sacred-800"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex items-center justify-around h-16">
+          {BOTTOM_TABS.map(tab => {
+            const active = isActive(tab.href, tab.exact)
+            const Icon = tab.icon
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className={clsx(
+                  'flex flex-col items-center gap-1 flex-1 py-2 transition-colors',
+                  active ? 'text-white' : 'text-sacred-500 hover:text-sacred-300'
+                )}
+              >
+                {active && (
+                  <span className="absolute w-6 h-0.5 rounded-full bg-yoga-400 -translate-y-4" />
+                )}
+                <Icon size={22} strokeWidth={active ? 2.5 : 1.75} />
+                <span className="text-[10px] font-medium tracking-wide">{tab.label}</span>
+              </Link>
+            )
+          })}
+
+          {/* More — opens full sidebar */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className={clsx(
+              'flex flex-col items-center gap-1 flex-1 py-2 transition-colors',
+              sidebarOpen ? 'text-white' : 'text-sacred-500 hover:text-sacred-300'
+            )}
+          >
+            <AlignJustify size={22} strokeWidth={1.75} />
+            <span className="text-[10px] font-medium tracking-wide">More</span>
+          </button>
+        </div>
+      </nav>
     </div>
   )
 }
