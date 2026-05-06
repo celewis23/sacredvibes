@@ -1,9 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Cormorant_Garamond, Lato } from 'next/font/google'
 import { Toaster } from 'sonner'
 import SiteFooter from '@/components/layout/SiteFooter'
 import SiteHeader from '@/components/layout/SiteHeader'
+import PwaRegister from '@/components/PwaRegister'
 import { getCurrentBrand } from '@/lib/brand/current'
 import Providers from './providers'
 import './globals.css'
@@ -51,6 +52,13 @@ async function fetchBrandTheme(slug: string): Promise<{ primaryColor: string; ac
   }
 }
 
+export const viewport: Viewport = {
+  themeColor: '#7B6E5D',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL('https://sacredvibesyoga.com'),
   title: {
@@ -67,6 +75,13 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
   },
+  appleWebApp: {
+    capable: true,
+    title: 'Sacred Vibes',
+    statusBarStyle: 'default',
+  },
+  applicationName: 'Sacred Vibes',
+  formatDetection: { telephone: false },
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -96,6 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {children}
           {!isAdminRoute && <SiteFooter brand={brand} />}
           <Toaster position="top-right" richColors closeButton />
+          <PwaRegister />
         </Providers>
       </body>
     </html>
