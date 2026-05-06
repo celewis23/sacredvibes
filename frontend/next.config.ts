@@ -1,5 +1,20 @@
 import type { NextConfig } from 'next'
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL
+const apiImagePattern = (() => {
+  if (!apiUrl) return null
+
+  try {
+    const url = new URL(apiUrl)
+    return {
+      protocol: url.protocol.replace(':', '') as 'http' | 'https',
+      hostname: url.hostname,
+    }
+  } catch {
+    return null
+  }
+})()
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -22,16 +37,19 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
       { protocol: 'https', hostname: '*.sacredvibesyoga.com' },
+      ...(apiImagePattern ? [apiImagePattern] : []),
     ],
   },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL
-
     if (!apiUrl) {
       return []
     }
 
     return [
+      {
+        source: '/uploads/:path*',
+        destination: `${apiUrl}/uploads/:path*`,
+      },
       {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,

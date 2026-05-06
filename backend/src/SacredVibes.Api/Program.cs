@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
 using SacredVibes.Infrastructure;
 using SacredVibes.Infrastructure.Data;
@@ -114,6 +115,14 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+static string GetUploadBasePath(IConfiguration config)
+{
+    var configuredPath = config["Storage:BasePath"] ?? Path.Combine("wwwroot", "uploads");
+    return Path.IsPathRooted(configuredPath)
+        ? configuredPath
+        : Path.Combine(Directory.GetCurrentDirectory(), configuredPath);
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -127,7 +136,16 @@ if (app.Environment.IsDevelopment())
 // Railway and most PaaS hosts terminate TLS at the proxy — don't redirect internally
 if (app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
-app.UseStaticFiles(); // serves /wwwroot/uploads
+app.UseStaticFiles();
+
+var uploadBasePath = GetUploadBasePath(app.Configuration);
+Directory.CreateDirectory(uploadBasePath);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadBasePath),
+    RequestPath = "/uploads"
+});
+
 app.UseCors("FrontendPolicy");
 
 // Catch unhandled request exceptions inside the main pipeline so we can preserve
