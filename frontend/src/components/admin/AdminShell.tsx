@@ -12,6 +12,7 @@ import {
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
 import { toast } from 'sonner'
+import AdminAssistant from './AdminAssistant'
 
 interface NavItem {
   label: string
@@ -258,6 +259,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           </button>
         </div>
       </nav>
+
+      <AdminAssistant />
     </div>
   )
 }
