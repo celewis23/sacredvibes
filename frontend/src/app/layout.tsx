@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Cormorant_Garamond, Lato } from 'next/font/google'
@@ -117,6 +118,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           {!isAdminRoute && <MemberBottomNav />}
           <Toaster position="top-right" richColors closeButton />
           <PwaRegister />
+          <Analytics />
         </Providers>
       </body>
     </html>
