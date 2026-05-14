@@ -211,14 +211,15 @@ public class EmailMailboxService : IEmailMailboxService
         if (request.To.Count + request.Cc.Count + request.Bcc.Count == 0)
             throw new InvalidOperationException("At least one recipient is required.");
 
-        var settings = await GetRequiredSettingsAsync(ct);
         var resendApiKey = GetResendApiKey();
         if (!string.IsNullOrWhiteSpace(resendApiKey))
         {
+            var settings = await GetRequiredSettingsAsync(ct, requireMailboxSettings: false);
             await SendWithResendAsync(settings, request, resendApiKey, ct);
             return;
         }
 
+        var settings = await GetRequiredSettingsAsync(ct);
         await SendWithSmtpAsync(settings, request, ct);
     }
 
@@ -331,7 +332,7 @@ public class EmailMailboxService : IEmailMailboxService
             Subject = request.Subject.Trim(),
             Html = request.IsHtml ? request.Body : null,
             Text = request.IsHtml ? null : request.Body,
-            ReplyTo = settings.EmailAddress,
+            ReplyTo = GetResendReplyToEmail(settings),
             Attachments = request.Attachments
                 .Where(a => !string.IsNullOrWhiteSpace(a.FileName) && !string.IsNullOrWhiteSpace(a.Base64Content))
                 .Select(a => new ResendAttachment
@@ -706,7 +707,7 @@ public class EmailMailboxService : IEmailMailboxService
         return setting;
     }
 
-    private async Task<ResolvedEmailSettings> GetRequiredSettingsAsync(CancellationToken ct)
+    private async Task<ResolvedEmailSettings> GetRequiredSettingsAsync(CancellationToken ct, bool requireMailboxSettings = true)
     {
         var setting = await GetOrCreateSettingAsync(ct);
         if (!setting.IsEnabled) throw new InvalidOperationException("Email inbox integration is disabled.");
@@ -726,6 +727,14 @@ public class EmailMailboxService : IEmailMailboxService
             Username = ResolveValue("EMAIL_USERNAME", stored.Username),
             Password = password
         };
+
+        if (!requireMailboxSettings)
+        {
+            if (string.IsNullOrWhiteSpace(GetResendFromEmail(resolved)))
+                throw new InvalidOperationException("Resend sender email is not configured. Set RESEND_FROM_EMAIL or save an email address in admin email settings.");
+
+            return resolved;
+        }
 
         if (string.IsNullOrWhiteSpace(resolved.ImapHost) ||
             string.IsNullOrWhiteSpace(resolved.SmtpHost) ||
@@ -948,10 +957,21 @@ public class EmailMailboxService : IEmailMailboxService
 
     private static string FormatResendFrom(ResolvedEmailSettings settings)
     {
-        var email = ResolveValue("RESEND_FROM_EMAIL", settings.EmailAddress);
-        var name = ResolveValue("RESEND_FROM_NAME", settings.FromName);
+        var email = GetResendFromEmail(settings);
+        var name = GetResendFromName(settings);
         return string.IsNullOrWhiteSpace(name) ? email : $"{name} <{email}>";
     }
+
+    private static string GetResendFromEmail(ResolvedEmailSettings settings) =>
+        ResolveValue("RESEND_FROM_EMAIL", settings.EmailAddress);
+
+    private static string GetResendFromName(ResolvedEmailSettings settings) =>
+        ResolveValue("RESEND_FROM_NAME", settings.FromName);
+
+    private static string GetResendReplyToEmail(ResolvedEmailSettings settings) =>
+        ResolveValue("RESEND_REPLY_TO_EMAIL", settings.EmailAddress) is { Length: > 0 } replyTo
+            ? replyTo
+            : GetResendFromEmail(settings);
 
     private static string ExtractResendError(string responseBody)
     {
