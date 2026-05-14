@@ -3,10 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import { headers } from 'next/headers'
 import { Cormorant_Garamond, Lato } from 'next/font/google'
 import { Toaster } from 'sonner'
-import SiteFooter from '@/components/layout/SiteFooter'
-import SiteHeader from '@/components/layout/SiteHeader'
+import AppChrome from '@/components/layout/AppChrome'
 import PwaRegister from '@/components/PwaRegister'
-import MemberBottomNav from '@/components/layout/MemberBottomNav'
 import { getCurrentBrand } from '@/lib/brand/current'
 import Providers from './providers'
 import './globals.css'
@@ -88,8 +86,6 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const headersList = await headers()
-  const pathname = headersList.get('x-pathname') ?? ''
-  const isAdminRoute = pathname.startsWith('/admin')
   const brand = getCurrentBrand(headersList)
   const theme = await fetchBrandTheme(brand.slug)
 
@@ -109,13 +105,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="font-body text-sacred-900 bg-white antialiased">
         <Providers>
-          {!isAdminRoute && <SiteHeader brand={brand} />}
-          {/* Extra bottom padding on mobile for member pages so content clears the bottom nav */}
-          <div className={!isAdminRoute ? 'pb-16 lg:pb-0' : ''}>
+          <AppChrome brand={brand}>
             {children}
-          </div>
-          {!isAdminRoute && <SiteFooter brand={brand} />}
-          {!isAdminRoute && <MemberBottomNav />}
+          </AppChrome>
           <Toaster position="top-right" richColors closeButton />
           <PwaRegister />
           <Analytics />
