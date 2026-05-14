@@ -24,6 +24,7 @@ namespace SacredVibes.Infrastructure.Services.Email;
 public class EmailMailboxService : IEmailMailboxService
 {
     private const string Provider = "Email";
+    private static readonly TimeSpan ImapTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan SmtpSendTimeout = TimeSpan.FromSeconds(45);
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
@@ -771,10 +772,36 @@ public class EmailMailboxService : IEmailMailboxService
 
     private async Task<ImapClient> CreateOpenImapClientAsync(ResolvedEmailSettings settings, string host, int port, bool useSsl, CancellationToken ct)
     {
-        var client = new ImapClient();
-        await client.ConnectAsync(host, port, SocketOptions(useSsl), ct);
-        await client.AuthenticateAsync(settings.Username, settings.Password, ct);
-        return client;
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(ImapTimeout);
+
+        var client = new ImapClient { Timeout = (int)ImapTimeout.TotalMilliseconds };
+        try
+        {
+            await client.ConnectAsync(host, port, SocketOptions(useSsl), timeoutCts.Token);
+            await client.AuthenticateAsync(settings.Username, settings.Password, timeoutCts.Token);
+            return client;
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            client.Dispose();
+            throw new InvalidOperationException($"IMAP connection timed out for {host}:{port}. Verify the mailbox host, port, SSL setting, DNS records, and cPanel mailbox password.", ex);
+        }
+        catch (SocketException ex)
+        {
+            client.Dispose();
+            throw new InvalidOperationException($"IMAP connection failed for {host}:{port}: {ex.Message}", ex);
+        }
+        catch (AuthenticationException ex)
+        {
+            client.Dispose();
+            throw new InvalidOperationException($"IMAP authentication failed: {ex.Message}", ex);
+        }
+        catch
+        {
+            client.Dispose();
+            throw;
+        }
     }
 
     private Task<IMailFolder> GetFolderAsync(ImapClient client, string? folderId, CancellationToken ct)

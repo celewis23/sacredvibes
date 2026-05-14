@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -51,6 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminPagesPage() {
   const qc = useQueryClient()
+  const searchParams = useSearchParams()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<SitePage | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
@@ -60,6 +62,12 @@ export default function AdminPagesPage() {
     queryKey: ['admin-pages'],
     queryFn: () => pagesApi.getPages({ brandId: PRIMARY_BRAND_ID }).then(r => r.data.data ?? []),
   })
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' && !showModal && !editing) {
+      openCreate()
+    }
+  }, [searchParams, showModal, editing])
 
   const saveMutation = useMutation({
     mutationFn: (data: unknown) => editing

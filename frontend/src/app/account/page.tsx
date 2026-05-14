@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import Input from '@/components/ui/input'
 import Button from '@/components/ui/button'
 import { useAuth } from '@/lib/auth/context'
+import { isAdminRole } from '@/lib/auth/roles'
 import { authApi, studioApi } from '@/lib/api'
 import type { MemberSubscription } from '@/types'
 
@@ -95,6 +96,10 @@ export default function AccountPage() {
   }, [isLoading, isAuthenticated, router])
 
   useEffect(() => {
+    if (!isLoading && user && isAdminRole(user.role)) router.replace('/admin')
+  }, [isLoading, user, router])
+
+  useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
       toast.success('Subscription activated! Welcome to the studio.')
     }
@@ -158,7 +163,7 @@ export default function AccountPage() {
     }
   }
 
-  if (isLoading || !user) {
+  if (isLoading || !user || isAdminRole(user.role)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-[var(--brand-primary)] border-t-transparent rounded-full animate-spin" />

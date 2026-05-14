@@ -1105,12 +1105,14 @@ export default function AdminEmailPage() {
     queryKey: ['email-folders'],
     queryFn: () => emailApi.getFolders().then(r => r.data.data ?? []),
     enabled,
+    retry: false,
   })
 
-  const { data: messages, isLoading: messagesLoading } = useQuery({
+  const { data: messages, isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ['email-messages', folderId, page, search],
     queryFn: () => emailApi.getMessages({ folderId, page, pageSize: 25, search: search || undefined }).then(r => r.data.data),
     enabled,
+    retry: false,
   })
 
   const { data: selectedMessage, isLoading: messageLoading } = useQuery({
@@ -1120,6 +1122,7 @@ export default function AdminEmailPage() {
   })
 
   const activeFolderName = useMemo(() => folders.find(f => f.id === folderId)?.name ?? 'Inbox', [folders, folderId])
+  const mailboxError = messagesError ? getApiErrorMessage(messagesError, 'Could not load email messages. Check mailbox settings and try again.') : null
 
   useEffect(() => {
     if (folders.length && !folders.some(f => f.id === folderId)) {
@@ -1215,6 +1218,8 @@ export default function AdminEmailPage() {
             <div className="flex-1 overflow-y-auto bg-white">
               {messagesLoading ? (
                 <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
+              ) : mailboxError ? (
+                <div className="p-8 text-center text-sm text-red-600">{mailboxError}</div>
               ) : (messages?.items.length ?? 0) === 0 ? (
                 <div className="p-8 text-center text-sm text-gray-400">No messages found.</div>
               ) : (
@@ -1349,6 +1354,8 @@ export default function AdminEmailPage() {
             <div className="flex-1 overflow-y-auto">
               {messagesLoading ? (
                 <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
+              ) : mailboxError ? (
+                <div className="p-8 text-center text-sm text-red-600">{mailboxError}</div>
               ) : (messages?.items.length ?? 0) === 0 ? (
                 <div className="p-8 text-center text-sm text-gray-400">No messages found.</div>
               ) : (

@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import Input from '@/components/ui/input'
 import Button from '@/components/ui/button'
 import { useAuth } from '@/lib/auth/context'
+import { getPostLoginPath } from '@/lib/auth/roles'
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -27,9 +28,7 @@ export default function MemberLoginPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       const user = await login(values.email, values.password)
-      // role-based redirect — admins who hit /login still land correctly
-      const role = user?.role
-      router.push(role && role !== 'Member' ? '/admin' : '/account')
+      router.replace(getPostLoginPath(user))
     } catch {
       toast.error('Invalid email or password')
     }

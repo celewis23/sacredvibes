@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Link2, Plus, Pencil, RefreshCw, Search, Trash2, UploadCloud, X } from 'lucide-react'
@@ -63,6 +64,7 @@ type FormState = typeof emptyForm
 
 export default function AdminEventsPage() {
   const qc = useQueryClient()
+  const searchParams = useSearchParams()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<EventOffering | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
@@ -85,6 +87,12 @@ export default function AdminEventsPage() {
       upcomingOnly,
     }).then(r => r.data.data ?? []),
   })
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' && !showModal && !editing) {
+      openCreate()
+    }
+  }, [searchParams, showModal, editing])
 
   const brandName = (id: string) => brands.find((b: Brand) => b.id === id)?.name ?? ''
 

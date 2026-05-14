@@ -48,8 +48,15 @@ public class EmailController : ControllerBase
     [HttpGet("folders")]
     public async Task<ActionResult<ApiResponse<List<EmailFolderDto>>>> GetFolders(CancellationToken ct)
     {
-        var folders = await _mailbox.GetFoldersAsync(ct);
-        return Ok(ApiResponse<List<EmailFolderDto>>.Ok(folders));
+        try
+        {
+            var folders = await _mailbox.GetFoldersAsync(ct);
+            return Ok(ApiResponse<List<EmailFolderDto>>.Ok(folders));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<List<EmailFolderDto>>.Fail(ex.Message));
+        }
     }
 
     [HttpGet("messages")]
@@ -60,8 +67,15 @@ public class EmailController : ControllerBase
         [FromQuery] string? search = null,
         CancellationToken ct = default)
     {
-        var messages = await _mailbox.GetMessagesAsync(folderId, page, pageSize, search, ct);
-        return Ok(ApiResponse<EmailMessageListDto>.Ok(messages));
+        try
+        {
+            var messages = await _mailbox.GetMessagesAsync(folderId, page, pageSize, search, ct);
+            return Ok(ApiResponse<EmailMessageListDto>.Ok(messages));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmailMessageListDto>.Fail(ex.Message));
+        }
     }
 
     [HttpGet("messages/{id}")]
@@ -70,8 +84,15 @@ public class EmailController : ControllerBase
         [FromQuery] string? folderId,
         CancellationToken ct)
     {
-        var message = await _mailbox.GetMessageAsync(id, folderId, ct);
-        return message is null ? NotFound() : Ok(ApiResponse<EmailMessageDto>.Ok(message));
+        try
+        {
+            var message = await _mailbox.GetMessageAsync(id, folderId, ct);
+            return message is null ? NotFound() : Ok(ApiResponse<EmailMessageDto>.Ok(message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmailMessageDto>.Fail(ex.Message));
+        }
     }
 
     [HttpPost("send")]

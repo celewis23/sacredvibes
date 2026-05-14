@@ -47,10 +47,10 @@ function StatCard({ label, value, sub, icon: Icon, color = 'yoga' }: StatCardPro
 
 const QUICK_ACTIONS = [
   { label: 'New Blog Post',      href: '/admin/blog/new',     icon: PenLine,      text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
-  { label: 'New Page',           href: '/admin/pages/new',    icon: Globe,        text: 'text-hands-600',  bg: 'bg-hands-50'   },
+  { label: 'New Page',           href: '/admin/pages?new=1',  icon: Globe,        text: 'text-hands-600',  bg: 'bg-hands-50'   },
   { label: 'New Studio Content', href: '/admin/studio/new',   icon: PlayCircle,   text: 'text-sound-600',  bg: 'bg-sound-50'   },
-  { label: 'New Event',          href: '/admin/events/new',   icon: CalendarPlus, text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
-  { label: 'New Service',        href: '/admin/services/new', icon: ShoppingBag,  text: 'text-hands-600',  bg: 'bg-hands-50'   },
+  { label: 'New Event',          href: '/admin/events?new=1', icon: CalendarPlus, text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
+  { label: 'New Service',        href: '/admin/services?new=1', icon: ShoppingBag,  text: 'text-hands-600',  bg: 'bg-hands-50'   },
   { label: 'Open Email Inbox',   href: '/admin/email',        icon: Send,         text: 'text-sound-600',  bg: 'bg-sound-50'   },
   { label: 'Upload Media',       href: '/admin/media',        icon: Upload,       text: 'text-sacred-600', bg: 'bg-sacred-100' },
   { label: 'New Booking',        href: '/admin/bookings',     icon: Calendar,     text: 'text-yoga-600',   bg: 'bg-yoga-50'    },
@@ -65,7 +65,7 @@ export default function AdminDashboard() {
     },
   })
 
-  const { data: emailData } = useQuery({
+  const { data: emailData, isError: emailPreviewError } = useQuery({
     queryKey: ['dashboard-email-preview'],
     queryFn: async () => {
       const res = await emailApi.getMessages({ page: 1, pageSize: 6 })
@@ -143,7 +143,12 @@ export default function AdminDashboard() {
             <Link href="/admin/email" className="text-xs text-yoga-600 hover:text-yoga-800">Open inbox</Link>
           </div>
           <div className="divide-y divide-sacred-50">
-            {!emailData?.items?.length ? (
+            {emailPreviewError ? (
+              <div className="px-6 py-8 text-center">
+                <Mail size={24} className="mx-auto mb-2 text-red-200" />
+                <p className="text-sm text-red-600">Inbox unavailable</p>
+              </div>
+            ) : !emailData?.items?.length ? (
               <div className="px-6 py-8 text-center">
                 <Mail size={24} className="mx-auto mb-2 text-sacred-200" />
                 <p className="text-sm text-sacred-400">No messages yet</p>

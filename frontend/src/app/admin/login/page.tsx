@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import Input from '@/components/ui/input'
 import Button from '@/components/ui/button'
 import { useAuth } from '@/lib/auth/context'
+import { isAdminRole } from '@/lib/auth/roles'
 
 const schema = z.object({
   email: z.string().email('Invalid email'),
@@ -25,8 +26,8 @@ export default function AdminLoginPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await login(values.email, values.password)
-      router.push('/admin')
+      const user = await login(values.email, values.password)
+      router.replace(isAdminRole(user.role) ? '/admin' : '/account')
     } catch {
       toast.error('Invalid email or password')
     }

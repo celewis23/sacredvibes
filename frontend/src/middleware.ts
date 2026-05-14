@@ -1,8 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server'
+import { isAdminRole, isMemberRole } from '@/lib/auth/roles'
+
+function decodeBase64Url(value: string): string {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + ((4 - base64.length % 4) % 4), '=')
+  return atob(padded)
+}
 
 function getJwtRole(token: string): string | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = JSON.parse(decodeBase64Url(token.split('.')[1] ?? ''))
     // ASP.NET Identity uses ClaimTypes.Role which maps to this key
     return (
       payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ??
@@ -69,6 +76,11 @@ export function middleware(request: NextRequest) {
     if (!token) {
       return NextResponse.redirect(new URL('/admin/login', request.url))
     }
+    const role = getJwtRole(token)
+    if (!isAdminRole(role)) {
+      const dest = isMemberRole(role) && !isAdmin ? '/account' : '/admin/login'
+      return NextResponse.redirect(new URL(dest, request.url))
+    }
   }
 
   // Protect member account routes
@@ -77,6 +89,11 @@ export function middleware(request: NextRequest) {
     if (!token) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
+    const role = getJwtRole(token)
+    if (!isMemberRole(role)) {
+      const dest = isAdminRole(role) ? '/admin' : '/login'
+      return NextResponse.redirect(new URL(dest, request.url))
+    }
   }
 
   // Redirect authenticated members away from /login and /register
@@ -84,8 +101,10 @@ export function middleware(request: NextRequest) {
     const token = request.cookies.get('access_token')?.value
     if (token) {
       const role = getJwtRole(token)
-      const dest = role === 'Member' ? '/account' : '/admin'
-      return NextResponse.redirect(new URL(dest, request.url))
+      if (isAdminRole(role) || isMemberRole(role)) {
+        const dest = isAdminRole(role) ? '/admin' : '/account'
+        return NextResponse.redirect(new URL(dest, request.url))
+      }
     }
   }
 

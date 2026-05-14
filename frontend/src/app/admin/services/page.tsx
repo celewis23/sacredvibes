@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Image as ImageIcon, Link2, Plus, Pencil, RefreshCw, Trash2, UploadCloud, X } from 'lucide-react'
@@ -59,6 +60,7 @@ type FormState = typeof emptyForm
 
 export default function AdminServicesPage() {
   const qc = useQueryClient()
+  const searchParams = useSearchParams()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<ServiceOffering | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
@@ -85,6 +87,12 @@ export default function AdminServicesPage() {
     queryFn: () => assetsApi.getAssets({ page: 1, pageSize: 60, assetType: 'Image' })
       .then(r => r.data.data?.items ?? []),
   })
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1' && !showModal && !editing) {
+      openCreate()
+    }
+  }, [searchParams, showModal, editing])
 
   const brandName = (id: string) => brands.find((b: Brand) => b.id === id)?.name ?? ''
   const selectedImage = mediaAssets.find((asset: Asset) => asset.id === form.featuredImageAssetId)

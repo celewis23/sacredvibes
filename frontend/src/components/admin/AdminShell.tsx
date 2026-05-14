@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
+import { isAdminRole } from '@/lib/auth/roles'
 import { toast } from 'sonner'
 import AdminAssistant from './AdminAssistant'
 
@@ -92,6 +93,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }
 
   if (pathname === '/admin/login') return <>{children}</>
+
+  if (!isLoading && user && !isAdminRole(user.role)) {
+    router.replace('/account')
+    return null
+  }
 
   const handleLogout = async () => {
     await logout()
