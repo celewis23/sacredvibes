@@ -214,13 +214,13 @@ public class EmailMailboxService : IEmailMailboxService
         var resendApiKey = GetResendApiKey();
         if (!string.IsNullOrWhiteSpace(resendApiKey))
         {
-            var settings = await GetRequiredSettingsAsync(ct, requireMailboxSettings: false);
-            await SendWithResendAsync(settings, request, resendApiKey, ct);
+            var resendSettings = await GetRequiredSettingsAsync(ct, requireMailboxSettings: false);
+            await SendWithResendAsync(resendSettings, request, resendApiKey, ct);
             return;
         }
 
-        var settings = await GetRequiredSettingsAsync(ct);
-        await SendWithSmtpAsync(settings, request, ct);
+        var smtpSettings = await GetRequiredSettingsAsync(ct);
+        await SendWithSmtpAsync(smtpSettings, request, ct);
     }
 
     private async Task SendWithSmtpAsync(ResolvedEmailSettings settings, SendEmailRequest request, CancellationToken ct)
@@ -801,7 +801,7 @@ public class EmailMailboxService : IEmailMailboxService
             client.Dispose();
             throw new InvalidOperationException($"IMAP connection failed for {host}:{port}: {ex.Message}", ex);
         }
-        catch (AuthenticationException ex)
+        catch (MailKit.Security.AuthenticationException ex)
         {
             client.Dispose();
             throw new InvalidOperationException($"IMAP authentication failed: {ex.Message}", ex);
