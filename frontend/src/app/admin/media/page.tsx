@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDropzone, type FileRejection } from 'react-dropzone'
 import { toast } from 'sonner'
-import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Music, Video, FileText, Trash2, Copy, Hash } from 'lucide-react'
+import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Music, Video, FileText, Trash2, Copy, Hash, Download } from 'lucide-react'
 import NextImage from 'next/image'
 import { assetsApi } from '@/lib/api'
 import type { Asset } from '@/types'
@@ -14,6 +14,12 @@ import Badge from '@/components/ui/badge'
 
 const MAX_UPLOAD_FILES = 10
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024 * 1024
+
+function formatFileSize(bytes: number) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
+  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+  return `${(bytes / 1024).toFixed(0)} KB`
+}
 
 export default function MediaLibraryPage() {
   const qc = useQueryClient()
@@ -101,6 +107,8 @@ export default function MediaLibraryPage() {
     toast.success('Asset ID copied')
   }
 
+  const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
+
   const assetIcon = (asset: Asset) => {
     if (asset.assetType === 'Audio') return <Music size={24} className="text-sacred-400" />
     if (asset.assetType === 'Video') return <Video size={24} className="text-sacred-400" />
@@ -158,7 +166,7 @@ export default function MediaLibraryPage() {
         />
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex gap-6 lg:items-start">
         {/* Asset grid/list */}
         <div className="flex-1 min-w-0">
           {view === 'grid' ? (
@@ -220,7 +228,7 @@ export default function MediaLibraryPage() {
                         <Badge variant="neutral" size="sm">{asset.assetType}</Badge>
                       </td>
                       <td className="px-4 py-3 text-sacred-500 hidden md:table-cell">
-                        {(asset.fileSize / 1024).toFixed(0)} KB
+                        {formatFileSize(asset.fileSize)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -270,8 +278,14 @@ export default function MediaLibraryPage() {
 
         {/* Detail panel */}
         {selected && (
-          <div className="w-72 shrink-0">
-            <Card>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center lg:static lg:z-auto lg:block lg:w-80 lg:shrink-0 lg:bg-transparent lg:p-0">
+            <button
+              type="button"
+              aria-label="Close asset details"
+              className="absolute inset-0 lg:hidden"
+              onClick={() => setSelected(null)}
+            />
+            <Card className="relative z-10 w-full max-w-md max-h-[calc(100vh-2rem)] overflow-y-auto lg:max-h-none lg:max-w-none">
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-medium text-sacred-800">Asset Details</p>
                 <button onClick={() => setSelected(null)} className="text-sacred-400 hover:text-sacred-700">
@@ -283,10 +297,23 @@ export default function MediaLibraryPage() {
                   <NextImage src={selected.publicUrl} alt={selected.altText ?? ''} fill className="object-contain" />
                 </div>
               )}
+              {selected.assetType === 'Video' && selected.publicUrl && (
+                <div className="aspect-video rounded-xl overflow-hidden bg-black mb-4">
+                  <video
+                    key={selected.id}
+                    controls
+                    preload="metadata"
+                    className="h-full w-full"
+                    src={selected.publicUrl}
+                  >
+                    Your browser does not support video playback.
+                  </video>
+                </div>
+              )}
               <div className="space-y-2 text-xs text-sacred-600">
                 <div><span className="font-medium text-sacred-800">File:</span> {selected.originalFileName}</div>
                 <div><span className="font-medium text-sacred-800">Type:</span> {selected.contentType}</div>
-                <div><span className="font-medium text-sacred-800">Size:</span> {(selected.fileSize / 1024).toFixed(1)} KB</div>
+                <div><span className="font-medium text-sacred-800">Size:</span> {formatFileSize(selected.fileSize)}</div>
                 {selected.width && <div><span className="font-medium text-sacred-800">Dimensions:</span> {selected.width} × {selected.height}px</div>}
                 {selected.altText && <div><span className="font-medium text-sacred-800">Alt text:</span> {selected.altText}</div>}
               </div>
@@ -305,6 +332,15 @@ export default function MediaLibraryPage() {
                   <Button variant="secondary" size="sm" fullWidth onClick={() => copyUrl(selected.publicUrl!)}>
                     <Copy size={14} /> Copy URL
                   </Button>
+                )}
+                {selected.publicUrl && (
+                  <a
+                    href={selected.publicUrl}
+                    download={downloadFileName}
+                    className="inline-flex w-full select-none items-center justify-center gap-2 rounded-xl bg-yoga-100 px-3 py-1.5 font-body text-sm font-medium tracking-wide text-yoga-800 transition-all duration-200 hover:bg-yoga-200 active:bg-yoga-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yoga-400 focus-visible:ring-offset-2"
+                  >
+                    <Download size={14} /> Download
+                  </a>
                 )}
                 <Button variant="danger" size="sm" fullWidth
                   onClick={() => { if (confirm('Delete this asset?')) deleteMutation.mutate(selected.id) }}
