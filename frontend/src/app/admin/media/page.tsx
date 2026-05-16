@@ -14,11 +14,19 @@ import Badge from '@/components/ui/badge'
 
 const MAX_UPLOAD_FILES = 10
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024 * 1024
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? ''
 
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return `${(bytes / 1024).toFixed(0)} KB`
+}
+
+function resolveAssetUrl(url?: string | null) {
+  if (!url) return undefined
+  if (/^https?:\/\//i.test(url)) return url
+  if (url.startsWith('/uploads/') && API_BASE_URL) return `${API_BASE_URL}${url}`
+  return url
 }
 
 export default function MediaLibraryPage() {
@@ -107,6 +115,7 @@ export default function MediaLibraryPage() {
     toast.success('Asset ID copied')
   }
 
+  const selectedAssetUrl = resolveAssetUrl(selected?.publicUrl)
   const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
 
   const assetIcon = (asset: Asset) => {
@@ -292,22 +301,32 @@ export default function MediaLibraryPage() {
                   <X size={16} />
                 </button>
               </div>
-              {selected.assetType === 'Image' && selected.publicUrl && (
+              {selected.assetType === 'Image' && selectedAssetUrl && (
                 <div className="aspect-square rounded-xl overflow-hidden bg-sacred-100 mb-4 relative">
-                  <NextImage src={selected.publicUrl} alt={selected.altText ?? ''} fill className="object-contain" />
+                  <img
+                    src={selectedAssetUrl}
+                    alt={selected.altText ?? selected.originalFileName}
+                    className="h-full w-full object-contain"
+                  />
                 </div>
               )}
-              {selected.assetType === 'Video' && selected.publicUrl && (
+              {selected.assetType === 'Video' && selectedAssetUrl && (
                 <div className="aspect-video rounded-xl overflow-hidden bg-black mb-4">
                   <video
                     key={selected.id}
                     controls
                     preload="metadata"
                     className="h-full w-full"
-                    src={selected.publicUrl}
+                    src={selectedAssetUrl}
                   >
                     Your browser does not support video playback.
                   </video>
+                </div>
+              )}
+              {selected.assetType !== 'Image' && selected.assetType !== 'Video' && (
+                <div className="rounded-xl bg-sacred-100 mb-4 p-6 flex flex-col items-center justify-center gap-2 text-sacred-500">
+                  {assetIcon(selected)}
+                  <span className="text-xs text-center break-all">{selected.originalFileName}</span>
                 </div>
               )}
               <div className="space-y-2 text-xs text-sacred-600">
@@ -328,14 +347,14 @@ export default function MediaLibraryPage() {
                 <Button variant="primary" size="sm" fullWidth onClick={() => copyId(selected.id)}>
                   <Hash size={14} /> Copy Asset ID
                 </Button>
-                {selected.publicUrl && (
-                  <Button variant="secondary" size="sm" fullWidth onClick={() => copyUrl(selected.publicUrl!)}>
+                {selectedAssetUrl && (
+                  <Button variant="secondary" size="sm" fullWidth onClick={() => copyUrl(selectedAssetUrl)}>
                     <Copy size={14} /> Copy URL
                   </Button>
                 )}
-                {selected.publicUrl && (
+                {selectedAssetUrl && (
                   <a
-                    href={selected.publicUrl}
+                    href={selectedAssetUrl}
                     download={downloadFileName}
                     className="inline-flex w-full select-none items-center justify-center gap-2 rounded-xl bg-yoga-100 px-3 py-1.5 font-body text-sm font-medium tracking-wide text-yoga-800 transition-all duration-200 hover:bg-yoga-200 active:bg-yoga-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yoga-400 focus-visible:ring-offset-2"
                   >
