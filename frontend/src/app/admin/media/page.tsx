@@ -44,6 +44,7 @@ export default function MediaLibraryPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [selected, setSelected] = useState<Asset | null>(null)
+  const [selectedAssetIds, setSelectedAssetIds] = useState<Set<string>>(new Set())
   const [isUploading, setIsUploading] = useState(false)
 
   const { data, isLoading } = useQuery({
@@ -54,14 +55,38 @@ export default function MediaLibraryPage() {
     },
   })
 
+  const assets = data?.items ?? []
+  const selectedCount = selectedAssetIds.size
+  const visibleAssetIds = assets.map(asset => asset.id)
+  const allVisibleSelected = visibleAssetIds.length > 0 && visibleAssetIds.every(id => selectedAssetIds.has(id))
+  const someVisibleSelected = visibleAssetIds.some(id => selectedAssetIds.has(id))
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => assetsApi.delete(id),
-    onSuccess: () => {
+    onSuccess: (_data, deletedId) => {
       toast.success('Asset deleted')
-      setSelected(null)
+      if (selected?.id === deletedId) setSelected(null)
+      setSelectedAssetIds(ids => {
+        const next = new Set(ids)
+        next.delete(deletedId)
+        return next
+      })
       qc.invalidateQueries({ queryKey: ['assets'] })
     },
     onError: () => toast.error('Delete failed'),
+  })
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(ids.map(id => assetsApi.delete(id)))
+    },
+    onSuccess: (_data, deletedIds) => {
+      toast.success(`${deletedIds.length} asset${deletedIds.length === 1 ? '' : 's'} deleted`)
+      if (selected && deletedIds.includes(selected.id)) setSelected(null)
+      setSelectedAssetIds(new Set())
+      qc.invalidateQueries({ queryKey: ['assets'] })
+    },
+    onError: () => toast.error('Bulk delete failed'),
   })
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -124,6 +149,31 @@ export default function MediaLibraryPage() {
     toast.success('Asset ID copied')
   }
 
+  const toggleAssetSelection = (id: string) => {
+    setSelectedAssetIds(ids => {
+      const next = new Set(ids)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleVisibleSelection = () => {
+    setSelectedAssetIds(ids => {
+      const next = new Set(ids)
+      if (allVisibleSelected) visibleAssetIds.forEach(id => next.delete(id))
+      else visibleAssetIds.forEach(id => next.add(id))
+      return next
+    })
+  }
+
+  const deleteSelectedAssets = () => {
+    const ids = Array.from(selectedAssetIds)
+    if (!ids.length) return
+    if (!confirm(`Delete ${ids.length} selected asset${ids.length === 1 ? '' : 's'}?`)) return
+    bulkDeleteMutation.mutate(ids)
+  }
+
   const selectedAssetUrl = getAssetUrl(selected)
   const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
 
@@ -184,6 +234,44 @@ export default function MediaLibraryPage() {
         />
       </div>
 
+      {assets.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-sacred-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+          <label className="flex items-center gap-2 text-sm text-sacred-700">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              ref={(input) => {
+                if (input) input.indeterminate = someVisibleSelected && !allVisibleSelected
+              }}
+              onChange={toggleVisibleSelection}
+              className="h-4 w-4 rounded border-sacred-300 text-yoga-700 focus:ring-yoga-500"
+            />
+            Select visible assets
+          </label>
+          <div className="flex items-center gap-2">
+            {selectedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedAssetIds(new Set())}
+                className="px-3 py-1.5 text-sm text-sacred-500 hover:text-sacred-800"
+              >
+                Clear selection
+              </button>
+            )}
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={selectedCount === 0}
+              isLoading={bulkDeleteMutation.isPending}
+              onClick={deleteSelectedAssets}
+            >
+              <Trash2 size={14} />
+              Delete selected{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-6 lg:items-start">
         {/* Asset grid/list */}
         <div className="flex-1 min-w-0">
@@ -192,16 +280,29 @@ export default function MediaLibraryPage() {
               {isLoading && [...Array(12)].map((_, i) => (
                 <div key={i} className="aspect-square bg-sacred-100 rounded-xl animate-pulse" />
               ))}
-              {!isLoading && (data?.items ?? []).map((asset) => {
+              {!isLoading && assets.map((asset) => {
                 const assetUrl = getAssetUrl(asset)
+                const isChecked = selectedAssetIds.has(asset.id)
                 return (
                   <button
                     key={asset.id}
                     onClick={() => setSelected(asset)}
-                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                    className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
                       selected?.id === asset.id ? 'border-yoga-500 shadow-glow' : 'border-transparent hover:border-sacred-200'
                     }`}
                   >
+                    <span
+                      className="absolute left-2 top-2 z-10 rounded-lg bg-white/90 p-1 shadow-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleAssetSelection(asset.id)}
+                        aria-label={`Select ${asset.originalFileName}`}
+                        className="block h-4 w-4 rounded border-sacred-300 text-yoga-700 focus:ring-yoga-500"
+                      />
+                    </span>
                     {asset.assetType === 'Image' && assetUrl ? (
                       <img
                         src={assetUrl}
@@ -220,7 +321,7 @@ export default function MediaLibraryPage() {
                   </button>
                 )
               })}
-              {!isLoading && !data?.items?.length && (
+              {!isLoading && !assets.length && (
                 <div className="col-span-full py-16 text-center text-sacred-400">
                   <ImageIcon size={40} className="mx-auto mb-3 opacity-40" />
                   <p className="text-sm">No assets found</p>
@@ -232,6 +333,18 @@ export default function MediaLibraryPage() {
               <table className="w-full text-sm">
                 <thead className="bg-sacred-50 border-b border-sacred-100">
                   <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-sacred-500 uppercase w-10">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        ref={(input) => {
+                          if (input) input.indeterminate = someVisibleSelected && !allVisibleSelected
+                        }}
+                        onChange={toggleVisibleSelection}
+                        aria-label="Select visible assets"
+                        className="h-4 w-4 rounded border-sacred-300 text-yoga-700 focus:ring-yoga-500"
+                      />
+                    </th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase">File</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase hidden md:table-cell">Type</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase hidden md:table-cell">Size</th>
@@ -239,8 +352,17 @@ export default function MediaLibraryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-sacred-50">
-                  {(data?.items ?? []).map((asset) => (
+                  {assets.map((asset) => (
                     <tr key={asset.id} className="hover:bg-sacred-50/50">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedAssetIds.has(asset.id)}
+                          onChange={() => toggleAssetSelection(asset.id)}
+                          aria-label={`Select ${asset.originalFileName}`}
+                          className="h-4 w-4 rounded border-sacred-300 text-yoga-700 focus:ring-yoga-500"
+                        />
+                      </td>
                       <td className="px-4 py-3 font-medium text-sacred-800">{asset.originalFileName}</td>
                       <td className="px-4 py-3 hidden md:table-cell">
                         <Badge variant="neutral" size="sm">{asset.assetType}</Badge>
