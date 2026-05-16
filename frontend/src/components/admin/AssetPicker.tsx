@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useDropzone } from 'react-dropzone'
+import { useDropzone, type FileRejection } from 'react-dropzone'
 import { toast } from 'sonner'
 import {
   X, Search, Upload, Image as ImageIcon, Music, Video, FileText, Check
@@ -35,6 +35,8 @@ const MIME_MAP: Record<string, Record<string, string[]>> = {
     'video/*': ['.mp4', '.mov', '.webm', '.m4v'],
   },
 }
+
+const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024 * 1024
 
 function AssetIcon({ type, className = '' }: { type: AssetType; className?: string }) {
   if (type === 'Image') return <ImageIcon className={className} />
@@ -95,17 +97,31 @@ export default function AssetPicker({ value, onChange, accept = 'any', label }: 
         onChange(uploaded[0].id)
         setOpen(false)
       }
-    } catch {
-      toast.error('Upload failed')
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { errors?: string[]; message?: string } } }).response?.data?.errors?.[0]
+          ?? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined
+      toast.error(message ?? 'Upload failed')
     } finally {
       setIsUploading(false)
     }
   }, [qc, onChange])
 
+  const onDropRejected = useCallback((rejections: FileRejection[]) => {
+    const firstError = rejections[0]?.errors[0]
+    if (firstError?.code === 'file-too-large') {
+      toast.error('Each file can be up to 25 GB')
+      return
+    }
+    toast.error(firstError?.message ?? 'File could not be uploaded')
+  }, [])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: MIME_MAP[accept],
-    maxSize: 500 * 1024 * 1024,
+    maxSize: MAX_UPLOAD_SIZE_BYTES,
     multiple: false,
   })
 
@@ -195,7 +211,7 @@ export default function AssetPicker({ value, onChange, accept = 'any', label }: 
                 <p className="text-sm text-sacred-600">
                   {isUploading ? 'Uploading…' : isDragActive ? 'Drop file here' : 'Drag & drop to upload, or click to browse files'}
                 </p>
-                <p className="text-xs text-sacred-400 mt-0.5">Up to 500 MB · {accept === 'any' ? 'Images, audio, video' : accept}</p>
+                <p className="text-xs text-sacred-400 mt-0.5">Up to 25 GB · {accept === 'any' ? 'Images, audio, video' : accept}</p>
               </div>
 
               {/* Search */}

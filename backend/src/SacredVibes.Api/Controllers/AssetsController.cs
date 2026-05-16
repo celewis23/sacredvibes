@@ -17,6 +17,10 @@ namespace SacredVibes.Api.Controllers;
 [Authorize]
 public class AssetsController : ControllerBase
 {
+    private const int MaxUploadFileCount = 10;
+    private const long MaxFileSizeBytes = 25L * 1024 * 1024 * 1024; // 25 GB
+    private const long MaxBatchSizeBytes = MaxFileSizeBytes * MaxUploadFileCount;
+
     private readonly AppDbContext _db;
     private readonly IStorageService _storage;
     private readonly IImageProcessingService _imageProcessor;
@@ -33,8 +37,6 @@ public class AssetsController : ControllerBase
         // Video
         "video/mp4", "video/quicktime", "video/webm", "video/x-m4v",
     };
-    private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
-
     public AssetsController(AppDbContext db, IStorageService storage, IImageProcessingService imageProcessor)
     {
         _db = db;
@@ -78,7 +80,9 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost("upload")]
-    [RequestSizeLimit(500 * 1024 * 1024)]
+    [Authorize(Roles = "Admin,Editor,Manager")]
+    [RequestSizeLimit(MaxBatchSizeBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = MaxBatchSizeBytes)]
     public async Task<ActionResult<ApiResponse<List<AssetDto>>>> Upload(
         [FromForm] UploadAssetRequest metadata,
         [FromForm] IFormFileCollection files,
@@ -86,6 +90,9 @@ public class AssetsController : ControllerBase
     {
         if (!files.Any())
             return BadRequest(ApiResponse<List<AssetDto>>.Fail("No files provided"));
+
+        if (files.Count > MaxUploadFileCount)
+            return BadRequest(ApiResponse<List<AssetDto>>.Fail($"Upload up to {MaxUploadFileCount} files at once"));
 
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                   ?? User.FindFirst("sub")?.Value ?? "unknown";
@@ -96,7 +103,7 @@ public class AssetsController : ControllerBase
         {
             if (file.Length > MaxFileSizeBytes)
             {
-                ModelState.AddModelError(file.FileName, $"File {file.FileName} exceeds 500 MB limit");
+                ModelState.AddModelError(file.FileName, $"File {file.FileName} exceeds 25 GB limit");
                 continue;
             }
 

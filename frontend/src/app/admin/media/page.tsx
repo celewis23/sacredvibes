@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useDropzone } from 'react-dropzone'
+import { useDropzone, type FileRejection } from 'react-dropzone'
 import { toast } from 'sonner'
 import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Music, Video, FileText, Trash2, Copy, Hash } from 'lucide-react'
 import NextImage from 'next/image'
@@ -11,6 +11,9 @@ import type { Asset } from '@/types'
 import Button from '@/components/ui/button'
 import Card from '@/components/ui/card'
 import Badge from '@/components/ui/badge'
+
+const MAX_UPLOAD_FILES = 10
+const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024 * 1024
 
 export default function MediaLibraryPage() {
   const qc = useQueryClient()
@@ -50,22 +53,42 @@ export default function MediaLibraryPage() {
       await assetsApi.upload(fd)
       toast.success(`${acceptedFiles.length} file${acceptedFiles.length > 1 ? 's' : ''} uploaded`)
       qc.invalidateQueries({ queryKey: ['assets'] })
-    } catch {
-      toast.error('Upload failed')
+    } catch (error: unknown) {
+      const message = error && typeof error === 'object' && 'response' in error
+        ? (error as { response?: { data?: { errors?: string[]; message?: string } } }).response?.data?.errors?.[0]
+          ?? (error as { response?: { data?: { message?: string } } }).response?.data?.message
+        : undefined
+      toast.error(message ?? 'Upload failed')
     } finally {
       setIsUploading(false)
     }
   }, [qc])
 
+  const onDropRejected = useCallback((rejections: FileRejection[]) => {
+    const firstError = rejections[0]?.errors[0]
+    if (firstError?.code === 'too-many-files') {
+      toast.error(`Upload up to ${MAX_UPLOAD_FILES} files at once`)
+      return
+    }
+    if (firstError?.code === 'file-too-large') {
+      toast.error('Each file can be up to 25 GB')
+      return
+    }
+    toast.error(firstError?.message ?? 'Some files could not be uploaded')
+  }, [])
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       'image/*': ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
       'audio/*': ['.mp3', '.m4a', '.ogg', '.wav', '.aac', '.flac'],
       'video/*': ['.mp4', '.mov', '.webm', '.m4v'],
       'application/pdf': ['.pdf'],
     },
-    maxSize: 500 * 1024 * 1024,
+    maxFiles: MAX_UPLOAD_FILES,
+    maxSize: MAX_UPLOAD_SIZE_BYTES,
+    multiple: true,
   })
 
   const copyUrl = (url: string) => {
@@ -121,7 +144,7 @@ export default function MediaLibraryPage() {
         <p className="text-sm font-medium text-sacred-700">
           {isUploading ? 'Uploading...' : isDragActive ? 'Drop files here' : 'Drag & drop or click to upload'}
         </p>
-        <p className="text-xs text-sacred-400 mt-1">Images, audio, video, PDFs · up to 500 MB</p>
+        <p className="text-xs text-sacred-400 mt-1">Images, audio, video, PDFs · up to 10 files · 25 GB each</p>
       </div>
 
       {/* Search */}

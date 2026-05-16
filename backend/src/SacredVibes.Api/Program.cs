@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi.Models;
@@ -10,9 +11,13 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Allow large uploads (audio/video for Digital Studio)
+const long AdminMediaMaxFileSizeBytes = 25L * 1024 * 1024 * 1024;
+const int AdminMediaMaxBatchFiles = 10;
+const long AdminMediaMaxRequestBodySizeBytes = AdminMediaMaxFileSizeBytes * AdminMediaMaxBatchFiles;
+
+// Allow large admin uploads (audio/video for Digital Studio)
 builder.WebHost.ConfigureKestrel(opts =>
-    opts.Limits.MaxRequestBodySize = 500L * 1024 * 1024);
+    opts.Limits.MaxRequestBodySize = AdminMediaMaxRequestBodySizeBytes);
 
 static bool IsAllowedFrontendOrigin(string? origin)
 {
@@ -38,6 +43,10 @@ builder.Services.AddControllers()
     {
         opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+builder.Services.Configure<FormOptions>(opts =>
+{
+    opts.MultipartBodyLengthLimit = AdminMediaMaxRequestBodySizeBytes;
+});
 builder.Services.AddEndpointsApiExplorer();
 
 // OpenAPI / Swagger
