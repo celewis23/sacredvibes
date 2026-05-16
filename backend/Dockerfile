@@ -24,5 +24,7 @@ COPY --from=build /app/publish .
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
+ENV Storage__BasePath=/app/uploads
+ENV Storage__BaseUrl=/uploads
 
 ENTRYPOINT ["dotnet", "SacredVibes.Api.dll"]

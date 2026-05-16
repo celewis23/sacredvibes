@@ -23,9 +23,19 @@ function formatFileSize(bytes: number) {
 
 function resolveAssetUrl(url?: string | null) {
   if (!url) return undefined
-  if (/^https?:\/\//i.test(url)) return url
-  if (url.startsWith('/uploads/') && API_BASE_URL) return `${API_BASE_URL}${url}`
-  return url
+  if (/^https?:\/\//i.test(url)) {
+    if (API_BASE_URL && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(url)) {
+      return url.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, API_BASE_URL)
+    }
+    return url
+  }
+  const normalizedUrl = url.startsWith('uploads/') ? `/${url}` : url
+  if (normalizedUrl.startsWith('/uploads/') && API_BASE_URL) return `${API_BASE_URL}${normalizedUrl}`
+  return normalizedUrl
+}
+
+function getAssetUrl(asset?: Pick<Asset, 'publicUrl' | 'storagePath'> | null) {
+  return resolveAssetUrl(asset?.publicUrl) ?? resolveAssetUrl(asset?.storagePath ? `/uploads/${asset.storagePath}` : undefined)
 }
 
 export default function MediaLibraryPage() {
@@ -114,7 +124,7 @@ export default function MediaLibraryPage() {
     toast.success('Asset ID copied')
   }
 
-  const selectedAssetUrl = resolveAssetUrl(selected?.publicUrl)
+  const selectedAssetUrl = getAssetUrl(selected)
   const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
 
   const assetIcon = (asset: Asset) => {
@@ -183,7 +193,7 @@ export default function MediaLibraryPage() {
                 <div key={i} className="aspect-square bg-sacred-100 rounded-xl animate-pulse" />
               ))}
               {!isLoading && (data?.items ?? []).map((asset) => {
-                const assetUrl = resolveAssetUrl(asset.publicUrl)
+                const assetUrl = getAssetUrl(asset)
                 return (
                   <button
                     key={asset.id}
@@ -249,7 +259,7 @@ export default function MediaLibraryPage() {
                           </button>
                           {asset.publicUrl && (
                             <button
-                              onClick={() => copyUrl(resolveAssetUrl(asset.publicUrl) ?? asset.publicUrl!)}
+                              onClick={() => copyUrl(getAssetUrl(asset) ?? asset.publicUrl!)}
                               className="p-1.5 text-sacred-400 hover:text-sacred-700 rounded transition-colors"
                               title="Copy URL"
                             >
