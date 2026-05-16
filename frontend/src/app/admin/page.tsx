@@ -18,9 +18,10 @@ interface StatCardProps {
   sub?: string
   icon: React.ElementType
   color?: 'yoga' | 'hands' | 'sound' | 'neutral'
+  href?: string
 }
 
-function StatCard({ label, value, sub, icon: Icon, color = 'yoga' }: StatCardProps) {
+function StatCard({ label, value, sub, icon: Icon, color = 'yoga', href }: StatCardProps) {
   const colors = {
     yoga:    { bg: 'bg-yoga-50',   icon: 'text-yoga-600',  text: 'text-yoga-900' },
     hands:   { bg: 'bg-hands-50',  icon: 'text-hands-600', text: 'text-hands-900' },
@@ -29,7 +30,7 @@ function StatCard({ label, value, sub, icon: Icon, color = 'yoga' }: StatCardPro
   }
   const c = colors[color]
 
-  return (
+  const content = (
     <Card padding="md">
       <div className="flex items-start justify-between">
         <div>
@@ -42,6 +43,14 @@ function StatCard({ label, value, sub, icon: Icon, color = 'yoga' }: StatCardPro
         </div>
       </div>
     </Card>
+  )
+
+  if (!href) return content
+
+  return (
+    <Link href={href} className="block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yoga-500 focus-visible:ring-offset-2">
+      {content}
+    </Link>
   )
 }
 
@@ -114,6 +123,7 @@ export default function AdminDashboard() {
           sub={`${data?.pendingBookings ?? 0} pending`}
           icon={Calendar}
           color="hands"
+          href="/admin/bookings"
         />
         <StatCard
           label="Blog Posts"
@@ -217,14 +227,14 @@ export default function AdminDashboard() {
         <Card padding="none">
           <div className="px-6 py-4 border-b border-sacred-100 flex items-center justify-between">
             <h2 className="font-medium text-sacred-900 text-sm">Recent Bookings</h2>
-            <a href="/admin/bookings" className="text-xs text-yoga-600 hover:text-yoga-800">View all</a>
+            <Link href="/admin/bookings" className="text-xs text-yoga-600 hover:text-yoga-800">View all</Link>
           </div>
           <div className="divide-y divide-sacred-50">
             {(data?.recentBookings ?? []).length === 0 && (
               <p className="px-6 py-8 text-sm text-sacred-400 text-center">No bookings yet</p>
             )}
             {(data?.recentBookings ?? []).map((booking) => (
-              <div key={booking.id} className="px-6 py-3.5 flex items-center justify-between gap-4">
+              <Link key={booking.id} href="/admin/bookings" className="px-6 py-3.5 flex items-center justify-between gap-4 hover:bg-sacred-50/60 transition-colors">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-sacred-900 truncate">{booking.customerName}</p>
                   <p className="text-xs text-sacred-500">{booking.brandName} · {format(new Date(booking.createdAt), 'MMM d')}</p>
@@ -239,7 +249,7 @@ export default function AdminDashboard() {
                     {booking.status}
                   </Badge>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </Card>

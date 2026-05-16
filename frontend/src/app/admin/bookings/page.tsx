@@ -153,8 +153,49 @@ export default function AdminBookingsPage() {
         ) : bookings.length === 0 ? (
           <div className="p-12 text-center text-gray-400 text-sm">No bookings found.</div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <>
+            <div className="divide-y divide-gray-100 md:hidden">
+              {bookings.map(booking => (
+                <button
+                  key={booking.id}
+                  type="button"
+                  onClick={() => setEditing(booking)}
+                  className="block w-full px-4 py-4 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{booking.customerName}</div>
+                      <div className="text-xs text-gray-400 truncate">{booking.customerEmail}</div>
+                    </div>
+                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${BOOKING_STATUS_COLORS[booking.status]}`}>
+                      {booking.status}
+                    </span>
+                  </div>
+                  <div className="mt-3 space-y-1 text-xs text-gray-500">
+                    <div className="flex justify-between gap-3">
+                      <span className="truncate">{booking.brandName}</span>
+                      <span className="shrink-0">{new Date(booking.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="truncate">{booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}</span>
+                      <span className="shrink-0 font-medium text-gray-700">
+                        {booking.amount > 0
+                          ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency }).format(booking.amount)
+                          : 'Free'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${PAYMENT_STATUS_COLORS[booking.paymentStatus]}`}>
+                        {booking.paymentStatus}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <table className="hidden w-full text-sm md:table">
+              <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Customer</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Brand / Service</th>
@@ -167,7 +208,11 @@ export default function AdminBookingsPage() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {bookings.map(booking => (
-                <tr key={booking.id} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={booking.id}
+                  onClick={() => setEditing(booking)}
+                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900">{booking.customerName}</div>
                     <div className="text-xs text-gray-400">{booking.customerEmail}</div>
@@ -198,7 +243,7 @@ export default function AdminBookingsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => setEditing(booking)}
+                      onClick={(e) => { e.stopPropagation(); setEditing(booking) }}
                       className="px-2.5 py-1 text-xs text-sacred-700 border border-sacred-300 rounded hover:bg-sacred-50 transition-colors"
                     >
                       Update
@@ -207,7 +252,8 @@ export default function AdminBookingsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </>
         )}
       </div>
 
