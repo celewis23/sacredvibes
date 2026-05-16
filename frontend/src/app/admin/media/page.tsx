@@ -5,7 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDropzone, type FileRejection } from 'react-dropzone'
 import { toast } from 'sonner'
 import { Upload, Search, Grid3x3, List, X, Image as ImageIcon, Music, Video, FileText, Trash2, Copy, Hash, Download } from 'lucide-react'
-import NextImage from 'next/image'
 import { assetsApi } from '@/lib/api'
 import type { Asset } from '@/types'
 import Button from '@/components/ui/button'
@@ -183,34 +182,34 @@ export default function MediaLibraryPage() {
               {isLoading && [...Array(12)].map((_, i) => (
                 <div key={i} className="aspect-square bg-sacred-100 rounded-xl animate-pulse" />
               ))}
-              {!isLoading && (data?.items ?? []).map((asset) => (
-                <button
-                  key={asset.id}
-                  onClick={() => setSelected(asset)}
-                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
-                    selected?.id === asset.id ? 'border-yoga-500 shadow-glow' : 'border-transparent hover:border-sacred-200'
-                  }`}
-                >
-                  {asset.assetType === 'Image' && asset.publicUrl ? (
-                    <div className="relative w-full h-full">
-                      <NextImage
-                        src={asset.publicUrl}
+              {!isLoading && (data?.items ?? []).map((asset) => {
+                const assetUrl = resolveAssetUrl(asset.publicUrl)
+                return (
+                  <button
+                    key={asset.id}
+                    onClick={() => setSelected(asset)}
+                    className={`aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                      selected?.id === asset.id ? 'border-yoga-500 shadow-glow' : 'border-transparent hover:border-sacred-200'
+                    }`}
+                  >
+                    {asset.assetType === 'Image' && assetUrl ? (
+                      <img
+                        src={assetUrl}
                         alt={asset.altText ?? asset.fileName}
-                        fill
-                        className="object-cover"
-                        sizes="150px"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
                       />
-                    </div>
-                  ) : (
-                    <div className="w-full h-full bg-sacred-100 flex flex-col items-center justify-center gap-1 p-2">
-                      {assetIcon(asset)}
-                      <span className="text-[9px] text-sacred-500 truncate w-full text-center px-1 leading-tight">
-                        {asset.originalFileName}
-                      </span>
-                    </div>
-                  )}
-                </button>
-              ))}
+                    ) : (
+                      <div className="w-full h-full bg-sacred-100 flex flex-col items-center justify-center gap-1 p-2">
+                        {assetIcon(asset)}
+                        <span className="text-[9px] text-sacred-500 truncate w-full text-center px-1 leading-tight">
+                          {asset.originalFileName}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                )
+              })}
               {!isLoading && !data?.items?.length && (
                 <div className="col-span-full py-16 text-center text-sacred-400">
                   <ImageIcon size={40} className="mx-auto mb-3 opacity-40" />
@@ -250,7 +249,7 @@ export default function MediaLibraryPage() {
                           </button>
                           {asset.publicUrl && (
                             <button
-                              onClick={() => copyUrl(asset.publicUrl!)}
+                              onClick={() => copyUrl(resolveAssetUrl(asset.publicUrl) ?? asset.publicUrl!)}
                               className="p-1.5 text-sacred-400 hover:text-sacred-700 rounded transition-colors"
                               title="Copy URL"
                             >
