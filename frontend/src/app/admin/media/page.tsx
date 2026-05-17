@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useDropzone, type FileRejection } from 'react-dropzone'
 import { toast } from 'sonner'
@@ -39,16 +39,51 @@ function getAssetUrl(asset?: Pick<Asset, 'publicUrl' | 'storagePath'> | null) {
   return resolveAssetUrl(asset?.publicUrl) ?? resolveAssetUrl(asset?.storagePath ? `/uploads/${asset.storagePath}` : undefined)
 }
 
-function getImageVariantUrl(asset: Asset, size: AssetVariantSize) {
+function getImageCandidateUrls(asset: Asset, preferred: AssetVariantSize[]) {
+  const urls = new Set<string>()
   if (asset.variantsJson) {
     try {
       const variants = JSON.parse(asset.variantsJson) as Partial<Record<AssetVariantSize, string>>
-      return resolveAssetUrl(variants[size])
+      preferred.forEach(size => {
+        const url = resolveAssetUrl(variants[size])
+        if (url) urls.add(url)
+      })
     } catch {
-      return getAssetUrl(asset)
+      // Ignore malformed variant metadata and fall back to the stored asset URL.
     }
   }
-  return getAssetUrl(asset)
+
+  const originalUrl = getAssetUrl(asset)
+  if (originalUrl) urls.add(originalUrl)
+  return Array.from(urls)
+}
+
+function ImageWithFallback({
+  urls,
+  alt,
+  className,
+  fallback,
+}: {
+  urls: string[]
+  alt: string
+  className: string
+  fallback: ReactNode
+}) {
+  const [index, setIndex] = useState(0)
+  const src = urls[index]
+
+  if (!src) return <>{fallback}</>
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={className}
+      decoding="async"
+      loading="lazy"
+      onError={() => setIndex(current => current + 1)}
+    />
+  )
 }
 
 export default function MediaLibraryPage() {
@@ -187,8 +222,11 @@ export default function MediaLibraryPage() {
     bulkDeleteMutation.mutate(ids)
   }
 
+  const selectedImageUrls = selected?.assetType === 'Image'
+    ? getImageCandidateUrls(selected, ['large', 'medium', 'thumbnail'])
+    : []
   const selectedAssetUrl = selected?.assetType === 'Image'
-    ? getImageVariantUrl(selected, 'large') ?? getImageVariantUrl(selected, 'medium')
+    ? selectedImageUrls[0]
     : getAssetUrl(selected)
   const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
 
@@ -296,7 +334,7 @@ export default function MediaLibraryPage() {
                 <div key={i} className="aspect-square bg-sacred-100 rounded-xl animate-pulse" />
               ))}
               {!isLoading && assets.map((asset) => {
-                const assetUrl = asset.assetType === 'Image' ? getImageVariantUrl(asset, 'thumbnail') : getAssetUrl(asset)
+                const imageUrls = asset.assetType === 'Image' ? getImageCandidateUrls(asset, ['thumbnail', 'medium', 'large']) : []
                 const isChecked = selectedAssetIds.has(asset.id)
                 return (
                   <button
@@ -318,13 +356,19 @@ export default function MediaLibraryPage() {
                         className="block h-4 w-4 rounded border-sacred-300 text-yoga-700 focus:ring-yoga-500"
                       />
                     </span>
-                    {asset.assetType === 'Image' && assetUrl ? (
-                      <img
-                        src={assetUrl}
+                    {asset.assetType === 'Image' && imageUrls.length > 0 ? (
+                      <ImageWithFallback
+                        urls={imageUrls}
                         alt={asset.altText ?? asset.fileName}
                         className="h-full w-full object-cover"
-                        decoding="async"
-                        loading="lazy"
+                        fallback={(
+                          <div className="w-full h-full bg-sacred-100 flex flex-col items-center justify-center gap-1 p-2">
+                            {assetIcon(asset)}
+                            <span className="text-[9px] text-sacred-500 truncate w-full text-center px-1 leading-tight">
+                              {asset.originalFileName}
+                            </span>
+                          </div>
+                        )}
                       />
                     ) : (
                       <div className="w-full h-full bg-sacred-100 flex flex-col items-center justify-center gap-1 p-2">
@@ -448,13 +492,18 @@ export default function MediaLibraryPage() {
                   <X size={16} />
                 </button>
               </div>
-              {selected.assetType === 'Image' && selectedAssetUrl && (
+              {selected.assetType === 'Image' && selectedImageUrls.length > 0 && (
                 <div className="aspect-square rounded-xl overflow-hidden bg-sacred-100 mb-4 relative">
-                  <img
-                    src={selectedAssetUrl}
+                  <ImageWithFallback
+                    urls={selectedImageUrls}
                     alt={selected.altText ?? selected.originalFileName}
                     className="h-full w-full object-contain"
-                    decoding="async"
+                    fallback={(
+                      <div className="h-full w-full flex flex-col items-center justify-center gap-2 text-sacred-500 p-4">
+                        {assetIcon(selected)}
+                        <span className="text-xs text-center break-all">{selected.originalFileName}</span>
+                      </div>
+                    )}
                   />
                 </div>
               )}
