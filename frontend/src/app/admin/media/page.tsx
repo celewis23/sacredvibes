@@ -14,6 +14,7 @@ import Badge from '@/components/ui/badge'
 const MAX_UPLOAD_FILES = 10
 const MAX_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024 * 1024
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? ''
+type AssetVariantSize = 'thumbnail' | 'medium' | 'large'
 
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`
@@ -36,6 +37,18 @@ function resolveAssetUrl(url?: string | null) {
 
 function getAssetUrl(asset?: Pick<Asset, 'publicUrl' | 'storagePath'> | null) {
   return resolveAssetUrl(asset?.publicUrl) ?? resolveAssetUrl(asset?.storagePath ? `/uploads/${asset.storagePath}` : undefined)
+}
+
+function getImageVariantUrl(asset: Asset, size: AssetVariantSize) {
+  if (asset.variantsJson) {
+    try {
+      const variants = JSON.parse(asset.variantsJson) as Partial<Record<AssetVariantSize, string>>
+      return resolveAssetUrl(variants[size])
+    } catch {
+      return getAssetUrl(asset)
+    }
+  }
+  return getAssetUrl(asset)
 }
 
 export default function MediaLibraryPage() {
@@ -174,7 +187,9 @@ export default function MediaLibraryPage() {
     bulkDeleteMutation.mutate(ids)
   }
 
-  const selectedAssetUrl = getAssetUrl(selected)
+  const selectedAssetUrl = selected?.assetType === 'Image'
+    ? getImageVariantUrl(selected, 'large') ?? getImageVariantUrl(selected, 'medium')
+    : getAssetUrl(selected)
   const downloadFileName = selected?.originalFileName || selected?.fileName || 'media-asset'
 
   const assetIcon = (asset: Asset) => {
@@ -281,7 +296,7 @@ export default function MediaLibraryPage() {
                 <div key={i} className="aspect-square bg-sacred-100 rounded-xl animate-pulse" />
               ))}
               {!isLoading && assets.map((asset) => {
-                const assetUrl = getAssetUrl(asset)
+                const assetUrl = asset.assetType === 'Image' ? getImageVariantUrl(asset, 'thumbnail') : getAssetUrl(asset)
                 const isChecked = selectedAssetIds.has(asset.id)
                 return (
                   <button
@@ -308,6 +323,7 @@ export default function MediaLibraryPage() {
                         src={assetUrl}
                         alt={asset.altText ?? asset.fileName}
                         className="h-full w-full object-cover"
+                        decoding="async"
                         loading="lazy"
                       />
                     ) : (
@@ -438,6 +454,7 @@ export default function MediaLibraryPage() {
                     src={selectedAssetUrl}
                     alt={selected.altText ?? selected.originalFileName}
                     className="h-full w-full object-contain"
+                    decoding="async"
                   />
                 </div>
               )}
