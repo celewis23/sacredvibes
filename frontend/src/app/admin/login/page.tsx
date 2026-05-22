@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -71,9 +72,9 @@ export default function AdminLoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <a href="#" className="text-xs text-sacred-500 hover:text-yoga-600 transition-colors">
+            <Link href="/admin/forgot-password" className="text-xs text-sacred-500 hover:text-yoga-600 transition-colors">
               Forgot your password?
-            </a>
+            </Link>
           </div>
         </div>
 

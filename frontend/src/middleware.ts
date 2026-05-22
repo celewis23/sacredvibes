@@ -34,6 +34,12 @@ const BRAND_PATH_PREFIXES: Record<string, string> = {
   '/sound': 'sacred-sound',
 }
 
+const PUBLIC_ADMIN_PATHS = new Set([
+  '/admin/login',
+  '/admin/forgot-password',
+  '/admin/reset-password',
+])
+
 export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const hostname = host.replace(/:\d+$/, '').toLowerCase()
@@ -71,7 +77,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Protect admin routes: require auth cookie
-  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
+  if (pathname.startsWith('/admin') && !PUBLIC_ADMIN_PATHS.has(pathname)) {
     const token = request.cookies.get('access_token')?.value
     if (!token) {
       return NextResponse.redirect(new URL('/admin/login', request.url))

@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using SacredVibes.Application.Features.Auth;
 using SacredVibes.Application.Features.Auth.DTOs;
+using SacredVibes.Application.Features.Email;
+using SacredVibes.Application.Features.Email.DTOs;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
@@ -21,6 +23,7 @@ public class AuthService : IAuthService
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly ILogger<AuthService> _logger;
+    private readonly IEmailMailboxService _email;
 
     private string JwtSecret => _config["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret not configured");
     private string JwtIssuer => _config["Jwt:Issuer"] ?? "SacredVibesApi";
@@ -28,12 +31,18 @@ public class AuthService : IAuthService
     private int JwtExpiryMinutes => int.TryParse(_config["Jwt:ExpiryMinutes"], out var m) ? m : 60;
     private int RefreshTokenExpiryDays => int.TryParse(_config["Jwt:RefreshTokenExpiryDays"], out var d) ? d : 30;
 
-    public AuthService(UserManager<ApplicationUser> userManager, AppDbContext db, IConfiguration config, ILogger<AuthService> logger)
+    public AuthService(
+        UserManager<ApplicationUser> userManager,
+        AppDbContext db,
+        IConfiguration config,
+        ILogger<AuthService> logger,
+        IEmailMailboxService email)
     {
         _userManager = userManager;
         _db = db;
         _config = config;
         _logger = logger;
+        _email = email;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, string? ipAddress = null, CancellationToken ct = default)
@@ -143,9 +152,25 @@ public class AuthService : IAuthService
         if (user is null) return true; // Don't reveal existence
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        _logger.LogInformation("Password reset token generated for {Email}: {Token}", request.Email, token);
-        // TODO: Send email with reset link using email service
-        // await _emailService.SendPasswordResetAsync(user.Email, token);
+        var resetLink = BuildPasswordResetLink(user.Email ?? request.Email, token);
+
+        try
+        {
+            await _email.SendAsync(new SendEmailRequest
+            {
+                To = new List<string> { user.Email ?? request.Email },
+                Subject = "Reset your Sacred Vibes admin password",
+                IsHtml = true,
+                Body = BuildPasswordResetEmailBody(user.FirstName, resetLink)
+            }, ct);
+
+            _logger.LogInformation("Password reset email sent for {Email}", request.Email);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Password reset token generated for {Email}, but the reset email could not be sent. Reset link: {ResetLink}", request.Email, resetLink);
+        }
+
         return true;
     }
 
@@ -293,6 +318,33 @@ public class AuthService : IAuthService
         var bytes = new byte[64];
         RandomNumberGenerator.Fill(bytes);
         return Convert.ToBase64String(bytes);
+    }
+
+    private string BuildPasswordResetLink(string email, string token)
+    {
+        var configuredUrl =
+            _config["ADMIN_FRONTEND_URL"] ??
+            Environment.GetEnvironmentVariable("ADMIN_FRONTEND_URL") ??
+            _config["FRONTEND_URL"] ??
+            Environment.GetEnvironmentVariable("FRONTEND_URL") ??
+            "http://localhost:3000";
+
+        var baseUrl = configuredUrl.TrimEnd('/');
+        return $"{baseUrl}/admin/reset-password?email={Uri.EscapeDataString(email)}&token={Uri.EscapeDataString(token)}";
+    }
+
+    private static string BuildPasswordResetEmailBody(string firstName, string resetLink)
+    {
+        var greetingName = string.IsNullOrWhiteSpace(firstName) ? "there" : firstName.Trim();
+        var encodedGreetingName = System.Net.WebUtility.HtmlEncode(greetingName);
+        var encodedResetLink = System.Net.WebUtility.HtmlEncode(resetLink);
+
+        return $"""
+            <p>Hi {encodedGreetingName},</p>
+            <p>Use the link below to reset your Sacred Vibes admin console password.</p>
+            <p><a href="{encodedResetLink}">Reset your password</a></p>
+            <p>If you did not request this, you can ignore this email.</p>
+            """;
     }
 
     private static AuthResponse BuildAuthResponse(string accessToken, RefreshToken refreshToken, ApplicationUser user) =>
