@@ -305,6 +305,9 @@ export const usersApi = {
 
   updateUser: (userId: string, data: { firstName: string; lastName: string; email: string; role: string; password?: string }) =>
     apiClient.put<ApiResponse<AdminUser>>(`/auth/users/${userId}`, data),
+
+  deleteUser: (userId: string) =>
+    apiClient.delete(`/auth/users/${userId}`),
 }
 
 // ── Import Jobs ───────────────────────────────────────────────────────────────

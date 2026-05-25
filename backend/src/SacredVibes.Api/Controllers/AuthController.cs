@@ -1,8 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Auth;
 using SacredVibes.Application.Features.Auth.DTOs;
+using SacredVibes.Domain.Enums;
+using SacredVibes.Infrastructure.Data;
 
 namespace SacredVibes.Api.Controllers;
 
@@ -191,6 +194,61 @@ public class AuthController : ControllerBase
         user.IsActive = req.IsActive;
         await userManager.UpdateAsync(user);
         return Ok(new { message = req.IsActive ? "User activated" : "User deactivated" });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("users/{userId}")]
+    public async Task<ActionResult> DeleteAdminUser(string userId, CancellationToken ct)
+    {
+        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                         ?? User.FindFirst("sub")?.Value;
+        if (currentUserId is null) return Unauthorized();
+        if (currentUserId == userId)
+            return BadRequest(ApiResponse<object>.Fail("You cannot delete your own user account."));
+
+        var userManager = HttpContext.RequestServices
+            .GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<SacredVibes.Domain.Entities.ApplicationUser>>();
+        var db = HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null) return NotFound(ApiResponse<object>.Fail("User not found"));
+
+        if (user.Role == UserRole.Admin)
+        {
+            var remainingAdmins = await userManager.Users.CountAsync(
+                u => u.Id != userId && u.Role == UserRole.Admin && u.IsActive,
+                ct);
+            if (remainingAdmins == 0)
+                return BadRequest(ApiResponse<object>.Fail("You cannot delete the last active admin account."));
+        }
+
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+
+        var posts = await db.BlogPosts.Where(p => p.AuthorId == userId).ToListAsync(ct);
+        foreach (var post in posts)
+        {
+            post.AuthorId = currentUserId;
+            if (string.IsNullOrWhiteSpace(post.AuthorNameOverride))
+                post.AuthorNameOverride = user.FullName;
+        }
+
+        var assets = await db.Assets.Where(a => a.UploadedByUserId == userId).ToListAsync(ct);
+        foreach (var asset in assets)
+        {
+            asset.UploadedByUserId = currentUserId;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        var result = await userManager.DeleteAsync(user);
+        if (!result.Succeeded)
+        {
+            await tx.RollbackAsync(ct);
+            return BadRequest(ApiResponse<object>.Fail(result.Errors.Select(e => e.Description)));
+        }
+
+        await tx.CommitAsync(ct);
+        return Ok(new { message = "User deleted" });
     }
 
     [Authorize(Roles = "Admin")]

@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { UserPlus, X, ShieldCheck, ShieldOff, Pencil } from 'lucide-react'
+import { UserPlus, X, ShieldCheck, ShieldOff, Pencil, Trash2 } from 'lucide-react'
 import { usersApi } from '@/lib/api'
+import { useAuth } from '@/lib/auth/context'
 import type { AdminUser } from '@/types'
 
 type CreateForm = {
@@ -44,6 +45,7 @@ function formatDate(iso?: string) {
 
 export default function AdminUsersPage() {
   const qc = useQueryClient()
+  const { user: currentUser } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [createForm, setCreateForm] = useState<CreateForm>(emptyCreate)
   const [createError, setCreateError] = useState('')
@@ -104,6 +106,18 @@ export default function AdminUsersPage() {
     onError: () => toast.error('Failed to update user'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => usersApi.deleteUser(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      toast.success('User deleted')
+    },
+    onError: (err: { response?: { data?: { errors?: string[] } } }) => {
+      const msg = err?.response?.data?.errors?.[0] ?? 'Failed to delete user'
+      toast.error(msg)
+    },
+  })
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     setCreateError('')
@@ -134,6 +148,18 @@ export default function AdminUsersPage() {
     e.preventDefault()
     setEditError('')
     editMutation.mutate(editForm)
+  }
+
+  function handleDelete(u: AdminUser) {
+    if (u.id === currentUser?.id) {
+      toast.error('You cannot delete your own user account')
+      return
+    }
+
+    const confirmed = window.confirm(`Delete ${u.fullName || u.email}? This cannot be undone.`)
+    if (!confirmed) return
+
+    deleteMutation.mutate(u.id)
   }
 
   return (
@@ -217,6 +243,15 @@ export default function AdminUsersPage() {
                       >
                         {u.isActive ? <ShieldOff size={13} /> : <ShieldCheck size={13} />}
                         {u.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        disabled={deleteMutation.isPending || u.id === currentUser?.id}
+                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+                        title={u.id === currentUser?.id ? 'You cannot delete your own account' : 'Delete user'}
+                      >
+                        <Trash2 size={13} />
+                        Delete
                       </button>
                     </div>
                   </td>
