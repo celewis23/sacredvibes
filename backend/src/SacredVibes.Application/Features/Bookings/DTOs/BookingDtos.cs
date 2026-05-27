@@ -59,6 +59,15 @@ public class CreateBookingRequest
     public string? ReferralSource { get; set; }
 }
 
+public class UpdateBookingRequest
+{
+    public Guid? ServiceOfferingId { get; set; }
+    public Guid? EventOfferingId { get; set; }
+    public string? BookingType { get; set; }
+    public decimal? Amount { get; set; }
+    public string? Notes { get; set; }
+}
+
 public record CreateCheckoutRequest
 {
     public Guid BookingId { get; set; }

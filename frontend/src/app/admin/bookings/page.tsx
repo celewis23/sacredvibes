@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { bookingsApi } from '@/lib/api'
-import type { Booking, BookingStatus, PaymentStatus } from '@/types'
+import type { Booking, BookingStatus, PaymentStatus, ServiceOffering, EventOffering } from '@/types'
 
 const BOOKING_STATUS_COLORS: Record<BookingStatus, string> = {
   Pending: 'bg-yellow-100 text-yellow-700',
@@ -26,60 +26,176 @@ const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
   Cancelled: 'bg-gray-50 text-gray-500',
 }
 
-interface StatusModalProps {
+interface BookingModalProps {
   booking: Booking
   onClose: () => void
-  onSave: (status: string, notes: string) => void
-  isPending: boolean
+  onSaveStatus: (status: string, notes: string) => void
+  onSaveRebook: (data: { serviceOfferingId?: string | null; eventOfferingId?: string | null; bookingType?: string; amount?: number }) => void
+  isStatusPending: boolean
+  isRebookPending: boolean
 }
 
-function StatusModal({ booking, onClose, onSave, isPending }: StatusModalProps) {
+function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPending, isRebookPending }: BookingModalProps) {
+  const [tab, setTab] = useState<'status' | 'rebook'>('status')
   const [status, setStatus] = useState(booking.status)
   const [notes, setNotes] = useState(booking.adminNotes ?? '')
+  const [serviceId, setServiceId] = useState(booking.serviceOfferingId ?? '')
+  const [eventId, setEventId] = useState(booking.eventOfferingId ?? '')
+  const [amount, setAmount] = useState(booking.amount.toString())
 
   const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
+
+  const { data: servicesData } = useQuery<ServiceOffering[]>({
+    queryKey: ['booking-services', booking.brandId],
+    queryFn: () => bookingsApi.getServices(booking.brandId).then(r => r.data.data),
+    enabled: tab === 'rebook',
+  })
+
+  const { data: eventsData } = useQuery<EventOffering[]>({
+    queryKey: ['booking-events', booking.brandId],
+    queryFn: () => bookingsApi.getEvents(booking.brandId).then(r => r.data.data),
+    enabled: tab === 'rebook',
+  })
+
+  const services = servicesData ?? []
+  const events = eventsData ?? []
+
+  const handleRebook = () => {
+    onSaveRebook({
+      serviceOfferingId: serviceId || null,
+      eventOfferingId: eventId || null,
+      amount: parseFloat(amount) || undefined,
+    })
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Update Booking</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Manage Booking</h2>
           <p className="text-sm text-gray-500 mt-0.5">{booking.customerName} — {booking.brandName}</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}
+          </p>
         </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={status}
-              onChange={e => setStatus(e.target.value as BookingStatus)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+
+        {/* Tab bar */}
+        <div className="px-6 flex gap-4 border-b border-gray-100">
+          {(['status', 'rebook'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                tab === t
+                  ? 'border-sacred-700 text-sacred-800'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
             >
-              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Internal notes (not shown to customer)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sacred-500"
-            />
-          </div>
+              {t === 'status' ? 'Status & Notes' : 'Change Service'}
+            </button>
+          ))}
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(status, notes)}
-            disabled={isPending}
-            className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50 transition-colors"
-          >
-            {isPending ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
+
+        {tab === 'status' ? (
+          <>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value as BookingStatus)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                >
+                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
+                <textarea
+                  rows={3}
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="Internal notes (not shown to customer)"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+              </button>
+              <button
+                onClick={() => onSaveStatus(status, notes)}
+                disabled={isStatusPending}
+                className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50 transition-colors"
+              >
+                {isStatusPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-gray-400">
+                Select a new service or event to reassign this booking. The customer will receive an email notification.
+              </p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                <select
+                  value={serviceId}
+                  onChange={e => { setServiceId(e.target.value); if (e.target.value) setEventId('') }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                >
+                  <option value="">— No service —</option>
+                  {services.filter(s => s.isBookable).map(s => (
+                    <option key={s.id} value={s.id}>{s.name}{s.price ? ` ($${s.price})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              {events.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Or Event</label>
+                  <select
+                    value={eventId}
+                    onChange={e => { setEventId(e.target.value); if (e.target.value) setServiceId('') }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  >
+                    <option value="">— No event —</option>
+                    {events.filter(e => e.isBookable && !e.isSoldOut).map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} — {new Date(e.startAt).toLocaleDateString()}
+                        {e.price ? ` ($${e.price})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (USD)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+              </button>
+              <button
+                onClick={handleRebook}
+                disabled={isRebookPending || (!serviceId && !eventId)}
+                className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50 transition-colors"
+              >
+                {isRebookPending ? 'Saving...' : 'Update Booking'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )
@@ -112,6 +228,19 @@ export default function AdminBookingsPage() {
     onError: () => toast.error('Failed to update booking'),
   })
 
+  const rebookMutation = useMutation({
+    mutationFn: ({ id, data }: {
+      id: string
+      data: { serviceOfferingId?: string | null; eventOfferingId?: string | null; bookingType?: string; amount?: number }
+    }) => bookingsApi.adminUpdateBooking(id, data),
+    onSuccess: () => {
+      toast.success('Booking reassigned — customer notified')
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] })
+      setEditing(null)
+    },
+    onError: () => toast.error('Failed to update booking'),
+  })
+
   const bookings = data?.items ?? []
   const total = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 1
@@ -121,11 +250,13 @@ export default function AdminBookingsPage() {
   return (
     <div className="p-6 lg:p-8">
       {editing && (
-        <StatusModal
+        <BookingModal
           booking={editing}
           onClose={() => setEditing(null)}
-          onSave={(status, notes) => updateMutation.mutate({ id: editing.id, status, notes })}
-          isPending={updateMutation.isPending}
+          onSaveStatus={(status, notes) => updateMutation.mutate({ id: editing.id, status, notes })}
+          onSaveRebook={(data) => rebookMutation.mutate({ id: editing.id, data })}
+          isStatusPending={updateMutation.isPending}
+          isRebookPending={rebookMutation.isPending}
         />
       )}
 

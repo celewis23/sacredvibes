@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Bookings.DTOs;
+using SacredVibes.Application.Features.Bookings.Services;
 using SacredVibes.Application.Features.Payments;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
@@ -15,11 +16,13 @@ public class BookingsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ISquareService _square;
+    private readonly IBookingNotificationService _notifications;
 
-    public BookingsController(AppDbContext db, ISquareService square)
+    public BookingsController(AppDbContext db, ISquareService square, IBookingNotificationService notifications)
     {
         _db = db;
         _square = square;
+        _notifications = notifications;
     }
 
     // ── Public: Create booking & checkout ────────────────────────────────────
@@ -75,8 +78,13 @@ public class BookingsController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
 
+        var dto = await GetBookingDtoAsync(booking.Id, ct) ?? MapToDto(booking);
+        var notifData = ToNotificationData(booking, dto);
+        await _notifications.SendBookingReceivedAsync(notifData, ct);
+        await _notifications.SendAdminNewBookingAsync(notifData, ct);
+
         return CreatedAtAction(nameof(GetBooking), new { id = booking.Id },
-            ApiResponse<BookingDto>.Ok(await GetBookingDtoAsync(booking.Id, ct)));
+            ApiResponse<BookingDto>.Ok(dto!));
     }
 
     [HttpPost("{id:guid}/checkout")]
@@ -161,9 +169,14 @@ public class BookingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateStatus(
         Guid id, [FromBody] UpdateBookingStatusRequest request, CancellationToken ct = default)
     {
-        var booking = await _db.Bookings.FindAsync([id], ct);
+        var booking = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
         if (booking is null) return NotFound();
 
+        var previousStatus = booking.Status;
         booking.Status = request.Status;
         if (request.AdminNotes is not null) booking.AdminNotes = request.AdminNotes;
         if (request.Status == BookingStatus.Confirmed) booking.ConfirmedAt ??= DateTime.UtcNow;
@@ -174,7 +187,92 @@ public class BookingsController : ControllerBase
         }
 
         await _db.SaveChangesAsync(ct);
+
+        if (previousStatus != request.Status)
+        {
+            var dto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+            var notifData = ToNotificationData(booking, dto);
+            if (request.Status == BookingStatus.Confirmed)
+                await _notifications.SendBookingConfirmedAsync(notifData, ct);
+            else if (request.Status == BookingStatus.Cancelled)
+                await _notifications.SendBookingCancelledAsync(notifData, ct);
+        }
+
         return Ok(ApiResponse<BookingDto>.Ok(await GetBookingDtoAsync(id, ct) ?? MapToDto(booking)));
+    }
+
+    [Authorize]
+    [HttpPatch("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateBooking(
+        Guid id, [FromBody] UpdateBookingRequest request, CancellationToken ct = default)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        var oldServiceName = booking.ServiceOffering?.Name
+            ?? booking.EventOffering?.Name
+            ?? booking.BookingType.ToString();
+
+        if (request.ServiceOfferingId.HasValue)
+        {
+            var service = await _db.ServiceOfferings.FindAsync([request.ServiceOfferingId.Value], ct);
+            if (service is null || !service.IsActive)
+                return BadRequest(ApiResponse<BookingDto>.Fail("Service not available."));
+
+            // Decrement old event count if switching away from an event
+            if (booking.EventOfferingId.HasValue)
+            {
+                var oldEvent = await _db.EventOfferings.FindAsync([booking.EventOfferingId.Value], ct);
+                if (oldEvent is not null) oldEvent.RegisteredCount = Math.Max(0, oldEvent.RegisteredCount - 1);
+            }
+
+            booking.ServiceOfferingId = request.ServiceOfferingId;
+            booking.EventOfferingId = null;
+        }
+        else if (request.EventOfferingId.HasValue)
+        {
+            var ev = await _db.EventOfferings.FindAsync([request.EventOfferingId.Value], ct);
+            if (ev is null || !ev.IsActive)
+                return BadRequest(ApiResponse<BookingDto>.Fail("Event not available."));
+            if (ev.Capacity.HasValue && ev.RegisteredCount >= ev.Capacity.Value)
+                return BadRequest(ApiResponse<BookingDto>.Fail("This event is sold out."));
+
+            if (booking.EventOfferingId.HasValue && booking.EventOfferingId != request.EventOfferingId)
+            {
+                var oldEvent = await _db.EventOfferings.FindAsync([booking.EventOfferingId.Value], ct);
+                if (oldEvent is not null) oldEvent.RegisteredCount = Math.Max(0, oldEvent.RegisteredCount - 1);
+            }
+
+            if (!booking.EventOfferingId.HasValue || booking.EventOfferingId != request.EventOfferingId)
+                ev.RegisteredCount++;
+
+            booking.EventOfferingId = request.EventOfferingId;
+            booking.ServiceOfferingId = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.BookingType) &&
+            Enum.TryParse<BookingType>(request.BookingType, out var parsedType))
+            booking.BookingType = parsedType;
+
+        if (request.Amount.HasValue) booking.Amount = request.Amount.Value;
+        if (request.Notes is not null) booking.Notes = request.Notes;
+
+        await _db.SaveChangesAsync(ct);
+
+        var updatedDto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+        var newServiceName = updatedDto.ServiceOfferingName ?? updatedDto.EventOfferingName ?? booking.BookingType.ToString();
+
+        if (oldServiceName != newServiceName)
+        {
+            var notifData = ToNotificationData(booking, updatedDto);
+            await _notifications.SendBookingUpdatedAsync(notifData, oldServiceName, ct);
+        }
+
+        return Ok(ApiResponse<BookingDto>.Ok(updatedDto));
     }
 
     // ── Square Webhook ────────────────────────────────────────────────────────
@@ -304,6 +402,19 @@ public class BookingsController : ControllerBase
         FeaturedImageAssetId = s.FeaturedImageAssetId,
         FeaturedImageUrl = s.FeaturedImageAssetId.HasValue && imageUrls?.TryGetValue(s.FeaturedImageAssetId.Value, out var url) == true ? url : null
     };
+
+    private static BookingNotificationData ToNotificationData(Domain.Entities.Booking b, BookingDto dto) => new(
+        CustomerName: b.CustomerName,
+        CustomerEmail: b.CustomerEmail,
+        ServiceName: dto.ServiceOfferingName ?? dto.EventOfferingName ?? b.BookingType.ToString(),
+        BookingType: b.BookingType.ToString(),
+        Amount: b.Amount,
+        Currency: b.Currency,
+        BrandName: b.Brand?.Name ?? dto.BrandName,
+        BookingId: b.Id,
+        AdminNotes: b.AdminNotes,
+        CancellationReason: b.CancellationReason
+    );
 
     private static EventOfferingDto MapEventToDto(Domain.Entities.EventOffering e) => new()
     {

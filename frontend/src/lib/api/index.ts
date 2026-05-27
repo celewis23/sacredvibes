@@ -6,7 +6,7 @@ import type {
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
-  EmailSendAttachment, EmailSignature,
+  EmailSendAttachment, EmailSignature, EmailTemplate,
   StudioLibrary, StudioContentItem, MemberSubscription,
   ProjectSummary, Project, ProjectImage, ProjectTrack,
 } from '@/types'
@@ -112,12 +112,42 @@ export const bookingsApi = {
   getBooking: (id: string) =>
     apiClient.get<ApiResponse<Booking>>(`/bookings/${id}`),
 
+  getServices: (brandId?: string) =>
+    apiClient.get<ApiResponse<ServiceOffering[]>>('/bookings/services', { params: brandId ? { brandId } : {} }),
+
+  getEvents: (brandId?: string) =>
+    apiClient.get<ApiResponse<EventOffering[]>>('/bookings/events', { params: brandId ? { brandId } : {} }),
+
   // Admin
   adminGetBookings: (params: Record<string, unknown>) =>
     apiClient.get<ApiResponse<PagedResult<Booking>>>('/bookings', { params }),
 
   adminUpdateStatus: (id: string, status: string, adminNotes?: string) =>
     apiClient.patch(`/bookings/${id}/status`, { status, adminNotes }),
+
+  adminUpdateBooking: (id: string, data: {
+    serviceOfferingId?: string | null
+    eventOfferingId?: string | null
+    bookingType?: string
+    amount?: number
+    notes?: string
+  }) => apiClient.patch(`/bookings/${id}`, data),
+}
+
+// ── Email Templates ────────────────────────────────────────────────────────────
+
+export const emailTemplatesApi = {
+  getAll: () =>
+    apiClient.get<ApiResponse<EmailTemplate[]>>('/email-templates'),
+
+  save: (key: string, data: { subject: string; htmlBody: string }) =>
+    apiClient.put<ApiResponse<EmailTemplate>>(`/email-templates/${key}`, data),
+
+  reset: (key: string) =>
+    apiClient.post<ApiResponse<EmailTemplate>>(`/email-templates/${key}/reset`),
+
+  sendPreview: (key: string, toEmail: string) =>
+    apiClient.post<ApiResponse<string>>(`/email-templates/${key}/preview`, { toEmail }),
 }
 
 // ── Leads ─────────────────────────────────────────────────────────────────────

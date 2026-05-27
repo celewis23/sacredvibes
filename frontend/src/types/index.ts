@@ -302,6 +302,52 @@ export interface Booking {
   createdAt: string
 }
 
+export interface ServiceOffering {
+  id: string
+  brandId: string
+  name: string
+  slug: string
+  shortDescription?: string
+  category?: string
+  price?: number
+  priceMin?: number
+  priceMax?: number
+  priceType: string
+  currency: string
+  durationMinutes?: number
+  isBookable: boolean
+  isActive: boolean
+  featuredImageUrl?: string
+}
+
+export interface EventOffering {
+  id: string
+  brandId: string
+  name: string
+  slug: string
+  shortDescription?: string
+  category?: string
+  startAt: string
+  endAt: string
+  venue?: string
+  price?: number
+  priceType: string
+  currency: string
+  isBookable: boolean
+  isSoldOut: boolean
+  capacity?: number
+  registeredCount: number
+}
+
+export interface EmailTemplate {
+  key: string
+  name: string
+  description: string
+  subject: string
+  htmlBody: string
+  variables: string[]
+}
+
 // ── Subscribers ───────────────────────────────────────────────────────────────
 
 export type ImportSource = 'Manual' | 'Square' | 'Stripe' | 'Csv' | 'Api'

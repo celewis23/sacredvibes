@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, ShoppingBag,
   Users, Upload, MessageSquare, Settings, LogOut, Globe, Megaphone,
   BarChart2, ChevronRight, X, UserCog, Mail, PlayCircle, AlignJustify,
-  FolderOpen,
+  FolderOpen, FileText,
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '@/lib/auth/context'
@@ -58,6 +58,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Subscribers', href: '/admin/subscribers', icon: Users },
       { label: 'Email Inbox', href: '/admin/email', icon: Mail },
+      { label: 'Email Templates', href: '/admin/email-templates', icon: FileText },
       { label: 'Imports', href: '/admin/imports', icon: Upload },
       { label: 'Leads', href: '/admin/leads', icon: MessageSquare },
     ]
