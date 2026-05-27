@@ -239,12 +239,7 @@ public class BookingsController : ControllerBase
 
             // Decrement old event count if switching away from an event
             if (booking.EventOfferingId.HasValue)
-            {
-                await _db.EventOfferings
-                    .Where(e => e.Id == booking.EventOfferingId.Value)
-                    .ExecuteUpdateAsync(s => s.SetProperty(e => e.RegisteredCount,
-                        e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
-            }
+                await DecrementEventCountAsync(booking.EventOfferingId.Value, ct);
 
             booking.ServiceOfferingId = service.Id;
             booking.EventOfferingId = null;
@@ -265,12 +260,7 @@ public class BookingsController : ControllerBase
 
             // Decrement old event if switching from a different event
             if (booking.EventOfferingId.HasValue && booking.EventOfferingId != request.EventOfferingId)
-            {
-                await _db.EventOfferings
-                    .Where(e => e.Id == booking.EventOfferingId.Value)
-                    .ExecuteUpdateAsync(s => s.SetProperty(e => e.RegisteredCount,
-                        e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
-            }
+                await DecrementEventCountAsync(booking.EventOfferingId.Value, ct);
 
             // Increment new event count only if it's actually changing
             if (!booking.EventOfferingId.HasValue || booking.EventOfferingId != request.EventOfferingId)
@@ -300,6 +290,11 @@ public class BookingsController : ControllerBase
         return Ok(ApiResponse<BookingDto>.Ok(updatedDto));
     }
 
+    private Task DecrementEventCountAsync(Guid eventId, CancellationToken ct) =>
+        _db.EventOfferings
+            .Where(e => e.Id == eventId && e.RegisteredCount > 0)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.RegisteredCount, e => e.RegisteredCount - 1), ct);
+
     private static BookingType BookingTypeFromBrandSlug(string? slug, bool isEvent) => slug switch
     {
         "sacred-hands"   => BookingType.MassageService,
@@ -315,13 +310,7 @@ public class BookingsController : ControllerBase
         if (booking is null) return NotFound();
 
         if (booking.EventOfferingId.HasValue)
-        {
-            await _db.EventOfferings
-                .Where(e => e.Id == booking.EventOfferingId.Value)
-                .ExecuteUpdateAsync(s => s.SetProperty(
-                    e => e.RegisteredCount,
-                    e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
-        }
+            await DecrementEventCountAsync(booking.EventOfferingId.Value, ct);
 
         booking.IsDeleted = true;
         await _db.SaveChangesAsync(ct);
