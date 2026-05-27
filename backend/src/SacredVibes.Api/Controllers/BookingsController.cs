@@ -206,57 +206,75 @@ public class BookingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateBooking(
         Guid id, [FromBody] UpdateBookingRequest request, CancellationToken ct = default)
     {
-        var booking = await _db.Bookings
-            .Include(b => b.Brand)
-            .Include(b => b.ServiceOffering)
-            .Include(b => b.EventOffering)
-            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        // Load without navigation includes to avoid EF Core relationship fixup conflicts
+        var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.Id == id, ct);
         if (booking is null) return NotFound();
 
-        var oldServiceName = booking.ServiceOffering?.Name
-            ?? booking.EventOffering?.Name
+        // Capture old display name for change notification (query separately, no tracking)
+        var oldServiceName = await _db.ServiceOfferings
+            .Where(s => s.Id == booking.ServiceOfferingId)
+            .Select(s => s.Name)
+            .FirstOrDefaultAsync(ct)
+            ?? await _db.EventOfferings
+                .Where(e => e.Id == booking.EventOfferingId)
+                .Select(e => e.Name)
+                .FirstOrDefaultAsync(ct)
             ?? booking.BookingType.ToString();
 
         if (request.ServiceOfferingId.HasValue)
         {
-            var service = await _db.ServiceOfferings.FindAsync([request.ServiceOfferingId.Value], ct);
+            var service = await _db.ServiceOfferings
+                .Include(s => s.Brand)
+                .FirstOrDefaultAsync(s => s.Id == request.ServiceOfferingId.Value, ct);
+
             if (service is null || !service.IsActive)
                 return BadRequest(ApiResponse<BookingDto>.Fail("Service not available."));
 
             // Decrement old event count if switching away from an event
             if (booking.EventOfferingId.HasValue)
             {
-                var oldEvent = await _db.EventOfferings.FindAsync([booking.EventOfferingId.Value], ct);
-                if (oldEvent is not null) oldEvent.RegisteredCount = Math.Max(0, oldEvent.RegisteredCount - 1);
+                await _db.EventOfferings
+                    .Where(e => e.Id == booking.EventOfferingId.Value)
+                    .ExecuteUpdateAsync(s => s.SetProperty(e => e.RegisteredCount,
+                        e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
             }
 
-            booking.ServiceOfferingId = request.ServiceOfferingId;
+            booking.ServiceOfferingId = service.Id;
             booking.EventOfferingId = null;
+            booking.BrandId = service.BrandId;
+            booking.BookingType = BookingTypeFromBrandSlug(service.Brand?.Slug, isEvent: false);
+            if (!request.Amount.HasValue) booking.Amount = service.Price ?? 0;
         }
         else if (request.EventOfferingId.HasValue)
         {
-            var ev = await _db.EventOfferings.FindAsync([request.EventOfferingId.Value], ct);
+            var ev = await _db.EventOfferings
+                .Include(e => e.Brand)
+                .FirstOrDefaultAsync(e => e.Id == request.EventOfferingId.Value, ct);
+
             if (ev is null || !ev.IsActive)
                 return BadRequest(ApiResponse<BookingDto>.Fail("Event not available."));
             if (ev.Capacity.HasValue && ev.RegisteredCount >= ev.Capacity.Value)
                 return BadRequest(ApiResponse<BookingDto>.Fail("This event is sold out."));
 
+            // Decrement old event if switching from a different event
             if (booking.EventOfferingId.HasValue && booking.EventOfferingId != request.EventOfferingId)
             {
-                var oldEvent = await _db.EventOfferings.FindAsync([booking.EventOfferingId.Value], ct);
-                if (oldEvent is not null) oldEvent.RegisteredCount = Math.Max(0, oldEvent.RegisteredCount - 1);
+                await _db.EventOfferings
+                    .Where(e => e.Id == booking.EventOfferingId.Value)
+                    .ExecuteUpdateAsync(s => s.SetProperty(e => e.RegisteredCount,
+                        e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
             }
 
+            // Increment new event count only if it's actually changing
             if (!booking.EventOfferingId.HasValue || booking.EventOfferingId != request.EventOfferingId)
                 ev.RegisteredCount++;
 
-            booking.EventOfferingId = request.EventOfferingId;
+            booking.EventOfferingId = ev.Id;
             booking.ServiceOfferingId = null;
+            booking.BrandId = ev.BrandId;
+            booking.BookingType = BookingTypeFromBrandSlug(ev.Brand?.Slug, isEvent: true);
+            if (!request.Amount.HasValue) booking.Amount = ev.Price ?? 0;
         }
-
-        if (!string.IsNullOrWhiteSpace(request.BookingType) &&
-            Enum.TryParse<BookingType>(request.BookingType, out var parsedType))
-            booking.BookingType = parsedType;
 
         if (request.Amount.HasValue) booking.Amount = request.Amount.Value;
         if (request.Notes is not null) booking.Notes = request.Notes;
@@ -274,6 +292,13 @@ public class BookingsController : ControllerBase
 
         return Ok(ApiResponse<BookingDto>.Ok(updatedDto));
     }
+
+    private static BookingType BookingTypeFromBrandSlug(string? slug, bool isEvent) => slug switch
+    {
+        "sacred-hands"   => BookingType.MassageService,
+        "sacred-sound"   => isEvent ? BookingType.SoundHealingEvent : BookingType.SoundHealingClass,
+        _                => isEvent ? BookingType.YogaEvent : BookingType.YogaClass,
+    };
 
     // ── Square Webhook ────────────────────────────────────────────────────────
 
