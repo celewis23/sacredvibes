@@ -15,6 +15,7 @@ const schema = z.object({
   customerEmail: z.string().email('Valid email required'),
   customerPhone: z.string().optional(),
   customerNotes: z.string().max(500).optional(),
+  website: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -83,6 +84,7 @@ function BookingForm() {
         eventOfferingId: eventId ?? undefined,
         amount: price,
         currency,
+        website: data.website,
       })
 
       const booking = bookingRes.data.data
@@ -165,6 +167,17 @@ function BookingForm() {
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 bg-white border border-sacred-100 rounded-2xl p-8">
+            {/* Honeypot — visually hidden; humans leave this blank */}
+            <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, width: 0, overflow: 'hidden' }} aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input
+                id="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                {...register('website')}
+              />
+            </div>
             <div className="grid sm:grid-cols-2 gap-5">
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-sacred-800 mb-1">Full Name *</label>

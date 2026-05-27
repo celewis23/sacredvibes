@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Bookings.DTOs;
@@ -28,9 +29,15 @@ public class BookingsController : ControllerBase
     // ── Public: Create booking & checkout ────────────────────────────────────
 
     [HttpPost]
+    [EnableRateLimiting("bookings")]
     public async Task<ActionResult<ApiResponse<BookingDto>>> CreateBooking(
         [FromBody] CreateBookingRequest request, CancellationToken ct = default)
     {
+        // Honeypot: bots fill this field, humans don't
+        if (!string.IsNullOrEmpty(request.Website))
+            return CreatedAtAction(nameof(GetBooking), new { id = Guid.NewGuid() },
+                ApiResponse<BookingDto>.Ok(new BookingDto { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow }));
+
         // Validate service or event exists
         if (request.ServiceOfferingId.HasValue)
         {
@@ -299,6 +306,27 @@ public class BookingsController : ControllerBase
         "sacred-sound"   => isEvent ? BookingType.SoundHealingEvent : BookingType.SoundHealingClass,
         _                => isEvent ? BookingType.YogaEvent : BookingType.YogaClass,
     };
+
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteBooking(Guid id, CancellationToken ct = default)
+    {
+        var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+
+        if (booking.EventOfferingId.HasValue)
+        {
+            await _db.EventOfferings
+                .Where(e => e.Id == booking.EventOfferingId.Value)
+                .ExecuteUpdateAsync(s => s.SetProperty(
+                    e => e.RegisteredCount,
+                    e => e.RegisteredCount > 0 ? e.RegisteredCount - 1 : 0), ct);
+        }
+
+        booking.IsDeleted = true;
+        await _db.SaveChangesAsync(ct);
+        return Ok(ApiResponse<bool>.Ok(true));
+    }
 
     // ── Square Webhook ────────────────────────────────────────────────────────
 

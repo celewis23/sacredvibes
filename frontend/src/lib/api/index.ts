@@ -132,6 +132,9 @@ export const bookingsApi = {
     amount?: number
     notes?: string
   }) => apiClient.patch(`/bookings/${id}`, data),
+
+  adminDeleteBooking: (id: string) =>
+    apiClient.delete<ApiResponse<boolean>>(`/bookings/${id}`),
 }
 
 // ── Email Templates ────────────────────────────────────────────────────────────

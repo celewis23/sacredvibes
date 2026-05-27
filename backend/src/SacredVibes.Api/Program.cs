@@ -110,6 +110,14 @@ builder.Services.AddRateLimiter(opts =>
         limiterOpts.QueueLimit = 0;
     });
 
+    opts.AddFixedWindowLimiter("bookings", limiterOpts =>
+    {
+        limiterOpts.PermitLimit = 5;
+        limiterOpts.Window = TimeSpan.FromMinutes(10);
+        limiterOpts.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        limiterOpts.QueueLimit = 0;
+    });
+
     opts.RejectionStatusCode = 429;
 });
 

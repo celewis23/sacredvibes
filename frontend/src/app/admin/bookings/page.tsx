@@ -31,17 +31,20 @@ interface BookingModalProps {
   onClose: () => void
   onSaveStatus: (status: string, notes: string) => void
   onSaveRebook: (data: { serviceOfferingId?: string | null; eventOfferingId?: string | null; bookingType?: string; amount?: number }) => void
+  onDelete: () => void
   isStatusPending: boolean
   isRebookPending: boolean
+  isDeletePending: boolean
 }
 
-function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPending, isRebookPending }: BookingModalProps) {
+function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, onDelete, isStatusPending, isRebookPending, isDeletePending }: BookingModalProps) {
   const [tab, setTab] = useState<'status' | 'rebook'>('status')
   const [status, setStatus] = useState(booking.status)
   const [notes, setNotes] = useState(booking.adminNotes ?? '')
   const [serviceId, setServiceId] = useState(booking.serviceOfferingId ?? '')
   const [eventId, setEventId] = useState(booking.eventOfferingId ?? '')
   const [amount, setAmount] = useState(booking.amount.toString())
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
 
@@ -71,12 +74,39 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPe
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Manage Booking</h2>
-          <p className="text-sm text-gray-500 mt-0.5">{booking.customerName} — {booking.brandName}</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            {booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}
-          </p>
+        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Manage Booking</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{booking.customerName} — {booking.brandName}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}
+            </p>
+          </div>
+          {confirmDelete ? (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-red-600 font-medium">Delete?</span>
+              <button
+                onClick={onDelete}
+                disabled={isDeletePending}
+                className="px-2.5 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {isDeletePending ? '...' : 'Yes'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="px-2.5 py-1 text-xs border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="mt-1 px-2.5 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 transition-colors"
+            >
+              Delete
+            </button>
+          )}
         </div>
 
         {/* Tab bar */}
@@ -243,6 +273,16 @@ export default function AdminBookingsPage() {
     onError: () => toast.error('Failed to update booking'),
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => bookingsApi.adminDeleteBooking(id),
+    onSuccess: () => {
+      toast.success('Booking deleted')
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] })
+      setEditing(null)
+    },
+    onError: () => toast.error('Failed to delete booking'),
+  })
+
   const bookings = data?.items ?? []
   const total = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 1
@@ -257,8 +297,10 @@ export default function AdminBookingsPage() {
           onClose={() => setEditing(null)}
           onSaveStatus={(status, notes) => updateMutation.mutate({ id: editing.id, status, notes })}
           onSaveRebook={(data) => rebookMutation.mutate({ id: editing.id, data })}
+          onDelete={() => deleteMutation.mutate(editing.id)}
           isStatusPending={updateMutation.isPending}
           isRebookPending={rebookMutation.isPending}
+          isDeletePending={deleteMutation.isPending}
         />
       )}
 

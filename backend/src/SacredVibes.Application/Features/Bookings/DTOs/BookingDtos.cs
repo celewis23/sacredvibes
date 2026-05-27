@@ -57,6 +57,8 @@ public class CreateBookingRequest
     public string Currency { get; set; } = "USD";
     public string? Notes { get; set; }
     public string? ReferralSource { get; set; }
+    // Honeypot — must be empty; bots fill this field
+    public string? Website { get; set; }
 }
 
 public class UpdateBookingRequest

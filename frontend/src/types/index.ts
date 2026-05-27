@@ -278,6 +278,7 @@ export interface BookingRequest {
   currency?: string
   notes?: string
   referralSource?: string
+  website?: string
 }
 
 export interface Booking {
