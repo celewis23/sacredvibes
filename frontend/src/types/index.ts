@@ -312,7 +312,7 @@ export interface ServiceOffering {
   price?: number
   priceMin?: number
   priceMax?: number
-  priceType: string
+  priceType: PriceType
   currency: string
   durationMinutes?: number
   isBookable: boolean
@@ -331,7 +331,7 @@ export interface EventOffering {
   endAt: string
   venue?: string
   price?: number
-  priceType: string
+  priceType: PriceType
   currency: string
   isBookable: boolean
   isSoldOut: boolean
