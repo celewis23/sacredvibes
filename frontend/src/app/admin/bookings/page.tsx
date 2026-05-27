@@ -46,14 +46,14 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPe
   const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
 
   const { data: servicesData } = useQuery({
-    queryKey: ['booking-services', booking.brandId],
-    queryFn: () => bookingsApi.getServices(booking.brandId).then(r => r.data.data ?? []),
+    queryKey: ['booking-services-all'],
+    queryFn: () => bookingsApi.getServices().then(r => r.data.data ?? []),
     enabled: tab === 'rebook',
   })
 
   const { data: eventsData } = useQuery({
-    queryKey: ['booking-events', booking.brandId],
-    queryFn: () => bookingsApi.getEvents(booking.brandId).then(r => r.data.data ?? []),
+    queryKey: ['booking-events-all'],
+    queryFn: () => bookingsApi.getEvents().then(r => r.data.data ?? []),
     enabled: tab === 'rebook',
   })
 
@@ -148,7 +148,9 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPe
                 >
                   <option value="">— No service —</option>
                   {services.filter(s => s.isBookable).map(s => (
-                    <option key={s.id} value={s.id}>{s.name}{s.price ? ` ($${s.price})` : ''}</option>
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.category ? ` · ${s.category}` : ''}{s.price ? ` ($${s.price})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
