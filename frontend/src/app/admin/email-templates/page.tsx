@@ -31,9 +31,9 @@ export default function EmailTemplatesPage() {
   const [tab, setTab] = useState<'edit' | 'preview'>('edit')
   const [isDirty, setIsDirty] = useState(false)
 
-  const { data: templates, isLoading } = useQuery<EmailTemplate[]>({
+  const { data: templates, isLoading } = useQuery({
     queryKey: ['email-templates'],
-    queryFn: () => emailTemplatesApi.getAll().then(r => r.data.data),
+    queryFn: () => emailTemplatesApi.getAll().then(r => r.data.data ?? []),
   })
 
   const activeTemplate = templates?.find(t => t.key === selected) ?? null

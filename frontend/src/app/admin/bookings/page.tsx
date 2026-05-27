@@ -45,15 +45,15 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, isStatusPe
 
   const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
 
-  const { data: servicesData } = useQuery<ServiceOffering[]>({
+  const { data: servicesData } = useQuery({
     queryKey: ['booking-services', booking.brandId],
-    queryFn: () => bookingsApi.getServices(booking.brandId).then(r => r.data.data),
+    queryFn: () => bookingsApi.getServices(booking.brandId).then(r => r.data.data ?? []),
     enabled: tab === 'rebook',
   })
 
-  const { data: eventsData } = useQuery<EventOffering[]>({
+  const { data: eventsData } = useQuery({
     queryKey: ['booking-events', booking.brandId],
-    queryFn: () => bookingsApi.getEvents(booking.brandId).then(r => r.data.data),
+    queryFn: () => bookingsApi.getEvents(booking.brandId).then(r => r.data.data ?? []),
     enabled: tab === 'rebook',
   })
 
