@@ -48,6 +48,7 @@ export const BRAND_CONFIGS: Record<string, BrandContext> = {
         children: [
           { label: 'Yoga & Movement',    href: '/classes' },
           { label: 'Sound Healing',      href: '/sound' },
+          { label: 'Sound on the River', href: '/sound/sound-on-the-river' },
           { label: 'Sacred Hands',       href: '/hands' },
           { label: 'Corporate Wellness', href: '/corporate-wellness' },
         ],

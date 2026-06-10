@@ -4,6 +4,7 @@ import { servicesApi, getPublicPageBySlug } from '@/lib/api'
 import EditablePageSections from '@/components/page-editor/EditablePageSections'
 import { getBrandConfigBySlug, toBrandPath } from '@/lib/brand/resolution'
 import type { EventOffering } from '@/types'
+import WaitlistCta from '@/components/site/WaitlistCta'
 
 export const revalidate = 300
 
@@ -40,7 +41,7 @@ export default async function SoundOnTheRiverPage() {
               <div className="text-center bg-sound-50 rounded-2xl p-12">
                 <p className="font-heading text-xl text-sound-800 mb-3">Next dates coming soon</p>
                 <p className="text-sound-600 text-sm mb-6">Join our list to be the first to know when new dates are announced.</p>
-                <Link href={toBrandPath(brand, '/contact')} className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors">Join the Waitlist</Link>
+                <WaitlistCta brandId={brand.id} className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors" />
               </div>
             ) : (
               <div className="space-y-5">
@@ -113,12 +114,11 @@ export default async function SoundOnTheRiverPage() {
             An immersive outdoor sound healing experience where the music of crystal bowls,
             Tibetan singing bowls, gongs, and the river itself become one.
           </p>
-          <Link
-            href={events.length > 0 ? '#upcoming-events' : toBrandPath(brand, '/contact')}
-            className="btn-sound"
-          >
-            {events.length > 0 ? 'See Upcoming Dates' : 'Join the Waitlist'}
-          </Link>
+          {events.length > 0 ? (
+            <Link href="#upcoming-events" className="btn-sound">See Upcoming Dates</Link>
+          ) : (
+            <WaitlistCta brandId={brand.id} className="btn-sound" />
+          )}
         </div>
       </section>
 
@@ -130,23 +130,23 @@ export default async function SoundOnTheRiverPage() {
               <p className="eyebrow text-sound-200 mb-4">The Experience</p>
               <h2 className="mb-5 font-heading text-3xl text-white md:text-4xl text-balance">Where Water Meets Vibration</h2>
               <p className="mb-4 font-body leading-relaxed tracking-wide text-white/80">
-                Sound on the River is our signature outdoor event — a deeply immersive sound journey
-                held at the water&apos;s edge at sunrise or twilight. The natural acoustic environment
-                of the river amplifies and complements every tone, creating an experience unlike
-                anything found in a studio.
+                Sound on the River is our signature outdoor event — a deeply immersive floating
+                sound bath on the James River with the downtown Richmond skyline as your backdrop.
+                You&apos;ll paddle out, anchor your board, and surrender to a symphony of Himalayan
+                singing bowls while the river holds you.
               </p>
               <p className="font-body leading-relaxed tracking-wide text-white/80">
-                Participants lie on comfortable mats surrounded by the instruments and the natural
-                soundscape. There is nothing to do — only receive.
+                No experience is required. All equipment is provided and you&apos;ll receive
+                paddleboard basics before heading out — so all you need to bring is yourself.
               </p>
             </div>
             <div className="space-y-5">
               {[
                 { label: 'Duration', value: '90 minutes' },
-                { label: 'Setting', value: 'Outdoor riverbank, weather permitting' },
+                { label: 'Setting', value: 'Floating on the James River, downtown RVA backdrop' },
                 { label: 'Capacity', value: 'Limited to 20 participants per session' },
-                { label: 'What to bring', value: 'Yoga mat, blanket, layers for temperature changes' },
-                { label: 'Experience required', value: 'None — open to all' },
+                { label: 'Equipment', value: 'All paddleboard & sound equipment provided' },
+                { label: 'Experience required', value: 'None — paddleboard basics included' },
               ].map(item => (
                 <div key={item.label} className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
                   <span className="w-32 shrink-0 font-body font-medium text-sound-200">{item.label}</span>
@@ -154,6 +154,71 @@ export default async function SoundOnTheRiverPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* What to expect */}
+      <section className="section bg-white">
+        <div className="container-sacred max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="eyebrow text-sound-500 mb-4">Step by Step</p>
+            <h2 className="font-heading text-3xl text-sound-900 md:text-4xl text-balance">What to Expect</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                step: '01',
+                title: 'Paddle Basics',
+                body: 'We start on shore. You\'ll get a quick paddleboard orientation so you feel confident and safe on the water — no experience needed.',
+              },
+              {
+                step: '02',
+                title: 'Paddle Out',
+                body: 'Together we paddle out onto the James River with the downtown Richmond skyline stretching out around you.',
+              },
+              {
+                step: '03',
+                title: 'Anchor & Arrive',
+                body: 'Boards are anchored and you\'ll lie back on the water. Shanna guides you through a full-body tensing and releasing meditation, bringing you into deep relaxation.',
+              },
+              {
+                step: '04',
+                title: 'Sound Bath',
+                body: 'Immerse your entire body in a symphony of Himalayan singing bowls. Let the vibrations move through you while the river moves beneath you.',
+              },
+            ].map(item => (
+              <div key={item.step} className="rounded-2xl bg-sound-50 border border-sound-100 p-6">
+                <p className="font-heading text-4xl text-sound-200 mb-3">{item.step}</p>
+                <h3 className="font-heading text-lg text-sound-900 mb-2">{item.title}</h3>
+                <p className="font-body text-sm leading-relaxed text-sound-700">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Sound bath benefits */}
+      <section className="section bg-sound-950 text-white">
+        <div className="container-sacred max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <p className="eyebrow text-sound-200 mb-4">Why Sound</p>
+            <h2 className="font-heading text-3xl text-white md:text-4xl text-balance">The Healing Power of Sound Baths</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              'Improve sleep quality',
+              'Reduce stress & anxiety',
+              'Lower blood pressure',
+              'Balance both hemispheres of the brain',
+              'Cleanse & reset your energy',
+              'Achieve deep states of relaxation',
+            ].map(benefit => (
+              <div key={benefit} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sound-300" />
+                <span className="font-body text-sm text-white/85">{benefit}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -170,12 +235,7 @@ export default async function SoundOnTheRiverPage() {
                 Join our list to be the first to know when new dates are announced.
                 Sound on the River sells out quickly.
               </p>
-              <Link
-                href={toBrandPath(brand, '/contact')}
-                className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors"
-              >
-                Join the Waitlist
-              </Link>
+              <WaitlistCta brandId={brand.id} className="inline-block px-8 py-3 bg-sound-800 text-white rounded-full text-sm hover:bg-sound-900 transition-colors" />
             </div>
           ) : (
             <div className="space-y-5">
