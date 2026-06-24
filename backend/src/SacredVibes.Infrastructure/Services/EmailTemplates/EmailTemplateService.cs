@@ -119,6 +119,8 @@ public class EmailTemplateService : IEmailTemplateService
         };
     }
 
+    private static string Token(string name) => "{{" + name + "}}";
+
     // ── Template metadata & defaults ──────────────────────────────────────────
 
     private static readonly HashSet<string> TemplateKeys = new(TemplateMeta.Keys);
@@ -220,9 +222,9 @@ public class EmailTemplateService : IEmailTemplateService
           <tr>
             <td style="padding:20px 24px;">
               <p style="margin:0 0 12px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Booking Details</p>
-              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Service</span> {{serviceName}}</p>
-              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Type</span> {{bookingType}}</p>
-              {(includeAmount ? "<p style=\"margin:0;color:#1c1714;font-size:14px;\"><span style=\"color:#736456;min-width:80px;display:inline-block;\">Amount</span> {{amount}}</p>" : "")}
+              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Service</span> {Token("serviceName")}</p>
+              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Type</span> {Token("bookingType")}</p>
+              {(includeAmount ? $"<p style=\"margin:0;color:#1c1714;font-size:14px;\"><span style=\"color:#736456;min-width:80px;display:inline-block;\">Amount</span> {Token("amount")}</p>" : "")}
             </td>
           </tr>
         </table>
@@ -232,7 +234,7 @@ public class EmailTemplateService : IEmailTemplateService
         "We received your booking request and will confirm it shortly.",
         "Healing &amp; Wellness",
         $"""
-        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {{{{customerName}}}},</h2>
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
         <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">Thank you for booking with us! We've received your request and will be in touch shortly to confirm your appointment.</p>
 
         {BookingDetailsBox()}
@@ -245,14 +247,14 @@ public class EmailTemplateService : IEmailTemplateService
         "Great news — your booking has been confirmed!",
         "Healing &amp; Wellness",
         $"""
-        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {{{{customerName}}}},</h2>
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
         <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">We're excited to welcome you! Your booking has been confirmed.</p>
 
         {BookingDetailsBox()}
 
         <div id="admin-notes-block" style="margin:0 0 28px;">
           <p style="margin:0 0 4px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Note from us</p>
-          <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">{{{{adminNotes}}}}</p>
+          <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">{Token("adminNotes")}</p>
         </div>
 
         <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If you need to make any changes or have questions, please don't hesitate to reach out.</p>
@@ -263,12 +265,12 @@ public class EmailTemplateService : IEmailTemplateService
         "Your booking has been cancelled.",
         "Healing &amp; Wellness",
         $"""
-        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {{{{customerName}}}},</h2>
-        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">Your booking for <strong>{{{{serviceName}}}}</strong> has been cancelled.</p>
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
+        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">Your booking for <strong>{Token("serviceName")}</strong> has been cancelled.</p>
 
         <div id="reason-block" style="background-color:#faf9f7;border:1px solid #e8e2d9;border-radius:8px;padding:20px 24px;margin:0 0 28px;">
           <p style="margin:0 0 4px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Reason</p>
-          <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">{{{{cancellationReason}}}}</p>
+          <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">{Token("cancellationReason")}</p>
         </div>
 
         <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If you'd like to rebook or have any questions, please reach out and we'll be happy to assist.</p>
@@ -279,7 +281,7 @@ public class EmailTemplateService : IEmailTemplateService
         "Your booking has been updated with a new service.",
         "Healing &amp; Wellness",
         $"""
-        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {{{{customerName}}}},</h2>
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
         <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">We've made an update to your booking. Here's a summary of what changed:</p>
 
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
@@ -289,13 +291,13 @@ public class EmailTemplateService : IEmailTemplateService
               <p style="margin:0 0 12px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Service Change</p>
               <p style="margin:0 0 8px;color:#1c1714;font-size:14px;">
                 <span style="color:#736456;min-width:60px;display:inline-block;">From</span>
-                <span style="color:#a49280;text-decoration:line-through;">{{{{oldServiceName}}}}</span>
+                <span style="color:#a49280;text-decoration:line-through;">{Token("oldServiceName")}</span>
               </p>
               <p style="margin:0 0 8px;color:#1c1714;font-size:14px;">
                 <span style="color:#736456;min-width:60px;display:inline-block;">To</span>
-                <strong>{{{{newServiceName}}}}</strong>
+                <strong>{Token("newServiceName")}</strong>
               </p>
-              <p style="margin:0;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:60px;display:inline-block;">Amount</span> {{{{amount}}}}</p>
+              <p style="margin:0;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:60px;display:inline-block;">Amount</span> {Token("amount")}</p>
             </td>
           </tr>
         </table>
@@ -309,18 +311,18 @@ public class EmailTemplateService : IEmailTemplateService
         "New Booking Received",
         $"""
         <p style="margin:0 0 6px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Customer</p>
-        <p style="margin:0 0 4px;color:#1c1714;font-size:16px;font-weight:500;">{{{{customerName}}}}</p>
-        <p style="margin:0 0 28px;color:#736456;font-size:14px;">{{{{customerEmail}}}}</p>
+        <p style="margin:0 0 4px;color:#1c1714;font-size:16px;font-weight:500;">{Token("customerName")}</p>
+        <p style="margin:0 0 28px;color:#736456;font-size:14px;">{Token("customerEmail")}</p>
 
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
           style="background-color:#faf9f7;border:1px solid #e8e2d9;border-radius:8px;margin:0 0 28px;">
           <tr>
             <td style="padding:20px 24px;">
               <p style="margin:0 0 12px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Booking Details</p>
-              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Service</span> {{{{serviceName}}}}</p>
-              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Type</span> {{{{bookingType}}}}</p>
-              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Brand</span> {{{{brandName}}}}</p>
-              <p style="margin:0;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Amount</span> {{{{amount}}}}</p>
+              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Service</span> {Token("serviceName")}</p>
+              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Type</span> {Token("bookingType")}</p>
+              <p style="margin:0 0 6px;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Brand</span> {Token("brandName")}</p>
+              <p style="margin:0;color:#1c1714;font-size:14px;"><span style="color:#736456;min-width:80px;display:inline-block;">Amount</span> {Token("amount")}</p>
             </td>
           </tr>
         </table>
