@@ -12,10 +12,12 @@ namespace SacredVibes.Api.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly IAdminAssistantSettingsService _adminAssistantSettings;
+    private readonly ILogger<SettingsController> _logger;
 
-    public SettingsController(IAdminAssistantSettingsService adminAssistantSettings)
+    public SettingsController(IAdminAssistantSettingsService adminAssistantSettings, ILogger<SettingsController> logger)
     {
         _adminAssistantSettings = adminAssistantSettings;
+        _logger = logger;
     }
 
     [HttpGet("admin-assistant")]
@@ -30,8 +32,20 @@ public class SettingsController : ControllerBase
         [FromBody] SaveAdminAssistantSettingsRequest request,
         CancellationToken ct)
     {
-        var settings = await _adminAssistantSettings.SaveSettingsAsync(request, ct);
-        return Ok(ApiResponse<AdminAssistantSettingsDto>.Ok(settings));
+        try
+        {
+            var settings = await _adminAssistantSettings.SaveSettingsAsync(request, ct);
+            return Ok(ApiResponse<AdminAssistantSettingsDto>.Ok(settings));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<AdminAssistantSettingsDto>.Fail(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not save admin assistant settings");
+            return BadRequest(ApiResponse<AdminAssistantSettingsDto>.Fail("Could not save admin assistant settings. Check backend logs for details."));
+        }
     }
 
     [HttpGet("admin-assistant/resolved")]

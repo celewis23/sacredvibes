@@ -2,10 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { dashboardApi, settingsApi } from '@/lib/api'
 import { getBrandBasePath } from '@/lib/brand/resolution'
 import type { Brand } from '@/types'
+
+function getApiErrorMessage(error: unknown, fallback: string) {
+  const axiosError = error as AxiosError<{ errors?: string[]; message?: string }>
+  if (axiosError.code === 'ECONNABORTED') return 'The request timed out.'
+  if (axiosError.response?.status === 404) return 'The backend settings endpoint is not available yet. Deploy the backend API and try again.'
+  if (axiosError.response?.status === 401 || axiosError.response?.status === 403) return 'Your admin session is not authorized. Sign in again and try saving.'
+  return axiosError.response?.data?.errors?.[0] ?? axiosError.response?.data?.message ?? fallback
+}
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -110,7 +119,7 @@ export default function AdminSettingsPage() {
       setAssistantApiKey('')
       queryClient.invalidateQueries({ queryKey: ['admin-assistant-settings'] })
     },
-    onError: () => toast.error('Could not save admin assistant settings'),
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save admin assistant settings')),
   })
 
   const handleSaveNotifications = () => {
