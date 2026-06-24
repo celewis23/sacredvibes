@@ -13,6 +13,7 @@ using SacredVibes.Application.Features.EmailTemplates;
 using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Payments;
+using SacredVibes.Application.Features.Settings;
 using SacredVibes.Application.Features.Studio;
 using SacredVibes.Application.Features.Subscriptions;
 using SacredVibes.Domain.Entities;
@@ -25,6 +26,7 @@ using SacredVibes.Infrastructure.Services.Email;
 using SacredVibes.Infrastructure.Services.EmailTemplates;
 using SacredVibes.Infrastructure.Services.Eventbrite;
 using SacredVibes.Infrastructure.Services.ImageProcessing;
+using SacredVibes.Infrastructure.Services.Settings;
 using SacredVibes.Infrastructure.Services.Square;
 using SacredVibes.Infrastructure.Services.Storage;
 using SacredVibes.Infrastructure.Services.Stripe;
@@ -106,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<IBookingNotificationService, BookingNotificationService>();
         services.AddScoped<IStudioService, StudioService>();
         services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
+        services.AddScoped<IAdminAssistantSettingsService, AdminAssistantSettingsService>();
 
         return services;
     }

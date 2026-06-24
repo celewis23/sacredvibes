@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { dashboardApi } from '@/lib/api'
+import { dashboardApi, settingsApi } from '@/lib/api'
 import { getBrandBasePath } from '@/lib/brand/resolution'
 import type { Brand } from '@/types'
 
@@ -68,13 +68,49 @@ function BrandCard({ brand }: { brand: Brand }) {
 }
 
 export default function AdminSettingsPage() {
+  const queryClient = useQueryClient()
   const [adminEmail, setAdminEmail] = useState('')
   const [notifyOnLead, setNotifyOnLead] = useState(true)
   const [notifyOnBooking, setNotifyOnBooking] = useState(true)
+  const [assistantEnabled, setAssistantEnabled] = useState(false)
+  const [assistantProvider, setAssistantProvider] = useState<'OpenAI' | 'Anthropic'>('OpenAI')
+  const [assistantModel, setAssistantModel] = useState('gpt-5.5')
+  const [assistantImageModel, setAssistantImageModel] = useState('gpt-image-2')
+  const [assistantApiKey, setAssistantApiKey] = useState('')
 
   const { data: brands, isLoading } = useQuery({
     queryKey: ['brands'],
     queryFn: () => dashboardApi.getBrands().then(r => r.data.data ?? []),
+  })
+
+  const { data: assistantSettings, isLoading: assistantSettingsLoading } = useQuery({
+    queryKey: ['admin-assistant-settings'],
+    queryFn: () => settingsApi.getAdminAssistant().then(r => r.data.data),
+  })
+
+  useEffect(() => {
+    if (!assistantSettings) return
+    setAssistantEnabled(assistantSettings.isEnabled)
+    setAssistantProvider(assistantSettings.provider)
+    setAssistantModel(assistantSettings.model)
+    setAssistantImageModel(assistantSettings.imageModel)
+    setAssistantApiKey('')
+  }, [assistantSettings])
+
+  const saveAssistantMutation = useMutation({
+    mutationFn: () => settingsApi.saveAdminAssistant({
+      isEnabled: assistantEnabled,
+      provider: assistantProvider,
+      model: assistantModel,
+      imageModel: assistantImageModel,
+      apiKey: assistantApiKey.trim() || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Admin assistant settings saved')
+      setAssistantApiKey('')
+      queryClient.invalidateQueries({ queryKey: ['admin-assistant-settings'] })
+    },
+    onError: () => toast.error('Could not save admin assistant settings'),
   })
 
   const handleSaveNotifications = () => {
@@ -102,6 +138,94 @@ export default function AdminSettingsPage() {
               {(brands ?? []).map(brand => (
                 <BrandCard key={brand.id} brand={brand} />
               ))}
+            </div>
+          )}
+        </Section>
+
+        {/* Admin assistant */}
+        <Section
+          title="Admin Assistant"
+          description="Connect the floating assistant to either OpenAI ChatGPT or Anthropic Claude."
+        >
+          {assistantSettingsLoading ? (
+            <p className="text-sm text-gray-400">Loading assistant settings...</p>
+          ) : (
+            <div className="space-y-4">
+              <label className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <span>
+                  <span className="block text-sm font-medium text-gray-800">Enabled</span>
+                  <span className="block text-xs text-gray-500">
+                    {assistantSettings?.hasApiKey ? 'API key saved' : 'API key required'}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={assistantEnabled}
+                  onChange={e => setAssistantEnabled(e.target.checked)}
+                  className="rounded border-gray-300 text-sacred-600 focus:ring-sacred-500"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                  <select
+                    value={assistantProvider}
+                    onChange={e => {
+                      const provider = e.target.value as 'OpenAI' | 'Anthropic'
+                      setAssistantProvider(provider)
+                      setAssistantModel(provider === 'Anthropic' ? 'claude-sonnet-4-6' : 'gpt-5.5')
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  >
+                    <option value="OpenAI">OpenAI / ChatGPT</option>
+                    <option value="Anthropic">Anthropic / Claude</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Chat Model</label>
+                  <input
+                    value={assistantModel}
+                    onChange={e => setAssistantModel(e.target.value)}
+                    placeholder={assistantProvider === 'Anthropic' ? 'claude-sonnet-4-6' : 'gpt-5.5'}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                <input
+                  type="password"
+                  value={assistantApiKey}
+                  onChange={e => setAssistantApiKey(e.target.value)}
+                  placeholder={assistantSettings?.hasApiKey ? 'Saved; leave blank to keep' : 'Paste API key'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">OpenAI Image Model</label>
+                <input
+                  value={assistantImageModel}
+                  onChange={e => setAssistantImageModel(e.target.value)}
+                  placeholder="gpt-image-2"
+                  disabled={assistantProvider !== 'OpenAI'}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500 disabled:bg-gray-100 disabled:text-gray-400"
+                />
+                {assistantProvider !== 'OpenAI' && (
+                  <p className="mt-1 text-xs text-gray-500">Claude can draft image prompts; image file generation requires OpenAI.</p>
+                )}
+              </div>
+
+              <button
+                onClick={() => saveAssistantMutation.mutate()}
+                disabled={saveAssistantMutation.isPending || !assistantModel.trim()}
+                className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 transition-colors disabled:opacity-50"
+              >
+                {saveAssistantMutation.isPending ? 'Saving...' : 'Save Assistant Settings'}
+              </button>
             </div>
           )}
         </Section>

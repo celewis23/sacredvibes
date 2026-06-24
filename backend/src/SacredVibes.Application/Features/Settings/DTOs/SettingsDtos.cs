@@ -103,3 +103,28 @@ public class CreateLeadRequest
     public bool NewsletterOptIn { get; set; } = false;
     public string? HoneypotField { get; set; } // spam protection
 }
+
+public class AdminAssistantSettingsDto
+{
+    public bool IsEnabled { get; set; }
+    public string Provider { get; set; } = "OpenAI";
+    public string Model { get; set; } = "gpt-5.5";
+    public string ImageModel { get; set; } = "gpt-image-2";
+    public bool HasApiKey { get; set; }
+    public DateTime? LastSyncAt { get; set; }
+    public string? LastSyncResult { get; set; }
+}
+
+public class SaveAdminAssistantSettingsRequest
+{
+    public bool IsEnabled { get; set; }
+    public string Provider { get; set; } = "OpenAI";
+    public string Model { get; set; } = "gpt-5.5";
+    public string ImageModel { get; set; } = "gpt-image-2";
+    public string? ApiKey { get; set; }
+}
+
+public class ResolvedAdminAssistantSettingsDto : AdminAssistantSettingsDto
+{
+    public string ApiKey { get; set; } = string.Empty;
+}

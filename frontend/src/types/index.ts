@@ -649,6 +649,20 @@ export interface EmailSignature {
   isDefault: boolean
 }
 
+// ── Admin Assistant Settings ─────────────────────────────────────────────────
+
+export type AdminAssistantProvider = 'OpenAI' | 'Anthropic'
+
+export interface AdminAssistantSettings {
+  isEnabled: boolean
+  provider: AdminAssistantProvider
+  model: string
+  imageModel: string
+  hasApiKey: boolean
+  lastSyncAt?: string
+  lastSyncResult?: string
+}
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export type ProjectImageSource = 'Pinterest' | 'Manual' | 'Embedded'

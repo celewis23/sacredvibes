@@ -1,13 +1,24 @@
 import { convertToModelMessages, stepCountIs, streamText, tool, type UIMessage } from 'ai'
+import { createAnthropic } from '@ai-sdk/anthropic'
+import { createOpenAI } from '@ai-sdk/openai'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000'
-const MODEL = process.env.ADMIN_ASSISTANT_MODEL ?? 'openai/gpt-5.4'
 
 type QueryValue = string | number | boolean | null | undefined
+type ApiResponse<T> = { success: boolean; data?: T; message?: string; errors?: string[] }
+type AdminAssistantProvider = 'OpenAI' | 'Anthropic'
+type ResolvedAdminAssistantSettings = {
+  isEnabled: boolean
+  provider: AdminAssistantProvider
+  model: string
+  imageModel: string
+  hasApiKey: boolean
+  apiKey: string
+}
 
 function requireBearer(req: Request) {
   const authorization = req.headers.get('authorization')
@@ -36,7 +47,7 @@ async function adminFetch<T>(
   headers.set('authorization', authorization)
   headers.set('accept', 'application/json')
 
-  if (init?.body && !headers.has('content-type')) {
+  if (init?.body && !headers.has('content-type') && !(init.body instanceof FormData)) {
     headers.set('content-type', 'application/json')
   }
 
@@ -67,6 +78,105 @@ function jsonBody(value: unknown) {
   return JSON.stringify(value)
 }
 
+async function getAssistantSettings(authorization: string) {
+  const response = await adminFetch<ApiResponse<ResolvedAdminAssistantSettings>>(
+    authorization,
+    '/settings/admin-assistant/resolved'
+  )
+  const settings = response.data
+
+  if (!settings?.isEnabled) {
+    throw new Error('Admin assistant is disabled. Enable it in Admin > Settings > Admin Assistant.')
+  }
+
+  if (!settings.hasApiKey || !settings.apiKey) {
+    throw new Error('Admin assistant API key is missing. Save an OpenAI or Claude API key in Admin > Settings > Admin Assistant.')
+  }
+
+  return settings
+}
+
+function createConfiguredModel(settings: ResolvedAdminAssistantSettings) {
+  if (settings.provider === 'Anthropic') {
+    return createAnthropic({ apiKey: settings.apiKey })(settings.model)
+  }
+
+  return createOpenAI({ apiKey: settings.apiKey })(settings.model)
+}
+
+function slugifyFilename(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'generated-image'
+}
+
+async function createOpenAIImageAsset(
+  settings: ResolvedAdminAssistantSettings,
+  authorization: string,
+  input: {
+    prompt: string
+    size: string
+    brandId?: string
+    altText?: string
+    caption?: string
+    usage: 'General' | 'Gallery' | 'Blog' | 'PageContent' | 'StorageOnly' | 'Profile'
+    isGalleryItem: boolean
+  }
+) {
+  if (settings.provider !== 'OpenAI') {
+    throw new Error('Image file generation requires OpenAI. Switch the admin assistant provider to OpenAI in settings, or ask Claude to draft an image prompt.')
+  }
+
+  const imageResponse = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${settings.apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: settings.imageModel || 'gpt-image-2',
+      prompt: input.prompt,
+      size: input.size,
+      n: 1,
+    }),
+  })
+
+  const imagePayload = await imageResponse.json()
+  if (!imageResponse.ok) {
+    const message = imagePayload?.error?.message ?? `OpenAI image generation failed with status ${imageResponse.status}`
+    throw new Error(message)
+  }
+
+  const b64 = imagePayload?.data?.[0]?.b64_json
+  if (!b64 || typeof b64 !== 'string') {
+    throw new Error('OpenAI did not return image data.')
+  }
+
+  const fileName = `${slugifyFilename(input.caption || input.prompt)}.png`
+  const formData = new FormData()
+  if (input.brandId) formData.set('BrandId', input.brandId)
+  formData.set('AltText', input.altText || input.prompt)
+  formData.set('Caption', input.caption || 'AI generated image')
+  formData.set('Description', input.prompt)
+  formData.set('Usage', input.usage)
+  formData.set('Visibility', 'Public')
+  formData.set('IsGalleryItem', String(input.isGalleryItem))
+  formData.append('files', new Blob([Buffer.from(b64, 'base64')], { type: 'image/png' }), fileName)
+
+  const upload = await adminFetch<ApiResponse<Array<{ id: string; publicUrl?: string; originalFileName: string }>>>(
+    authorization,
+    '/assets/upload',
+    { method: 'POST', body: formData }
+  )
+
+  return {
+    message: 'Image generated and saved to the media library.',
+    asset: upload.data?.[0] ?? null,
+  }
+}
+
 const contentStatusSchema = z.enum(['Draft', 'Published', 'Scheduled', 'Archived']).default('Draft')
 const priceTypeSchema = z.enum(['Fixed', 'Variable', 'Free', 'Donation', 'SlidingScale']).default('Fixed')
 
@@ -80,18 +190,30 @@ export async function POST(req: Request) {
 
   const { messages }: { messages: UIMessage[] } = await req.json()
   const modelMessages = await convertToModelMessages(messages)
+  let assistantSettings: ResolvedAdminAssistantSettings
+
+  try {
+    assistantSettings = await getAssistantSettings(authorization)
+  } catch (error) {
+    return new Response(error instanceof Error ? error.message : 'Admin assistant is not configured.', { status: 400 })
+  }
 
   const result = streamText({
-    model: MODEL,
+    model: createConfiguredModel(assistantSettings),
     messages: modelMessages,
     stopWhen: stepCountIs(8),
     system: [
       'You are the Sacred Vibes admin assistant.',
-      'You help admins write, plan, search, create, and update admin records.',
+      'You help admins write, plan, search, create, update, and organize admin records.',
+      'You can also act as a regular high-quality AI assistant for strategy, advice, planning, copywriting, document drafting, and creative direction.',
       'Use the available tools whenever the user asks to inspect or change admin data.',
+      'Use projects as durable documents/workspaces for long-form plans, briefs, generated documents, outlines, and creative notes.',
       'Prefer creating drafts for public content unless the user explicitly asks to publish.',
       'Do not delete records, send email, push to Square/Eventbrite, or publish content unless the user explicitly asks and confirms.',
       'When you create or update a record, include the admin edit URL in your response.',
+      assistantSettings.provider === 'OpenAI'
+        ? 'When the user asks to create an image file, use createImageAsset and return the saved media URL.'
+        : 'Claude cannot generate image files through this configuration; for image requests, provide a production-ready image prompt or tell the user to switch the assistant provider to OpenAI.',
       'For writing tasks, produce polished copy in the Sacred Vibes tone: warm, clear, grounded, and not overly mystical.',
       'If a required brandId is missing, call listBrands before asking the user.',
     ].join('\n'),
@@ -267,6 +389,20 @@ export async function POST(req: Request) {
         }),
         execute: async ({ search, assetType, usage, page, pageSize }) =>
           adminFetch(authorization, '/assets', { query: { search, assetType, usage, page, pageSize } }),
+      }),
+
+      createImageAsset: tool({
+        description: 'Generate an image with OpenAI and save it to the media library. Requires the assistant provider to be OpenAI.',
+        inputSchema: z.object({
+          prompt: z.string().min(1).describe('Detailed image prompt. Include style, subject, lighting, framing, and usage context.'),
+          size: z.enum(['1024x1024', '1536x1024', '1024x1536']).default('1024x1024'),
+          brandId: z.string().uuid().optional(),
+          altText: z.string().optional(),
+          caption: z.string().optional(),
+          usage: z.enum(['General', 'Gallery', 'Blog', 'PageContent', 'StorageOnly', 'Profile']).default('General'),
+          isGalleryItem: z.boolean().default(false),
+        }),
+        execute: async (input) => createOpenAIImageAsset(assistantSettings, authorization, input),
       }),
 
       listGalleries: tool({

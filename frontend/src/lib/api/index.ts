@@ -9,6 +9,7 @@ import type {
   EmailSendAttachment, EmailSignature, EmailTemplate,
   StudioLibrary, StudioContentItem, MemberSubscription,
   ProjectSummary, Project, ProjectImage, ProjectTrack,
+  AdminAssistantSettings,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -204,6 +205,21 @@ export const dashboardApi = {
 
   getBrands: () =>
     apiClient.get<ApiResponse<Brand[]>>('/dashboard/brands'),
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+
+export const settingsApi = {
+  getAdminAssistant: () =>
+    apiClient.get<ApiResponse<AdminAssistantSettings>>('/settings/admin-assistant'),
+
+  saveAdminAssistant: (data: {
+    isEnabled: boolean
+    provider: 'OpenAI' | 'Anthropic'
+    model: string
+    imageModel: string
+    apiKey?: string
+  }) => apiClient.put<ApiResponse<AdminAssistantSettings>>('/settings/admin-assistant', data),
 }
 
 // ── Offerings (Admin) ─────────────────────────────────────────────────────────
