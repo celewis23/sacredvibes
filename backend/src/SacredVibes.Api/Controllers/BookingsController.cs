@@ -53,10 +53,11 @@ public class BookingsController : ControllerBase
                 ApiResponse<BookingDto>.Ok(new BookingDto { Id = Guid.NewGuid(), CreatedAt = DateTime.UtcNow }));
 
         // Validate service or event exists
+        Domain.Entities.ServiceOffering? requestedService = null;
         if (request.ServiceOfferingId.HasValue)
         {
-            var service = await _db.ServiceOfferings.FindAsync([request.ServiceOfferingId.Value], ct);
-            if (service is null || !service.IsActive || !service.IsBookable)
+            requestedService = await _db.ServiceOfferings.FindAsync([request.ServiceOfferingId.Value], ct);
+            if (requestedService is null || !requestedService.IsActive || !requestedService.IsBookable)
                 return BadRequest(ApiResponse<BookingDto>.Fail("Service not available for booking"));
         }
 
@@ -75,6 +76,10 @@ public class BookingsController : ControllerBase
             return BadRequest(ApiResponse<BookingDto>.Fail("Please choose a requested date and time for this booking"));
         }
 
+        // Auto-book offerings (typically free/donation classes) skip admin approval entirely —
+        // the booking lands straight on the calendar as confirmed, no payment step involved.
+        var isAutoBook = requestedService?.IsAutoBook == true || requestedEvent?.IsAutoBook == true;
+
         var booking = new Domain.Entities.Booking
         {
             BrandId = request.BrandId,
@@ -88,8 +93,9 @@ public class BookingsController : ControllerBase
             Amount = request.Amount,
             Currency = request.Currency,
             Notes = request.Notes,
-            Status = BookingStatus.Pending,
-            PaymentStatus = PaymentStatus.Pending,
+            Status = isAutoBook ? BookingStatus.Paid : BookingStatus.Pending,
+            PaymentStatus = isAutoBook ? PaymentStatus.Completed : PaymentStatus.Pending,
+            ConfirmedAt = isAutoBook ? DateTime.UtcNow : null,
             ReferralSource = request.ReferralSource,
             RequestedStartAt = requestedEvent?.StartAt ?? request.RequestedStartAt,
             RequestedEndAt = requestedEvent?.EndAt ?? request.RequestedEndAt,
@@ -105,14 +111,19 @@ public class BookingsController : ControllerBase
 
         var dto = await GetBookingDtoAsync(booking.Id, ct) ?? MapToDto(booking);
         var notifData = ToNotificationData(booking, dto);
-        await _notifications.SendBookingReceivedAsync(notifData, ct);
+        if (isAutoBook)
+            await _notifications.SendBookingConfirmedAsync(notifData, ct);
+        else
+            await _notifications.SendBookingReceivedAsync(notifData, ct);
         await _notifications.SendAdminNewBookingAsync(notifData, ct);
 
         try
         {
             await _push.SendToAdminsAsync(
-                "New booking request",
-                $"{booking.CustomerName} requested {notifData.ServiceName}",
+                isAutoBook ? "New signup" : "New booking request",
+                isAutoBook
+                    ? $"{booking.CustomerName} signed up for {notifData.ServiceName}"
+                    : $"{booking.CustomerName} requested {notifData.ServiceName}",
                 "/admin/bookings",
                 ct);
         }
@@ -279,6 +290,21 @@ public class BookingsController : ControllerBase
         // Approving with a requested date/time is what reserves the slot on the admin
         // calendar — the calendar view reads bookings directly, no separate event to create.
         var dtoForCheckout = MapToDto(booking);
+
+        // A $0 booking (e.g. a normally-paid service manually zeroed out, or auto-book
+        // disabled after the fact) has nothing to check out — confirm it directly rather
+        // than sending Square a $0 checkout request.
+        if (booking.Amount <= 0)
+        {
+            booking.Status = BookingStatus.Paid;
+            booking.PaymentStatus = PaymentStatus.Completed;
+            booking.ConfirmedAt ??= DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+
+            var freeDto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+            await _notifications.SendBookingConfirmedAsync(ToNotificationData(booking, freeDto), ct);
+            return Ok(ApiResponse<BookingDto>.Ok(freeDto));
+        }
 
         var returnUrl = _config["Booking:CheckoutReturnUrl"] ?? "https://sacredvibesyoga.com/booking/confirmation";
         var cancelUrl = _config["Booking:CheckoutCancelUrl"] ?? "https://sacredvibesyoga.com/booking/cancelled";

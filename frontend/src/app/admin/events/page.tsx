@@ -52,6 +52,7 @@ const emptyForm = {
   isBookable: true,
   isActive: true,
   isFeatured: false,
+  isAutoBook: false,
   isSoundOnTheRiver: false,
   instructorName: '',
   instructorBio: '',
@@ -226,6 +227,7 @@ export default function AdminEventsPage() {
       isBookable: e.isBookable,
       isActive: e.isActive,
       isFeatured: e.isFeatured,
+      isAutoBook: e.isAutoBook,
       isSoundOnTheRiver: e.isSoundOnTheRiver,
       instructorName: e.instructorName ?? '',
       instructorBio: '',
@@ -267,6 +269,7 @@ export default function AdminEventsPage() {
       isBookable: form.isBookable,
       isActive: form.isActive,
       isFeatured: form.isFeatured,
+      isAutoBook: form.isAutoBook,
       isSoundOnTheRiver: form.isSoundOnTheRiver,
       instructorName: form.instructorName || undefined,
       instructorBio: form.instructorBio || undefined,
@@ -622,7 +625,13 @@ export default function AdminEventsPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Price Type</label>
-                  <select value={form.priceType} onChange={e => set('priceType', e.target.value)}
+                  <select
+                    value={form.priceType}
+                    onChange={e => {
+                      const nextType = e.target.value
+                      set('priceType', nextType)
+                      if (nextType === 'Free' || nextType === 'Donation') set('isAutoBook', true)
+                    }}
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500">
                     {['Fixed', 'Free', 'Donation', 'Variable'].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -648,6 +657,7 @@ export default function AdminEventsPage() {
                   { key: 'isBookable', label: 'Bookable' },
                   { key: 'isActive', label: 'Active' },
                   { key: 'isFeatured', label: 'Featured' },
+                  { key: 'isAutoBook', label: 'Auto-book (skip approval)' },
                   { key: 'isSoundOnTheRiver', label: 'Sound on the River' },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center gap-2 cursor-pointer">

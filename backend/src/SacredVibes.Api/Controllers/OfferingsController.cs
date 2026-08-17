@@ -76,7 +76,7 @@ public class OfferingsController : ControllerBase
             Price = req.Price, PriceMin = req.PriceMin, PriceMax = req.PriceMax,
             Currency = req.Currency ?? "USD", DurationMinutes = req.DurationMinutes,
             Location = req.Location, IsVirtual = req.IsVirtual,
-            IsBookable = req.IsBookable, IsActive = req.IsActive,
+            IsBookable = req.IsBookable, IsActive = req.IsActive, IsAutoBook = req.IsAutoBook,
             FeaturedImageAssetId = req.FeaturedImageAssetId,
             SortOrder = req.SortOrder, SeoTitle = req.SeoTitle, SeoDescription = req.SeoDescription
         };
@@ -122,6 +122,7 @@ public class OfferingsController : ControllerBase
         service.IsVirtual = req.IsVirtual;
         service.IsBookable = req.IsBookable;
         service.IsActive = req.IsActive;
+        service.IsAutoBook = req.IsAutoBook;
         service.FeaturedImageAssetId = req.FeaturedImageAssetId;
         service.SortOrder = req.SortOrder;
         service.SeoTitle = req.SeoTitle;
@@ -337,7 +338,7 @@ public class OfferingsController : ControllerBase
             Capacity = req.Capacity, PriceType = req.PriceType,
             Price = req.Price, Currency = req.Currency ?? "USD",
             IsBookable = req.IsBookable, IsActive = req.IsActive,
-            IsFeatured = req.IsFeatured, IsSoundOnTheRiver = req.IsSoundOnTheRiver,
+            IsFeatured = req.IsFeatured, IsAutoBook = req.IsAutoBook, IsSoundOnTheRiver = req.IsSoundOnTheRiver,
             InstructorName = req.InstructorName, InstructorBio = req.InstructorBio,
             ExternalUrl = req.ExternalUrl, ExternalEventbriteId = req.ExternalEventbriteId,
             SeoTitle = req.SeoTitle, SeoDescription = req.SeoDescription
@@ -382,6 +383,7 @@ public class OfferingsController : ControllerBase
         ev.IsBookable = req.IsBookable;
         ev.IsActive = req.IsActive;
         ev.IsFeatured = req.IsFeatured;
+        ev.IsAutoBook = req.IsAutoBook;
         ev.IsSoundOnTheRiver = req.IsSoundOnTheRiver;
         ev.InstructorName = req.InstructorName;
         ev.InstructorBio = req.InstructorBio;
@@ -457,7 +459,7 @@ public class OfferingsController : ControllerBase
         ShortDescription = s.ShortDescription, Description = s.Description, Category = s.Category,
         PriceType = s.PriceType, Price = s.Price, PriceMin = s.PriceMin, PriceMax = s.PriceMax,
         Currency = s.Currency, DurationMinutes = s.DurationMinutes, Location = s.Location,
-        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, SortOrder = s.SortOrder,
+        IsVirtual = s.IsVirtual, IsBookable = s.IsBookable, IsActive = s.IsActive, IsAutoBook = s.IsAutoBook, SortOrder = s.SortOrder,
         FeaturedImageAssetId = s.FeaturedImageAssetId,
         FeaturedImageUrl = s.FeaturedImageAssetId.HasValue && imageUrls?.TryGetValue(s.FeaturedImageAssetId.Value, out var url) == true ? url : null,
         ExternalSquareItemId = s.ExternalSquareItemId, ExternalSquareVariationId = s.ExternalSquareVariationId
@@ -474,6 +476,7 @@ public class OfferingsController : ControllerBase
         PriceType = e.PriceType, Price = e.Price, Currency = e.Currency,
         IsBookable = e.IsBookable, IsActive = e.IsActive, IsFeatured = e.IsFeatured,
         IsSoldOut = e.IsSoldOut || (e.Capacity.HasValue && e.RegisteredCount >= e.Capacity.Value),
+        IsAutoBook = e.IsAutoBook,
         IsSoundOnTheRiver = e.IsSoundOnTheRiver, InstructorName = e.InstructorName,
         ExternalUrl = e.ExternalUrl, ExternalEventbriteId = e.ExternalEventbriteId
     };
@@ -520,6 +523,7 @@ public class SaveServiceRequest
     public bool IsVirtual { get; set; }
     public bool IsBookable { get; set; } = true;
     public bool IsActive { get; set; } = true;
+    public bool IsAutoBook { get; set; }
     public Guid? FeaturedImageAssetId { get; set; }
     public int SortOrder { get; set; }
     public string? SeoTitle { get; set; }
@@ -550,6 +554,7 @@ public class SaveEventRequest
     public bool IsBookable { get; set; } = true;
     public bool IsActive { get; set; } = true;
     public bool IsFeatured { get; set; }
+    public bool IsAutoBook { get; set; }
     public bool IsSoundOnTheRiver { get; set; }
     public string? InstructorName { get; set; }
     public string? InstructorBio { get; set; }

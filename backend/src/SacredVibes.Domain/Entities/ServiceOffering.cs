@@ -25,6 +25,8 @@ public class ServiceOffering : BaseEntity
 
     public bool IsBookable { get; set; } = true;
     public bool IsActive { get; set; } = true;
+    // When true, bookings for this service skip admin approval and are confirmed instantly.
+    public bool IsAutoBook { get; set; } = false;
     public bool IsRecurring { get; set; } = false;
     public string? ScheduleJson { get; set; }
 

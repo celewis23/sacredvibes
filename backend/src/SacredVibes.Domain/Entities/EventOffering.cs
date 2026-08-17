@@ -36,6 +36,8 @@ public class EventOffering : BaseEntity
     public bool IsActive { get; set; } = true;
     public bool IsFeatured { get; set; } = false;
     public bool IsSoldOut { get; set; } = false;
+    // When true, bookings for this event skip admin approval and are confirmed instantly.
+    public bool IsAutoBook { get; set; } = false;
 
     public Guid? FeaturedImageAssetId { get; set; }
     public string? SeoTitle { get; set; }

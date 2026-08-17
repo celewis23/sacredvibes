@@ -50,6 +50,7 @@ const emptyForm = {
   isVirtual: false,
   isBookable: true,
   isActive: true,
+  isAutoBook: false,
   featuredImageAssetId: '',
   sortOrder: '0',
   seoTitle: '',
@@ -201,6 +202,7 @@ export default function AdminServicesPage() {
       isVirtual: s.isVirtual,
       isBookable: s.isBookable,
       isActive: s.isActive,
+      isAutoBook: s.isAutoBook,
       featuredImageAssetId: s.featuredImageAssetId ?? '',
       sortOrder: s.sortOrder.toString(),
       seoTitle: '',
@@ -239,6 +241,7 @@ export default function AdminServicesPage() {
       isVirtual: form.isVirtual,
       isBookable: form.isBookable,
       isActive: form.isActive,
+      isAutoBook: form.isAutoBook,
       featuredImageAssetId: form.featuredImageAssetId || undefined,
       sortOrder: parseInt(form.sortOrder) || 0,
       seoTitle: form.seoTitle || undefined,
@@ -516,7 +519,13 @@ export default function AdminServicesPage() {
               {/* Pricing */}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Price Type *</label>
-                <select value={form.priceType} onChange={e => set('priceType', e.target.value as PriceType)}
+                <select
+                  value={form.priceType}
+                  onChange={e => {
+                    const nextType = e.target.value as PriceType
+                    set('priceType', nextType)
+                    if (nextType === 'Free' || nextType === 'Donation') set('isAutoBook', true)
+                  }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yoga-500">
                   {PRICE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
@@ -586,6 +595,17 @@ export default function AdminServicesPage() {
                     className="rounded border-gray-300 text-yoga-600 focus:ring-yoga-500" />
                   <span className="text-sm text-gray-700">Active</span>
                 </label>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.isAutoBook} onChange={e => set('isAutoBook', e.target.checked)}
+                    className="rounded border-gray-300 text-yoga-600 focus:ring-yoga-500" />
+                  <span className="text-sm text-gray-700">Auto-book (confirm instantly, no approval needed)</span>
+                </label>
+                <p className="text-xs text-gray-400 mt-1 ml-6">
+                  Defaults on for Free/Donation pricing. When enabled, requests skip the approve/deny step and go straight onto the calendar — good for free or donation-based signups where you just want the list of who&apos;s coming.
+                </p>
               </div>
 
               {/* SEO */}

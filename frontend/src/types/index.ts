@@ -158,6 +158,7 @@ export interface ServiceOffering {
   isVirtual: boolean
   isBookable: boolean
   isActive: boolean
+  isAutoBook: boolean
   featuredImageAssetId?: string
   featuredImageUrl?: string
   sortOrder: number
@@ -209,6 +210,7 @@ export interface EventOffering {
   isActive: boolean
   isFeatured: boolean
   isSoldOut: boolean
+  isAutoBook: boolean
   isSoundOnTheRiver: boolean
   instructorName?: string
   featuredImageUrl?: string
