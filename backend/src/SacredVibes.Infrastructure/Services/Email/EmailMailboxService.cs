@@ -12,6 +12,7 @@ using MailKit.Search;
 using MailKit.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using MimeKit;
 using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Email.DTOs;
@@ -29,12 +30,14 @@ public class EmailMailboxService : IEmailMailboxService
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<EmailMailboxService> _logger;
 
-    public EmailMailboxService(AppDbContext db, IConfiguration config, IHttpClientFactory httpClientFactory)
+    public EmailMailboxService(AppDbContext db, IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<EmailMailboxService> logger)
     {
         _db = db;
         _config = config;
         _httpClientFactory = httpClientFactory;
+        _logger = logger;
     }
 
     public async Task<EmailMailboxSettingsDto> GetSettingsAsync(CancellationToken ct = default)
@@ -212,18 +215,21 @@ public class EmailMailboxService : IEmailMailboxService
             throw new InvalidOperationException("At least one recipient is required.");
 
         var resendApiKey = GetResendApiKey();
-        if (!string.IsNullOrWhiteSpace(resendApiKey))
-        {
-            var resendSettings = await GetRequiredSettingsAsync(ct, requireMailboxSettings: false);
-            await SendWithResendAsync(resendSettings, request, resendApiKey, ct);
-            return;
-        }
+        var settings = !string.IsNullOrWhiteSpace(resendApiKey)
+            ? await GetRequiredSettingsAsync(ct, requireMailboxSettings: false)
+            : await GetRequiredSettingsAsync(ct);
 
-        var smtpSettings = await GetRequiredSettingsAsync(ct);
-        await SendWithSmtpAsync(smtpSettings, request, ct);
+        var message = BuildMimeMessage(settings, request);
+
+        if (!string.IsNullOrWhiteSpace(resendApiKey))
+            await SendWithResendAsync(settings, request, resendApiKey, ct);
+        else
+            await SendWithSmtpAsync(settings, message, ct);
+
+        await ArchiveSentCopyAsync(settings, message, ct);
     }
 
-    private async Task SendWithSmtpAsync(ResolvedEmailSettings settings, SendEmailRequest request, CancellationToken ct)
+    private static MimeMessage BuildMimeMessage(ResolvedEmailSettings settings, SendEmailRequest request)
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(settings.FromName, settings.EmailAddress));
@@ -254,7 +260,11 @@ public class EmailMailboxService : IEmailMailboxService
         }
 
         message.Body = bodyBuilder.ToMessageBody();
+        return message;
+    }
 
+    private async Task SendWithSmtpAsync(ResolvedEmailSettings settings, MimeMessage message, CancellationToken ct)
+    {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeoutCts.CancelAfter(SmtpSendTimeout);
 
@@ -357,6 +367,52 @@ public class EmailMailboxService : IEmailMailboxService
         {
             throw new InvalidOperationException($"Resend send failed ({(int)response.StatusCode}): {ExtractResendError(responseBody)}");
         }
+    }
+
+    private async Task ArchiveSentCopyAsync(ResolvedEmailSettings settings, MimeMessage message, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(settings.ImapHost) ||
+            string.IsNullOrWhiteSpace(settings.Username) ||
+            string.IsNullOrWhiteSpace(settings.Password))
+        {
+            return;
+        }
+
+        try
+        {
+            using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+            var sentFolder = await FindOrCreateSentFolderAsync(client, ct);
+            await sentFolder.AppendAsync(message, MessageFlags.Seen, ct);
+            await client.DisconnectAsync(true, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to archive sent email copy to the mailbox Sent folder");
+        }
+    }
+
+    private static async Task<IMailFolder> FindOrCreateSentFolderAsync(ImapClient client, CancellationToken ct)
+    {
+        try
+        {
+            var special = client.GetFolder(SpecialFolder.Sent);
+            if (special is not null) return special;
+        }
+        catch (NotSupportedException)
+        {
+        }
+
+        foreach (var ns in client.PersonalNamespaces)
+        {
+            var root = client.GetFolder(ns);
+            var children = await root.GetSubfoldersAsync(false, ct);
+            var match = children.FirstOrDefault(f => f.Name.Equals("Sent", StringComparison.OrdinalIgnoreCase))
+                ?? children.FirstOrDefault(f => f.Name.IndexOf("Sent", StringComparison.OrdinalIgnoreCase) >= 0);
+            if (match is not null) return match;
+        }
+
+        var personalRoot = client.GetFolder(client.PersonalNamespaces[0]);
+        return await personalRoot.CreateAsync("Sent", true, ct);
     }
 
     public async Task MarkReadAsync(string id, string? folderId, bool isRead, CancellationToken ct = default)

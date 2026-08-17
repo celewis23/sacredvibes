@@ -245,6 +245,8 @@ The admin inbox can list folders, read messages, mark messages read/unread, arch
 
 Production sending should use Resend over HTTPS to avoid outbound SMTP port blocking. When `RESEND_API_KEY` is configured, admin-composed email sends through Resend automatically while incoming mail still uses cPanel IMAP.
 
+Every outgoing message — whether sent through Resend or direct cPanel SMTP — is also appended to the mailbox's IMAP **Sent** folder (created automatically if it doesn't exist) once the send succeeds. This keeps the admin inbox a single unified view of everything that went in and out of `info@sacredvibesyoga.com`, regardless of which transport handled delivery. Archiving is best-effort: if the IMAP mailbox isn't configured, or the archive append fails for any reason, the send still succeeds and a warning is logged — it never blocks or fails the send itself.
+
 | Key | Description |
 |-----|-------------|
 | `RESEND_API_KEY` | Resend server API key used for outbound email |
