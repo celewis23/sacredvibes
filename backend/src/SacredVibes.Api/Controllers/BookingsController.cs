@@ -2,10 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Bookings.DTOs;
 using SacredVibes.Application.Features.Bookings.Services;
 using SacredVibes.Application.Features.Payments;
+using SacredVibes.Application.Features.Push;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
 
@@ -18,12 +20,24 @@ public class BookingsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ISquareService _square;
     private readonly IBookingNotificationService _notifications;
+    private readonly IPushNotificationService _push;
+    private readonly IConfiguration _config;
+    private readonly ILogger<BookingsController> _logger;
 
-    public BookingsController(AppDbContext db, ISquareService square, IBookingNotificationService notifications)
+    public BookingsController(
+        AppDbContext db,
+        ISquareService square,
+        IBookingNotificationService notifications,
+        IPushNotificationService push,
+        IConfiguration config,
+        ILogger<BookingsController> logger)
     {
         _db = db;
         _square = square;
         _notifications = notifications;
+        _push = push;
+        _config = config;
+        _logger = logger;
     }
 
     // ── Public: Create booking & checkout ────────────────────────────────────
@@ -46,14 +60,19 @@ public class BookingsController : ControllerBase
                 return BadRequest(ApiResponse<BookingDto>.Fail("Service not available for booking"));
         }
 
+        Domain.Entities.EventOffering? requestedEvent = null;
         if (request.EventOfferingId.HasValue)
         {
-            var ev = await _db.EventOfferings.FindAsync([request.EventOfferingId.Value], ct);
-            if (ev is null || !ev.IsActive || !ev.IsBookable)
+            requestedEvent = await _db.EventOfferings.FindAsync([request.EventOfferingId.Value], ct);
+            if (requestedEvent is null || !requestedEvent.IsActive || !requestedEvent.IsBookable)
                 return BadRequest(ApiResponse<BookingDto>.Fail("Event not available for booking"));
 
-            if (ev.Capacity.HasValue && ev.RegisteredCount >= ev.Capacity.Value)
+            if (requestedEvent.Capacity.HasValue && requestedEvent.RegisteredCount >= requestedEvent.Capacity.Value)
                 return BadRequest(ApiResponse<BookingDto>.Fail("This event is sold out"));
+        }
+        else if (request.ServiceOfferingId.HasValue && request.RequestedStartAt is null)
+        {
+            return BadRequest(ApiResponse<BookingDto>.Fail("Please choose a requested date and time for this booking"));
         }
 
         var booking = new Domain.Entities.Booking
@@ -71,17 +90,16 @@ public class BookingsController : ControllerBase
             Notes = request.Notes,
             Status = BookingStatus.Pending,
             PaymentStatus = PaymentStatus.Pending,
-            ReferralSource = request.ReferralSource
+            ReferralSource = request.ReferralSource,
+            RequestedStartAt = requestedEvent?.StartAt ?? request.RequestedStartAt,
+            RequestedEndAt = requestedEvent?.EndAt ?? request.RequestedEndAt,
+            RequestedTimeZone = requestedEvent?.TimeZone ?? request.RequestedTimeZone
         };
 
         await _db.Bookings.AddAsync(booking, ct);
 
         // Update event registration count
-        if (request.EventOfferingId.HasValue)
-        {
-            var ev = await _db.EventOfferings.FindAsync([request.EventOfferingId.Value], ct);
-            if (ev is not null) ev.RegisteredCount++;
-        }
+        if (requestedEvent is not null) requestedEvent.RegisteredCount++;
 
         await _db.SaveChangesAsync(ct);
 
@@ -89,6 +107,19 @@ public class BookingsController : ControllerBase
         var notifData = ToNotificationData(booking, dto);
         await _notifications.SendBookingReceivedAsync(notifData, ct);
         await _notifications.SendAdminNewBookingAsync(notifData, ct);
+
+        try
+        {
+            await _push.SendToAdminsAsync(
+                "New booking request",
+                $"{booking.CustomerName} requested {notifData.ServiceName}",
+                "/admin/bookings",
+                ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send new-booking push notification");
+        }
 
         return CreatedAtAction(nameof(GetBooking), new { id = booking.Id },
             ApiResponse<BookingDto>.Ok(dto!));
@@ -171,6 +202,26 @@ public class BookingsController : ControllerBase
         return Ok(ApiResponse<PagedResult<BookingDto>>.Ok(PagedResult<BookingDto>.Create(dtos, total, page, pageSize)));
     }
 
+    // Bookings scheduled within a date range, for the admin calendar view. Covers both
+    // service bookings (RequestedStartAt) and event bookings (EventOffering.StartAt).
+    [Authorize]
+    [HttpGet("calendar")]
+    public async Task<ActionResult<ApiResponse<List<BookingDto>>>> GetCalendarBookings(
+        [FromQuery] DateTime start, [FromQuery] DateTime end, CancellationToken ct = default)
+    {
+        var bookings = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .Where(b => b.Status != BookingStatus.Denied && b.Status != BookingStatus.Cancelled)
+            .Where(b =>
+                (b.RequestedStartAt != null && b.RequestedStartAt >= start && b.RequestedStartAt <= end) ||
+                (b.EventOfferingId != null && b.EventOffering!.StartAt >= start && b.EventOffering!.StartAt <= end))
+            .ToListAsync(ct);
+
+        return Ok(ApiResponse<List<BookingDto>>.Ok(bookings.Select(MapToDto).ToList()));
+    }
+
     [Authorize]
     [HttpPatch("{id:guid}/status")]
     public async Task<ActionResult<ApiResponse<BookingDto>>> UpdateStatus(
@@ -206,6 +257,109 @@ public class BookingsController : ControllerBase
         }
 
         return Ok(ApiResponse<BookingDto>.Ok(await GetBookingDtoAsync(id, ct) ?? MapToDto(booking)));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/approve")]
+    public async Task<ActionResult<ApiResponse<BookingDto>>> ApproveBooking(
+        Guid id, [FromBody] ApproveBookingRequest request, CancellationToken ct = default)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+        if (booking.Status != BookingStatus.Pending)
+            return BadRequest(ApiResponse<BookingDto>.Fail("Only pending bookings can be approved."));
+
+        if (request.ConfirmRequestedStartAt.HasValue)
+            booking.RequestedStartAt = request.ConfirmRequestedStartAt;
+
+        // Approving with a requested date/time is what reserves the slot on the admin
+        // calendar — the calendar view reads bookings directly, no separate event to create.
+        var dtoForCheckout = MapToDto(booking);
+
+        var returnUrl = _config["Booking:CheckoutReturnUrl"] ?? "https://sacredvibesyoga.com/booking/confirmation";
+        var cancelUrl = _config["Booking:CheckoutCancelUrl"] ?? "https://sacredvibesyoga.com/booking/cancelled";
+
+        try
+        {
+            var checkout = await _square.CreateCheckoutAsync(
+                new CreateCheckoutRequest { BookingId = id, ReturnUrl = returnUrl, CancelUrl = cancelUrl },
+                dtoForCheckout, ct);
+
+            booking.ExternalPaymentProvider = "Square";
+            booking.ExternalBookingId = checkout.ExternalCheckoutId;
+            booking.ExternalCheckoutUrl = checkout.CheckoutUrl;
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(502, ApiResponse<BookingDto>.Fail($"Payment provider error: {ex.Message}"));
+        }
+
+        booking.Status = BookingStatus.Confirmed;
+        booking.ConfirmedAt ??= DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        var dto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+        await _notifications.SendBookingApprovedPendingPaymentAsync(ToNotificationData(booking, dto), booking.ExternalCheckoutUrl!, ct);
+
+        return Ok(ApiResponse<BookingDto>.Ok(dto));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/deny")]
+    public async Task<ActionResult<ApiResponse<BookingDto>>> DenyBooking(
+        Guid id, [FromBody] DenyBookingRequest request, CancellationToken ct = default)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+        if (booking.Status != BookingStatus.Pending)
+            return BadRequest(ApiResponse<BookingDto>.Fail("Only pending bookings can be denied."));
+
+        if (booking.EventOfferingId.HasValue)
+            await DecrementEventCountAsync(booking.EventOfferingId.Value, ct);
+
+        booking.Status = BookingStatus.Denied;
+        booking.CancelledAt = DateTime.UtcNow;
+        booking.CancellationReason = request.Reason;
+        await _db.SaveChangesAsync(ct);
+
+        var dto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+        await _notifications.SendBookingDeniedAsync(ToNotificationData(booking, dto), ct);
+
+        return Ok(ApiResponse<BookingDto>.Ok(dto));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/reschedule")]
+    public async Task<ActionResult<ApiResponse<BookingDto>>> RescheduleBooking(
+        Guid id, [FromBody] RescheduleBookingRequest request, CancellationToken ct = default)
+    {
+        var booking = await _db.Bookings
+            .Include(b => b.Brand)
+            .Include(b => b.ServiceOffering)
+            .Include(b => b.EventOffering)
+            .FirstOrDefaultAsync(b => b.Id == id, ct);
+        if (booking is null) return NotFound();
+        if (booking.Status != BookingStatus.Pending)
+            return BadRequest(ApiResponse<BookingDto>.Fail("Only pending bookings can be rescheduled."));
+
+        var previousStartAt = booking.RequestedStartAt;
+        booking.RequestedStartAt = request.NewStartAt;
+        booking.RequestedEndAt = request.NewEndAt;
+        if (!string.IsNullOrWhiteSpace(request.TimeZone)) booking.RequestedTimeZone = request.TimeZone;
+        await _db.SaveChangesAsync(ct);
+
+        var dto = await GetBookingDtoAsync(id, ct) ?? MapToDto(booking);
+        await _notifications.SendBookingRescheduledAsync(ToNotificationData(booking, dto), previousStartAt, ct);
+
+        return Ok(ApiResponse<BookingDto>.Ok(dto));
     }
 
     [Authorize]
@@ -408,8 +562,12 @@ public class BookingsController : ControllerBase
         ExternalPaymentProvider = b.ExternalPaymentProvider,
         ExternalPaymentId = b.ExternalPaymentId,
         ExternalCheckoutUrl = b.ExternalCheckoutUrl,
+        RequestedStartAt = b.RequestedStartAt ?? b.EventOffering?.StartAt,
+        RequestedEndAt = b.RequestedEndAt ?? b.EventOffering?.EndAt,
+        RequestedTimeZone = b.RequestedTimeZone ?? b.EventOffering?.TimeZone,
         ConfirmedAt = b.ConfirmedAt,
         CancelledAt = b.CancelledAt,
+        CancellationReason = b.CancellationReason,
         CreatedAt = b.CreatedAt,
         PaymentRecords = b.PaymentRecords.Select(p => new PaymentRecordDto
         {
@@ -455,7 +613,9 @@ public class BookingsController : ControllerBase
         BrandName: b.Brand?.Name ?? dto.BrandName,
         BookingId: b.Id,
         AdminNotes: b.AdminNotes,
-        CancellationReason: b.CancellationReason
+        CancellationReason: b.CancellationReason,
+        RequestedStartAt: dto.RequestedStartAt,
+        RequestedTimeZone: dto.RequestedTimeZone
     );
 
     private static EventOfferingDto MapEventToDto(Domain.Entities.EventOffering e) => new()

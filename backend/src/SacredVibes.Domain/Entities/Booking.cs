@@ -29,6 +29,12 @@ public class Booking : BaseEntity
     public string? Notes { get; set; }
     public string? AdminNotes { get; set; }
 
+    // Requested appointment slot. For event bookings this mirrors EventOffering.StartAt/EndAt;
+    // for service bookings it's the customer's requested time, collected on the booking form.
+    public DateTime? RequestedStartAt { get; set; }
+    public DateTime? RequestedEndAt { get; set; }
+    public string? RequestedTimeZone { get; set; }
+
     // External payment/booking references
     public string? ExternalPaymentProvider { get; set; }
     public string? ExternalPaymentId { get; set; }

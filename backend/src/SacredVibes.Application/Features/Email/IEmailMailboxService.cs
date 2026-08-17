@@ -21,4 +21,9 @@ public interface IEmailMailboxService
     Task<List<EmailSignatureDto>> GetSignaturesAsync(CancellationToken ct = default);
     Task<EmailSignatureDto> SaveSignatureAsync(SaveEmailSignatureRequest request, CancellationToken ct = default);
     Task DeleteSignatureAsync(string id, CancellationToken ct = default);
+
+    // Checks the INBOX for messages newer than the last poll and returns how many are new.
+    // Returns 0 (without notifying) on the very first call, to avoid flagging the entire
+    // existing mailbox history as "new". Throws if the mailbox integration isn't configured.
+    Task<int> PollForNewMessagesAsync(CancellationToken ct = default);
 }

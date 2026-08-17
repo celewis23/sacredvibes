@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clsx } from 'clsx'
 import {
-  LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, ShoppingBag,
+  LayoutDashboard, BookOpen, Image, Grid2x2, Calendar, CalendarDays, ShoppingBag,
   Users, Upload, MessageSquare, Settings, LogOut, Globe, Megaphone,
   BarChart2, ChevronRight, X, UserCog, Mail, PlayCircle, AlignJustify,
   FolderOpen, FileText,
@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth/context'
 import { isAdminRole } from '@/lib/auth/roles'
 import { toast } from 'sonner'
 import AdminAssistant from './AdminAssistant'
+import AdminPushOptIn from './AdminPushOptIn'
 
 interface NavItem {
   label: string
@@ -51,6 +52,7 @@ const navGroups: NavGroup[] = [
       { label: 'Services', href: '/admin/services', icon: ShoppingBag },
       { label: 'Events', href: '/admin/events', icon: Calendar },
       { label: 'Bookings', href: '/admin/bookings', icon: BarChart2 },
+      { label: 'Calendar', href: '/admin/calendar', icon: CalendarDays },
     ]
   },
   {
@@ -268,6 +270,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
       </nav>
 
       <AdminAssistant />
+      <AdminPushOptIn />
     </div>
   )
 }

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Net.Sockets;
@@ -16,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using MimeKit;
 using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Email.DTOs;
+using SacredVibes.Application.Features.Security;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
@@ -31,13 +31,20 @@ public class EmailMailboxService : IEmailMailboxService
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EmailMailboxService> _logger;
+    private readonly ICredentialProtector _credentialProtector;
 
-    public EmailMailboxService(AppDbContext db, IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<EmailMailboxService> logger)
+    public EmailMailboxService(
+        AppDbContext db,
+        IConfiguration config,
+        IHttpClientFactory httpClientFactory,
+        ILogger<EmailMailboxService> logger,
+        ICredentialProtector credentialProtector)
     {
         _db = db;
         _config = config;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
+        _credentialProtector = credentialProtector;
     }
 
     public async Task<EmailMailboxSettingsDto> GetSettingsAsync(CancellationToken ct = default)
@@ -66,7 +73,7 @@ public class EmailMailboxService : IEmailMailboxService
             Username = Normalize(request.Username),
             ProtectedPassword = string.IsNullOrWhiteSpace(request.Password)
                 ? existing.ProtectedPassword
-                : ProtectSecret(request.Password)
+                : _credentialProtector.Protect(request.Password)
         };
 
         setting.IsEnabled = request.IsEnabled;
@@ -116,6 +123,35 @@ public class EmailMailboxService : IEmailMailboxService
             await UpdateSyncResultAsync(false, ex.Message, ct);
             return new EmailTestResultDto { Success = false, Message = ex.Message };
         }
+    }
+
+    public async Task<int> PollForNewMessagesAsync(CancellationToken ct = default)
+    {
+        var resolved = await GetRequiredSettingsAsync(ct);
+        var setting = await GetOrCreateSettingAsync(ct);
+        var stored = ReadSettings(setting);
+
+        using var client = await CreateOpenImapClientAsync(resolved, resolved.ImapHost, resolved.ImapPort, resolved.ImapUseSsl, ct);
+        var inbox = client.Inbox;
+        await inbox.OpenAsync(FolderAccess.ReadOnly, ct);
+        var ids = await inbox.SearchAsync(SearchQuery.All, ct);
+        await client.DisconnectAsync(true, ct);
+
+        if (ids.Count == 0) return 0;
+
+        var highestUid = ids.Max(id => id.Id);
+        var lastSeenUid = stored.LastSeenImapUid;
+        // First run establishes a baseline rather than flagging the whole mailbox history as "new".
+        var newCount = lastSeenUid == 0 ? 0 : ids.Count(id => id.Id > lastSeenUid);
+
+        if (highestUid != lastSeenUid)
+        {
+            stored.LastSeenImapUid = highestUid;
+            setting.SettingsJson = JsonSerializer.Serialize(stored);
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return newCount;
     }
 
     public async Task<List<EmailFolderDto>> GetFoldersAsync(CancellationToken ct = default)
@@ -953,57 +989,8 @@ public class EmailMailboxService : IEmailMailboxService
         if (!string.IsNullOrWhiteSpace(env)) return env;
         if (string.IsNullOrWhiteSpace(settings.ProtectedPassword)) return string.Empty;
 
-        try { return UnprotectSecret(settings.ProtectedPassword); }
+        try { return _credentialProtector.Unprotect(settings.ProtectedPassword); }
         catch { return string.Empty; }
-    }
-
-    private string ProtectSecret(string value)
-    {
-        var key = GetCredentialKey();
-        var nonce = RandomNumberGenerator.GetBytes(12);
-        var plaintext = Encoding.UTF8.GetBytes(value);
-        var ciphertext = new byte[plaintext.Length];
-        var tag = new byte[16];
-
-        using var aes = new AesGcm(key, 16);
-        aes.Encrypt(nonce, plaintext, ciphertext, tag);
-
-        var payload = new byte[nonce.Length + tag.Length + ciphertext.Length];
-        Buffer.BlockCopy(nonce, 0, payload, 0, nonce.Length);
-        Buffer.BlockCopy(tag, 0, payload, nonce.Length, tag.Length);
-        Buffer.BlockCopy(ciphertext, 0, payload, nonce.Length + tag.Length, ciphertext.Length);
-        return $"v1:{Convert.ToBase64String(payload)}";
-    }
-
-    private string UnprotectSecret(string protectedValue)
-    {
-        if (!protectedValue.StartsWith("v1:", StringComparison.Ordinal))
-            return string.Empty;
-
-        var payload = Convert.FromBase64String(protectedValue[3..]);
-        if (payload.Length < 29) return string.Empty;
-
-        var nonce = payload[..12];
-        var tag = payload[12..28];
-        var ciphertext = payload[28..];
-        var plaintext = new byte[ciphertext.Length];
-
-        using var aes = new AesGcm(GetCredentialKey(), 16);
-        aes.Decrypt(nonce, ciphertext, tag, plaintext);
-        return Encoding.UTF8.GetString(plaintext);
-    }
-
-    private byte[] GetCredentialKey()
-    {
-        var secret = Environment.GetEnvironmentVariable("EMAIL_CREDENTIAL_KEY")
-            ?? _config["Email:CredentialKey"]
-            ?? Environment.GetEnvironmentVariable("Jwt__Secret")
-            ?? _config["Jwt:Secret"];
-
-        if (string.IsNullOrWhiteSpace(secret))
-            throw new InvalidOperationException("Email credential encryption key is not configured.");
-
-        return SHA256.HashData(Encoding.UTF8.GetBytes(secret));
     }
 
     private string GetResendApiKey() =>
@@ -1185,6 +1172,7 @@ public class EmailMailboxService : IEmailMailboxService
         public string Username { get; set; } = string.Empty;
         public string ProtectedPassword { get; set; } = string.Empty;
         public List<StoredEmailSignature> Signatures { get; set; } = new();
+        public uint LastSeenImapUid { get; set; }
     }
 
     private class ResolvedEmailSettings : StoredEmailSettings

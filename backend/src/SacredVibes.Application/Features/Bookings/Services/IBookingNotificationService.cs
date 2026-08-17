@@ -7,6 +7,10 @@ public interface IBookingNotificationService
     Task SendBookingCancelledAsync(BookingNotificationData data, CancellationToken ct = default);
     Task SendBookingUpdatedAsync(BookingNotificationData data, string oldServiceName, CancellationToken ct = default);
     Task SendAdminNewBookingAsync(BookingNotificationData data, CancellationToken ct = default);
+    Task SendBookingApprovedPendingPaymentAsync(BookingNotificationData data, string checkoutUrl, CancellationToken ct = default);
+    Task SendBookingPaymentConfirmedAsync(BookingNotificationData data, CancellationToken ct = default);
+    Task SendBookingDeniedAsync(BookingNotificationData data, CancellationToken ct = default);
+    Task SendBookingRescheduledAsync(BookingNotificationData data, DateTime? previousStartAt, CancellationToken ct = default);
 }
 
 public record BookingNotificationData(
@@ -19,5 +23,7 @@ public record BookingNotificationData(
     string BrandName,
     Guid BookingId,
     string? AdminNotes = null,
-    string? CancellationReason = null
+    string? CancellationReason = null,
+    DateTime? RequestedStartAt = null,
+    string? RequestedTimeZone = null
 );

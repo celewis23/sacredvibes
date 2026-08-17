@@ -162,6 +162,34 @@ public class EmailTemplateService : IEmailTemplateService
             new List<string> { "customerName", "customerEmail", "serviceName", "bookingType", "amount", "currency", "brandName", "bookingId" },
             BuildAdminNewBookingTemplate()
         ),
+        ["booking_approved_pending_payment"] = new(
+            "Booking Approved — Payment Link (Customer)",
+            "Sent to the customer when an admin approves their booking, with a link to pay and confirm.",
+            "Your booking is approved — complete payment to confirm",
+            new List<string> { "customerName", "serviceName", "requestedDate", "amount", "currency", "brandName", "checkoutUrl" },
+            BuildBookingApprovedPendingPaymentTemplate()
+        ),
+        ["booking_payment_confirmed"] = new(
+            "Payment Confirmed (Customer)",
+            "Sent to the customer once their payment for an approved booking is received.",
+            "You're all set — payment received for {{serviceName}}",
+            new List<string> { "customerName", "serviceName", "requestedDate", "amount", "currency", "brandName" },
+            BuildBookingPaymentConfirmedTemplate()
+        ),
+        ["booking_denied"] = new(
+            "Booking Denied (Customer)",
+            "Sent to the customer when an admin is unable to accommodate their booking request.",
+            "Update on your booking request — {{serviceName}}",
+            new List<string> { "customerName", "serviceName", "brandName", "cancellationReason" },
+            BuildBookingDeniedTemplate()
+        ),
+        ["booking_rescheduled"] = new(
+            "Booking Rescheduled (Customer)",
+            "Sent to the customer when an admin proposes a new time for their booking request.",
+            "A new time has been proposed for your booking",
+            new List<string> { "customerName", "serviceName", "requestedDate", "previousRequestedDate", "brandName" },
+            BuildBookingRescheduledTemplate()
+        ),
     };
 
     // ── Default HTML templates ─────────────────────────────────────────────────
@@ -330,6 +358,83 @@ public class EmailTemplateService : IEmailTemplateService
         <p style="margin:0;color:#736456;font-size:13px;">Log in to the admin panel to review and confirm this booking.</p>
         """,
         "Internal notification — do not reply directly to this email.");
+
+    private static string BuildBookingApprovedPendingPaymentTemplate() => WrapInLayout(
+        "Your booking is approved — complete payment to confirm your spot.",
+        "Healing &amp; Wellness",
+        $"""
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
+        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">Good news — we've checked our availability and your booking request has been approved for <strong>{Token("requestedDate")}</strong>. Complete payment below to lock in your spot.</p>
+
+        {BookingDetailsBox()}
+
+        <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 28px;">
+          <tr>
+            <td style="border-radius:6px;background-color:#5f5248;">
+              <a href="{Token("checkoutUrl")}" style="display:inline-block;padding:14px 28px;color:#f3f0eb;font-size:14px;font-weight:500;text-decoration:none;">Complete Payment</a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If you have any questions before completing payment, just reply to this email.</p>
+        <p style="margin:0;color:#736456;font-size:14px;line-height:1.7;">With love &amp; light,<br /><strong style="color:#5f5248;">The Sacred Vibes Team</strong></p>
+        """);
+
+    private static string BuildBookingPaymentConfirmedTemplate() => WrapInLayout(
+        "Payment received — you're fully confirmed!",
+        "Healing &amp; Wellness",
+        $"""
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
+        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">We've received your payment and you're fully confirmed for <strong>{Token("requestedDate")}</strong>. We can't wait to see you!</p>
+
+        {BookingDetailsBox()}
+
+        <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If you need to make any changes, please don't hesitate to reach out.</p>
+        <p style="margin:0;color:#736456;font-size:14px;line-height:1.7;">See you soon,<br /><strong style="color:#5f5248;">The Sacred Vibes Team</strong></p>
+        """);
+
+    private static string BuildBookingDeniedTemplate() => WrapInLayout(
+        "An update on your recent booking request.",
+        "Healing &amp; Wellness",
+        $"""
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
+        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">Thank you for your interest in <strong>{Token("serviceName")}</strong>. Unfortunately, we're not able to accommodate this particular request.</p>
+
+        <div id="reason-block" style="background-color:#faf9f7;border:1px solid #e8e2d9;border-radius:8px;padding:20px 24px;margin:0 0 28px;">
+          <p style="margin:0 0 4px;color:#a49280;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;">Note</p>
+          <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">{Token("cancellationReason")}</p>
+        </div>
+
+        <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">We'd love to find a time that works — please reply to this email and we'll help you find other availability.</p>
+        <p style="margin:0;color:#736456;font-size:14px;line-height:1.7;">With gratitude,<br /><strong style="color:#5f5248;">The Sacred Vibes Team</strong></p>
+        """);
+
+    private static string BuildBookingRescheduledTemplate() => WrapInLayout(
+        "We've proposed a new time for your booking request.",
+        "Healing &amp; Wellness",
+        $"""
+        <h2 style="margin:0 0 8px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">Hi {Token("customerName")},</h2>
+        <p style="margin:0 0 24px;color:#5f5248;font-size:15px;line-height:1.75;">We'd like to propose a new time for your <strong>{Token("serviceName")}</strong> booking request.</p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+          style="background-color:#faf9f7;border:1px solid #e8e2d9;border-radius:8px;margin:0 0 28px;">
+          <tr>
+            <td style="padding:20px 24px;">
+              <p style="margin:0 0 8px;color:#1c1714;font-size:14px;">
+                <span style="color:#736456;min-width:100px;display:inline-block;">Previously requested</span>
+                <span style="color:#a49280;text-decoration:line-through;">{Token("previousRequestedDate")}</span>
+              </p>
+              <p style="margin:0;color:#1c1714;font-size:14px;">
+                <span style="color:#736456;min-width:100px;display:inline-block;">New proposed time</span>
+                <strong>{Token("requestedDate")}</strong>
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If this new time works for you, no action is needed — we'll follow up to confirm. If not, just reply to this email and we'll find another time together.</p>
+        <p style="margin:0;color:#736456;font-size:14px;line-height:1.7;">With love &amp; light,<br /><strong style="color:#5f5248;">The Sacred Vibes Team</strong></p>
+        """);
 
     // ── Inner types ────────────────────────────────────────────────────────────
 

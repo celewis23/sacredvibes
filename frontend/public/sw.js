@@ -47,3 +47,36 @@ self.addEventListener('fetch', e => {
     )
   }
 })
+
+self.addEventListener('push', e => {
+  let data = {}
+  try { data = e.data ? e.data.json() : {} } catch { /* non-JSON payload, ignore */ }
+
+  const title = data.title || 'Sacred Vibes'
+  const options = {
+    body: data.body || '',
+    icon: '/api/pwa-icon?size=192',
+    badge: '/api/pwa-icon?size=96',
+    data: { url: data.url || '/admin' },
+  }
+
+  e.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = e.notification.data?.url || '/admin'
+
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      for (const client of clients) {
+        if (client.url.includes(url) && 'focus' in client) return client.focus()
+      }
+      if (clients.length > 0 && 'focus' in clients[0]) {
+        clients[0].navigate(url)
+        return clients[0].focus()
+      }
+      return self.clients.openWindow(url)
+    })
+  )
+})

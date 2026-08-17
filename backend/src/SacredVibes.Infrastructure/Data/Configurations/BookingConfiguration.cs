@@ -19,7 +19,9 @@ public class BookingConfiguration : IEntityTypeConfiguration<Booking>
         builder.Property(b => b.Status).HasConversion<int>();
         builder.Property(b => b.PaymentStatus).HasConversion<int>();
         builder.Property(b => b.BookingType).HasConversion<int>();
+        builder.Property(b => b.RequestedTimeZone).HasMaxLength(100);
         builder.HasIndex(b => b.Status);
+        builder.HasIndex(b => b.RequestedStartAt);
         builder.HasIndex(b => b.CustomerEmail);
         builder.HasOne(b => b.Brand).WithMany(br => br.Bookings).HasForeignKey(b => b.BrandId);
         builder.HasOne(b => b.ServiceOffering).WithMany(s => s.Bookings).HasForeignKey(b => b.ServiceOfferingId).IsRequired(false);
@@ -117,5 +119,19 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         builder.Property(r => r.Token).IsRequired().HasMaxLength(500);
         builder.HasIndex(r => r.Token);
         builder.HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId);
+    }
+}
+
+public class PushSubscriptionConfiguration : IEntityTypeConfiguration<PushSubscription>
+{
+    public void Configure(EntityTypeBuilder<PushSubscription> builder)
+    {
+        builder.ToTable("push_subscriptions");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Endpoint).IsRequired().HasMaxLength(1000);
+        builder.Property(p => p.P256dhKey).IsRequired().HasMaxLength(500);
+        builder.Property(p => p.AuthKey).IsRequired().HasMaxLength(500);
+        builder.HasIndex(p => p.Endpoint).IsUnique();
+        builder.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId);
     }
 }

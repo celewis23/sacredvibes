@@ -107,6 +107,53 @@ Endpoint: `POST /api/subscribers/import/stripe`
 
 ---
 
+## Booking Approval Workflow
+
+Customer booking requests no longer charge payment immediately. A request is created as `Pending`, admins review and act on it from Admin → Bookings:
+
+- **Approve** — generates a Square checkout link and emails it to the customer. The booking's requested date/time is what reserves the slot on the admin calendar (Admin → Calendar) immediately. Booking moves to `Confirmed`.
+- **Deny** — sends the customer a decline email with the optional reason. Booking moves to `Denied`.
+- **Reschedule** — proposes a new date/time and emails the customer. Booking stays `Pending`.
+
+Once the customer completes payment, the existing Square webhook flips the booking to `Paid` and sends a final "you're all set" email — no further admin action needed.
+
+Service bookings (massage, private sessions, etc.) now collect a requested date/time on the public booking form; event bookings still use the event's fixed `StartAt`/`EndAt`. Both feed the same admin calendar view.
+
+| Key | Description |
+|-----|-------------|
+| `Booking:CheckoutReturnUrl` / `CheckoutCancelUrl` | Where the customer lands after completing/cancelling the Square checkout sent on approval |
+
+---
+
+## Admin Calendar
+
+Admin → Calendar shows every booking with a scheduled date/time (`RequestedStartAt`/`RequestedEndAt`, or the event's own dates) in a month view, color-coded by status. It's built directly from booking data — no external account or sync required. Clicking a booking opens its details, and Pending bookings can be approved, denied, or rescheduled right from the calendar.
+
+Endpoint: `GET /api/bookings/calendar?start=&end=` — returns non-cancelled/non-denied bookings whose scheduled date falls within the given range.
+
+---
+
+## Push Notifications (Admin Alerts)
+
+Admins get a browser push notification when a new booking request comes in or new mail arrives in the studio inbox. This is standard Web Push (VAPID) — no native app involved. On iPhone, Safari only delivers push notifications to an installed PWA, so the admin needs to **Add to Home Screen** once for reliable delivery on mobile.
+
+### Setup
+
+1. Generate a VAPID key pair: `npx web-push generate-vapid-keys`.
+2. Set the keys below and deploy.
+3. In the admin panel, accept the "Enable notifications" prompt (or trigger it again by clearing the `sv-push-opt-in-dismissed` localStorage key).
+
+### Required Configuration
+
+| Key | Description |
+|-----|-------------|
+| `Push:VapidPublicKey` / `PUSH_VAPID_PUBLIC_KEY` | VAPID public key |
+| `Push:VapidPrivateKey` / `PUSH_VAPID_PRIVATE_KEY` | VAPID private key — keep secret |
+| `Push:VapidSubject` / `PUSH_VAPID_SUBJECT` | Contact URI Google/Apple push services can reach you at if there's an issue, e.g. `mailto:info@sacredvibesyoga.com` |
+| `Email:PollingIntervalSeconds` / `EMAIL_POLLING_INTERVAL_SECONDS` | How often the backend checks the inbox for new mail (default 120s) |
+
+---
+
 ## Eventbrite (Event Sync)
 
 Eventbrite is used for event discovery, registration, and ticketing. Sacred Vibes can import Eventbrite events into the website, push local admin events to Eventbrite, and link synced website events back to their Eventbrite registration page.

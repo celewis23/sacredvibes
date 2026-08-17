@@ -136,6 +136,18 @@ export const bookingsApi = {
 
   adminDeleteBooking: (id: string) =>
     apiClient.delete<ApiResponse<boolean>>(`/bookings/${id}`),
+
+  adminApprove: (id: string, confirmRequestedStartAt?: string) =>
+    apiClient.post<ApiResponse<Booking>>(`/bookings/${id}/approve`, { confirmRequestedStartAt }),
+
+  adminDeny: (id: string, reason?: string) =>
+    apiClient.post<ApiResponse<Booking>>(`/bookings/${id}/deny`, { reason }),
+
+  adminReschedule: (id: string, newStartAt: string, newEndAt?: string, timeZone?: string) =>
+    apiClient.post<ApiResponse<Booking>>(`/bookings/${id}/reschedule`, { newStartAt, newEndAt, timeZone }),
+
+  getCalendarBookings: (start: string, end: string) =>
+    apiClient.get<ApiResponse<Booking[]>>('/bookings/calendar', { params: { start, end } }),
 }
 
 // ── Email Templates ────────────────────────────────────────────────────────────
@@ -220,6 +232,19 @@ export const settingsApi = {
     imageModel: string
     apiKey?: string
   }) => apiClient.put<ApiResponse<AdminAssistantSettings>>('/settings/admin-assistant', data),
+}
+
+// ── Push Notifications ───────────────────────────────────────────────────────
+
+export const pushApi = {
+  getVapidPublicKey: () =>
+    apiClient.get<ApiResponse<string>>('/push/vapid-public-key'),
+
+  subscribe: (data: { endpoint: string; p256dhKey: string; authKey: string }) =>
+    apiClient.post('/push/subscribe', data),
+
+  unsubscribe: (endpoint: string) =>
+    apiClient.delete('/push/subscribe', { params: { endpoint } }),
 }
 
 // ── Offerings (Admin) ─────────────────────────────────────────────────────────

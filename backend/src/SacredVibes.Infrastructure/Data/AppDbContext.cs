@@ -56,6 +56,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<WebhookEvent> WebhookEvents => Set<WebhookEvent>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PushSubscription> PushSubscriptions => Set<PushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

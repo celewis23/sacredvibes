@@ -127,6 +127,86 @@ public class BookingNotificationService : IBookingNotificationService
         }, "admin_new_booking", AdminEmail);
     }
 
+    public async Task SendBookingApprovedPendingPaymentAsync(BookingNotificationData data, string checkoutUrl, CancellationToken ct = default)
+    {
+        await SendSafeAsync(async () =>
+        {
+            var template = await _templates.GetTemplateAsync("booking_approved_pending_payment", ct);
+            if (template is null) return;
+
+            var vars = BaseVars(data);
+            vars["checkoutUrl"] = checkoutUrl;
+
+            await _email.SendAsync(new SendEmailRequest
+            {
+                To = [data.CustomerEmail],
+                Subject = _templates.Render(template.Subject, vars),
+                Body = _templates.Render(template.HtmlBody, vars),
+                IsHtml = true
+            }, ct);
+        }, "booking_approved_pending_payment", data.CustomerEmail);
+    }
+
+    public async Task SendBookingPaymentConfirmedAsync(BookingNotificationData data, CancellationToken ct = default)
+    {
+        await SendSafeAsync(async () =>
+        {
+            var template = await _templates.GetTemplateAsync("booking_payment_confirmed", ct);
+            if (template is null) return;
+
+            var vars = BaseVars(data);
+            await _email.SendAsync(new SendEmailRequest
+            {
+                To = [data.CustomerEmail],
+                Subject = _templates.Render(template.Subject, vars),
+                Body = _templates.Render(template.HtmlBody, vars),
+                IsHtml = true
+            }, ct);
+        }, "booking_payment_confirmed", data.CustomerEmail);
+    }
+
+    public async Task SendBookingDeniedAsync(BookingNotificationData data, CancellationToken ct = default)
+    {
+        await SendSafeAsync(async () =>
+        {
+            var template = await _templates.GetTemplateAsync("booking_denied", ct);
+            if (template is null) return;
+
+            var vars = BaseVars(data);
+            vars["cancellationReason"] = string.IsNullOrWhiteSpace(data.CancellationReason)
+                ? "Please reach out if you'd like to discuss other availability."
+                : data.CancellationReason;
+
+            await _email.SendAsync(new SendEmailRequest
+            {
+                To = [data.CustomerEmail],
+                Subject = _templates.Render(template.Subject, vars),
+                Body = _templates.Render(template.HtmlBody, vars),
+                IsHtml = true
+            }, ct);
+        }, "booking_denied", data.CustomerEmail);
+    }
+
+    public async Task SendBookingRescheduledAsync(BookingNotificationData data, DateTime? previousStartAt, CancellationToken ct = default)
+    {
+        await SendSafeAsync(async () =>
+        {
+            var template = await _templates.GetTemplateAsync("booking_rescheduled", ct);
+            if (template is null) return;
+
+            var vars = BaseVars(data);
+            vars["previousRequestedDate"] = FormatRequestedDate(previousStartAt, data.RequestedTimeZone);
+
+            await _email.SendAsync(new SendEmailRequest
+            {
+                To = [data.CustomerEmail],
+                Subject = _templates.Render(template.Subject, vars),
+                Body = _templates.Render(template.HtmlBody, vars),
+                IsHtml = true
+            }, ct);
+        }, "booking_rescheduled", data.CustomerEmail);
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     private static Dictionary<string, string> BaseVars(BookingNotificationData data)
@@ -148,7 +228,15 @@ public class BookingNotificationService : IBookingNotificationService
             ["bookingId"] = data.BookingId.ToString("N")[..8].ToUpperInvariant(),
             ["adminNotes"] = data.AdminNotes ?? string.Empty,
             ["cancellationReason"] = data.CancellationReason ?? string.Empty,
+            ["requestedDate"] = FormatRequestedDate(data.RequestedStartAt, data.RequestedTimeZone),
         };
+    }
+
+    private static string FormatRequestedDate(DateTime? startAt, string? timeZone)
+    {
+        if (!startAt.HasValue) return "a time to be confirmed";
+        var formatted = startAt.Value.ToString("dddd, MMMM d 'at' h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+        return string.IsNullOrWhiteSpace(timeZone) ? formatted : $"{formatted} ({timeZone})";
     }
 
     private static string FormatBookingType(string raw) =>

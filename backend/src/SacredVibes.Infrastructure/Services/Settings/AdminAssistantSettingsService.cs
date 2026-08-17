@@ -1,8 +1,7 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using SacredVibes.Application.Features.Security;
 using SacredVibes.Application.Features.Settings;
 using SacredVibes.Application.Features.Settings.DTOs;
 using SacredVibes.Domain.Entities;
@@ -17,11 +16,13 @@ public class AdminAssistantSettingsService : IAdminAssistantSettingsService
     private const string Anthropic = "Anthropic";
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
+    private readonly ICredentialProtector _credentialProtector;
 
-    public AdminAssistantSettingsService(AppDbContext db, IConfiguration config)
+    public AdminAssistantSettingsService(AppDbContext db, IConfiguration config, ICredentialProtector credentialProtector)
     {
         _db = db;
         _config = config;
+        _credentialProtector = credentialProtector;
     }
 
     public async Task<AdminAssistantSettingsDto> GetSettingsAsync(CancellationToken ct = default)
@@ -45,7 +46,7 @@ public class AdminAssistantSettingsService : IAdminAssistantSettingsService
             ImageModel = Normalize(request.ImageModel) is { Length: > 0 } imageModel ? imageModel : DefaultImageModel(),
             ProtectedApiKey = string.IsNullOrWhiteSpace(request.ApiKey)
                 ? existing.ProtectedApiKey
-                : ProtectSecret(request.ApiKey.Trim())
+                : _credentialProtector.Protect(request.ApiKey.Trim())
         };
 
         setting.IsEnabled = request.IsEnabled;
@@ -147,7 +148,7 @@ public class AdminAssistantSettingsService : IAdminAssistantSettingsService
         if (!string.IsNullOrWhiteSpace(providerKey)) return providerKey;
 
         if (string.IsNullOrWhiteSpace(stored.ProtectedApiKey)) return string.Empty;
-        try { return UnprotectSecret(stored.ProtectedApiKey); }
+        try { return _credentialProtector.Unprotect(stored.ProtectedApiKey); }
         catch { return string.Empty; }
     }
 
@@ -178,57 +179,6 @@ public class AdminAssistantSettingsService : IAdminAssistantSettingsService
     private static string DefaultImageModel() => "gpt-image-2";
 
     private static string Normalize(string? value) => value?.Trim() ?? string.Empty;
-
-    private string ProtectSecret(string value)
-    {
-        var key = GetCredentialKey();
-        var nonce = RandomNumberGenerator.GetBytes(12);
-        var plaintext = Encoding.UTF8.GetBytes(value);
-        var ciphertext = new byte[plaintext.Length];
-        var tag = new byte[16];
-
-        using var aes = new AesGcm(key, 16);
-        aes.Encrypt(nonce, plaintext, ciphertext, tag);
-
-        var payload = new byte[nonce.Length + tag.Length + ciphertext.Length];
-        Buffer.BlockCopy(nonce, 0, payload, 0, nonce.Length);
-        Buffer.BlockCopy(tag, 0, payload, nonce.Length, tag.Length);
-        Buffer.BlockCopy(ciphertext, 0, payload, nonce.Length + tag.Length, ciphertext.Length);
-        return $"v1:{Convert.ToBase64String(payload)}";
-    }
-
-    private string UnprotectSecret(string protectedValue)
-    {
-        if (!protectedValue.StartsWith("v1:", StringComparison.Ordinal))
-            return string.Empty;
-
-        var payload = Convert.FromBase64String(protectedValue[3..]);
-        if (payload.Length < 29) return string.Empty;
-
-        var nonce = payload[..12];
-        var tag = payload[12..28];
-        var ciphertext = payload[28..];
-        var plaintext = new byte[ciphertext.Length];
-
-        using var aes = new AesGcm(GetCredentialKey(), 16);
-        aes.Decrypt(nonce, ciphertext, tag, plaintext);
-        return Encoding.UTF8.GetString(plaintext);
-    }
-
-    private byte[] GetCredentialKey()
-    {
-        var secret = Environment.GetEnvironmentVariable("ADMIN_ASSISTANT_CREDENTIAL_KEY")
-            ?? _config["AdminAssistant:CredentialKey"]
-            ?? Environment.GetEnvironmentVariable("EMAIL_CREDENTIAL_KEY")
-            ?? _config["Email:CredentialKey"]
-            ?? Environment.GetEnvironmentVariable("Jwt__Secret")
-            ?? _config["Jwt:Secret"];
-
-        if (string.IsNullOrWhiteSpace(secret))
-            throw new InvalidOperationException("Admin assistant credential encryption key is not configured.");
-
-        return SHA256.HashData(Encoding.UTF8.GetBytes(secret));
-    }
 
     private class StoredAdminAssistantSettings
     {

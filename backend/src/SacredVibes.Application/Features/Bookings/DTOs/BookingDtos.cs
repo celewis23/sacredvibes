@@ -25,8 +25,12 @@ public class BookingDto
     public string? ExternalPaymentProvider { get; set; }
     public string? ExternalPaymentId { get; set; }
     public string? ExternalCheckoutUrl { get; set; }
+    public DateTime? RequestedStartAt { get; set; }
+    public DateTime? RequestedEndAt { get; set; }
+    public string? RequestedTimeZone { get; set; }
     public DateTime? ConfirmedAt { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public string? CancellationReason { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<PaymentRecordDto> PaymentRecords { get; set; } = new();
 }
@@ -57,8 +61,29 @@ public class CreateBookingRequest
     public string Currency { get; set; } = "USD";
     public string? Notes { get; set; }
     public string? ReferralSource { get; set; }
+    // Requested appointment slot — required for service bookings (events carry their own date)
+    public DateTime? RequestedStartAt { get; set; }
+    public DateTime? RequestedEndAt { get; set; }
+    public string? RequestedTimeZone { get; set; }
     // Honeypot — must be empty; bots fill this field
     public string? Website { get; set; }
+}
+
+public record ApproveBookingRequest
+{
+    public DateTime? ConfirmRequestedStartAt { get; set; }
+}
+
+public record DenyBookingRequest
+{
+    public string? Reason { get; set; }
+}
+
+public record RescheduleBookingRequest
+{
+    public DateTime NewStartAt { get; set; }
+    public DateTime? NewEndAt { get; set; }
+    public string? TimeZone { get; set; }
 }
 
 public class UpdateBookingRequest

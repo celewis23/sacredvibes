@@ -18,6 +18,8 @@ const schema = z.object({
   customerEmail: z.string().email('Valid email required'),
   customerPhone: z.string().optional(),
   customerNotes: z.string().max(500).optional(),
+  requestedDate: z.string().optional(),
+  requestedTime: z.string().optional(),
   website: z.string().optional(),
 })
 
@@ -271,6 +273,7 @@ function BookingInner() {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    setError,
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const offering = selectedService ?? selectedEvent
@@ -308,6 +311,21 @@ function BookingInner() {
 
   const onSubmit = async (data: FormData) => {
     if (!offering) return
+
+    let requestedStartAt: string | undefined
+    if (selectedService) {
+      if (!data.requestedDate || !data.requestedTime) {
+        setError('requestedDate', { message: 'Please choose a date and time' })
+        return
+      }
+      const parsed = new Date(`${data.requestedDate}T${data.requestedTime}`)
+      if (Number.isNaN(parsed.getTime())) {
+        setError('requestedDate', { message: 'Please choose a valid date and time' })
+        return
+      }
+      requestedStartAt = parsed.toISOString()
+    }
+
     setStage('processing')
     try {
       const bookingRes = await bookingsApi.createBooking({
@@ -321,30 +339,13 @@ function BookingInner() {
         eventOfferingId: selectedEvent?.id,
         amount: price,
         currency,
+        requestedStartAt,
+        requestedTimeZone: selectedService ? Intl.DateTimeFormat().resolvedOptions().timeZone : undefined,
         website: data.website,
       })
 
       const booking = bookingRes.data.data
       if (!booking) throw new Error('No booking returned')
-
-      if (!isFree) {
-        const origin = window.location.origin
-        const confirmationPath = toBrandPath(brandSlug, `/booking/confirmation?bookingId=${booking.id}`)
-        const cancelPath = toBrandPath(
-          brandSlug,
-          `/booking?${selectedService ? `serviceId=${selectedService.id}` : `eventId=${selectedEvent?.id}`}`
-        )
-        const checkoutRes = await bookingsApi.createCheckout(
-          booking.id,
-          `${origin}${confirmationPath}`,
-          `${origin}${cancelPath}`
-        )
-        const checkoutUrl = checkoutRes.data.data?.checkoutUrl
-        if (checkoutUrl) {
-          window.location.href = checkoutUrl
-          return
-        }
-      }
 
       router.push(toBrandPath(brandSlug, `/booking/confirmation?bookingId=${booking.id}`))
     } catch (err) {
@@ -526,6 +527,32 @@ function BookingInner() {
               </div>
             </div>
 
+            {selectedService && (
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-medium text-sacred-800 mb-1">Preferred Date *</label>
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split('T')[0]}
+                    {...register('requestedDate')}
+                    className="w-full px-4 py-2.5 border border-sacred-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  />
+                  {errors.requestedDate && <p className="text-red-500 text-xs mt-1">{errors.requestedDate.message}</p>}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-sacred-800 mb-1">Preferred Time *</label>
+                  <input
+                    type="time"
+                    {...register('requestedTime')}
+                    className="w-full px-4 py-2.5 border border-sacred-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  />
+                </div>
+                <p className="sm:col-span-2 text-xs text-sacred-500 -mt-1">
+                  This is your requested time — we&apos;ll confirm availability before your booking is finalized.
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium text-sacred-800 mb-1">Notes for Your Practitioner</label>
               <textarea
@@ -539,7 +566,7 @@ function BookingInner() {
             <div className="pt-2">
               {!isFree && (
                 <p className="text-xs text-sacred-500 mb-4">
-                  You&apos;ll be taken to our secure Square checkout after submitting.
+                  We&apos;ll review your request and, once approved, email you a secure payment link to confirm your {formatPrice(price, offering?.priceType ?? 'Fixed', currency)} booking.
                 </p>
               )}
               <button
@@ -547,11 +574,7 @@ function BookingInner() {
                 disabled={isSubmitting}
                 className="w-full py-3.5 bg-sacred-800 text-white font-medium rounded-full hover:bg-sacred-900 disabled:opacity-50 transition-colors"
               >
-                {isSubmitting
-                  ? 'Submitting…'
-                  : isFree
-                    ? 'Confirm Booking'
-                    : `Proceed to Payment — ${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(price)}`}
+                {isSubmitting ? 'Submitting…' : isFree ? 'Confirm Booking' : 'Request Booking'}
               </button>
             </div>
           </form>

@@ -14,6 +14,14 @@ const BOOKING_STATUS_COLORS: Record<BookingStatus, string> = {
   Completed: 'bg-sacred-100 text-sacred-700',
   Refunded: 'bg-orange-100 text-orange-700',
   NoShow: 'bg-red-100 text-red-700',
+  Denied: 'bg-rose-100 text-rose-700',
+}
+
+function formatRequested(value?: string) {
+  if (!value) return '—'
+  return new Date(value).toLocaleString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
 }
 
 const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
@@ -46,7 +54,7 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, onDelete, 
   const [amount, setAmount] = useState(booking.amount.toString())
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
+  const STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow', 'Denied']
 
   const { data: servicesData } = useQuery({
     queryKey: ['booking-services-all'],
@@ -233,11 +241,78 @@ function BookingModal({ booking, onClose, onSaveStatus, onSaveRebook, onDelete, 
   )
 }
 
+interface RescheduleModalProps {
+  booking: Booking
+  onClose: () => void
+  onSave: (newStartAt: string, timeZone: string) => void
+  isPending: boolean
+}
+
+function RescheduleModal({ booking, onClose, onSave, isPending }: RescheduleModalProps) {
+  const current = booking.requestedStartAt ? new Date(booking.requestedStartAt) : new Date()
+  const [date, setDate] = useState(current.toISOString().split('T')[0])
+  const [time, setTime] = useState(current.toISOString().split('T')[1]?.slice(0, 5) ?? '10:00')
+
+  const handleSave = () => {
+    const parsed = new Date(`${date}T${time}`)
+    if (Number.isNaN(parsed.getTime())) {
+      toast.error('Please choose a valid date and time')
+      return
+    }
+    onSave(parsed.toISOString(), Intl.DateTimeFormat().resolvedOptions().timeZone)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Propose New Time</h2>
+          <p className="text-sm text-gray-500 mt-0.5">{booking.customerName} — {booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">New Time</label>
+            <input
+              type="time"
+              value={time}
+              onChange={e => setTime(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+          </div>
+          <p className="text-xs text-gray-400">The customer will be emailed with the proposed new time.</p>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50 transition-colors"
+          >
+            {isPending ? 'Saving...' : 'Send Proposed Time'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminBookingsPage() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState('')
   const [editing, setEditing] = useState<Booking | null>(null)
+  const [rescheduling, setRescheduling] = useState<Booking | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-bookings', page, statusFilter],
@@ -283,11 +358,40 @@ export default function AdminBookingsPage() {
     onError: () => toast.error('Failed to delete booking'),
   })
 
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => bookingsApi.adminApprove(id),
+    onSuccess: () => {
+      toast.success('Booking approved — payment link sent to customer')
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] })
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Failed to approve booking'),
+  })
+
+  const denyMutation = useMutation({
+    mutationFn: (id: string) => bookingsApi.adminDeny(id),
+    onSuccess: () => {
+      toast.success('Booking denied — customer notified')
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] })
+    },
+    onError: () => toast.error('Failed to deny booking'),
+  })
+
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ id, newStartAt, timeZone }: { id: string; newStartAt: string; timeZone: string }) =>
+      bookingsApi.adminReschedule(id, newStartAt, undefined, timeZone),
+    onSuccess: () => {
+      toast.success('New time proposed — customer notified')
+      queryClient.invalidateQueries({ queryKey: ['admin-bookings'] })
+      setRescheduling(null)
+    },
+    onError: () => toast.error('Failed to propose new time'),
+  })
+
   const bookings = data?.items ?? []
   const total = data?.totalCount ?? 0
   const totalPages = data?.totalPages ?? 1
 
-  const BOOKING_STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow']
+  const BOOKING_STATUSES: BookingStatus[] = ['Pending', 'Confirmed', 'Paid', 'Cancelled', 'Completed', 'Refunded', 'NoShow', 'Denied']
 
   return (
     <div className="p-6 lg:p-8">
@@ -301,6 +405,15 @@ export default function AdminBookingsPage() {
           isStatusPending={updateMutation.isPending}
           isRebookPending={rebookMutation.isPending}
           isDeletePending={deleteMutation.isPending}
+        />
+      )}
+
+      {rescheduling && (
+        <RescheduleModal
+          booking={rescheduling}
+          onClose={() => setRescheduling(null)}
+          onSave={(newStartAt, timeZone) => rescheduleMutation.mutate({ id: rescheduling.id, newStartAt, timeZone })}
+          isPending={rescheduleMutation.isPending}
         />
       )}
 
@@ -331,11 +444,13 @@ export default function AdminBookingsPage() {
           <>
             <div className="divide-y divide-gray-100 md:hidden">
               {bookings.map(booking => (
-                <button
+                <div
                   key={booking.id}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setEditing(booking)}
-                  className="block w-full px-4 py-4 text-left hover:bg-gray-50 transition-colors"
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setEditing(booking) }}
+                  className="block w-full px-4 py-4 text-left hover:bg-gray-50 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -349,7 +464,7 @@ export default function AdminBookingsPage() {
                   <div className="mt-3 space-y-1 text-xs text-gray-500">
                     <div className="flex justify-between gap-3">
                       <span className="truncate">{booking.brandName}</span>
-                      <span className="shrink-0">{new Date(booking.createdAt).toLocaleDateString()}</span>
+                      <span className="shrink-0">Requested: {formatRequested(booking.requestedStartAt)}</span>
                     </div>
                     <div className="flex justify-between gap-3">
                       <span className="truncate">{booking.serviceOfferingName ?? booking.eventOfferingName ?? booking.bookingType}</span>
@@ -365,7 +480,31 @@ export default function AdminBookingsPage() {
                       </span>
                     </div>
                   </div>
-                </button>
+                  {booking.status === 'Pending' && (
+                    <div className="mt-3 flex gap-2" onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => approveMutation.mutate(booking.id)}
+                        disabled={approveMutation.isPending}
+                        className="flex-1 px-2.5 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => setRescheduling(booking)}
+                        className="flex-1 px-2.5 py-1.5 text-xs text-sacred-700 border border-sacred-300 rounded hover:bg-sacred-50 transition-colors"
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        onClick={() => denyMutation.mutate(booking.id)}
+                        disabled={denyMutation.isPending}
+                        className="flex-1 px-2.5 py-1.5 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        Deny
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
 
@@ -377,6 +516,7 @@ export default function AdminBookingsPage() {
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Booking Status</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Payment</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Amount</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Requested</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
                 <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
               </tr>
@@ -413,16 +553,45 @@ export default function AdminBookingsPage() {
                       ? new Intl.NumberFormat('en-US', { style: 'currency', currency: booking.currency }).format(booking.amount)
                       : 'Free'}
                   </td>
+                  <td className="px-4 py-3 text-gray-700 text-xs">
+                    {formatRequested(booking.requestedStartAt)}
+                  </td>
                   <td className="px-4 py-3 text-gray-500 text-xs">
                     {new Date(booking.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setEditing(booking) }}
-                      className="px-2.5 py-1 text-xs text-sacred-700 border border-sacred-300 rounded hover:bg-sacred-50 transition-colors"
-                    >
-                      Update
-                    </button>
+                    <div className="flex justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                      {booking.status === 'Pending' && (
+                        <>
+                          <button
+                            onClick={() => approveMutation.mutate(booking.id)}
+                            disabled={approveMutation.isPending}
+                            className="px-2.5 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => setRescheduling(booking)}
+                            className="px-2.5 py-1 text-xs text-sacred-700 border border-sacred-300 rounded hover:bg-sacred-50 transition-colors"
+                          >
+                            Reschedule
+                          </button>
+                          <button
+                            onClick={() => denyMutation.mutate(booking.id)}
+                            disabled={denyMutation.isPending}
+                            className="px-2.5 py-1 text-xs text-red-600 border border-red-200 rounded hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          >
+                            Deny
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => setEditing(booking)}
+                        className="px-2.5 py-1 text-xs text-gray-600 border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        Update
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

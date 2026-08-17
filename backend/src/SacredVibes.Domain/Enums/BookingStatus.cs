@@ -8,5 +8,6 @@ public enum BookingStatus
     Cancelled = 3,
     Completed = 4,
     Refunded = 5,
-    NoShow = 6
+    NoShow = 6,
+    Denied = 7
 }

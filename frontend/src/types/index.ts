@@ -261,7 +261,7 @@ export interface EventbriteDiagnosticsResult {
 
 // ── Bookings ──────────────────────────────────────────────────────────────────
 
-export type BookingStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Cancelled' | 'Completed' | 'Refunded' | 'NoShow'
+export type BookingStatus = 'Pending' | 'Confirmed' | 'Paid' | 'Cancelled' | 'Completed' | 'Refunded' | 'NoShow' | 'Denied'
 export type PaymentStatus = 'Pending' | 'Processing' | 'Completed' | 'Failed' | 'Refunded' | 'PartiallyRefunded' | 'Cancelled'
 export type BookingType = 'YogaClass' | 'YogaWorkshop' | 'YogaEvent' | 'MassageService' | 'SoundHealingClass' | 'SoundHealingWorkshop' | 'SoundHealingEvent' | 'SoundOnTheRiver' | 'General'
 
@@ -278,6 +278,9 @@ export interface BookingRequest {
   currency?: string
   notes?: string
   referralSource?: string
+  requestedStartAt?: string
+  requestedEndAt?: string
+  requestedTimeZone?: string
   website?: string
 }
 
@@ -299,7 +302,12 @@ export interface Booking {
   currency: string
   externalCheckoutUrl?: string
   adminNotes?: string
+  requestedStartAt?: string
+  requestedEndAt?: string
+  requestedTimeZone?: string
   confirmedAt?: string
+  cancelledAt?: string
+  cancellationReason?: string
   createdAt: string
 }
 

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using SacredVibes.Application.Common.Interfaces;
@@ -13,6 +14,8 @@ using SacredVibes.Application.Features.EmailTemplates;
 using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Payments;
+using SacredVibes.Application.Features.Push;
+using SacredVibes.Application.Features.Security;
 using SacredVibes.Application.Features.Settings;
 using SacredVibes.Application.Features.Studio;
 using SacredVibes.Application.Features.Subscriptions;
@@ -26,6 +29,8 @@ using SacredVibes.Infrastructure.Services.Email;
 using SacredVibes.Infrastructure.Services.EmailTemplates;
 using SacredVibes.Infrastructure.Services.Eventbrite;
 using SacredVibes.Infrastructure.Services.ImageProcessing;
+using SacredVibes.Infrastructure.Services.Push;
+using SacredVibes.Infrastructure.Services.Security;
 using SacredVibes.Infrastructure.Services.Settings;
 using SacredVibes.Infrastructure.Services.Square;
 using SacredVibes.Infrastructure.Services.Storage;
@@ -94,8 +99,8 @@ public static class DependencyInjection
             client.BaseAddress = new Uri("https://api.resend.com");
             client.Timeout = TimeSpan.FromSeconds(60);
         });
-
         // Core services
+        services.AddSingleton<ICredentialProtector, CredentialProtectionService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IStorageService, LocalStorageService>();
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
@@ -109,6 +114,8 @@ public static class DependencyInjection
         services.AddScoped<IStudioService, StudioService>();
         services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
         services.AddScoped<IAdminAssistantSettingsService, AdminAssistantSettingsService>();
+        services.AddScoped<IPushNotificationService, PushNotificationService>();
+        services.AddHostedService<EmailPollingBackgroundService>();
 
         return services;
     }

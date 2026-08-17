@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SacredVibes.Application.Features.Bookings.DTOs;
+using SacredVibes.Application.Features.Bookings.Services;
 using SacredVibes.Application.Features.Payments;
 using SacredVibes.Application.Features.Subscribers.DTOs;
 using SacredVibes.Domain.Entities;
@@ -27,6 +28,7 @@ public class SquareService : ISquareService
     private readonly ILogger<SquareService> _logger;
     private readonly AppDbContext _db;
     private readonly HttpClient _http;
+    private readonly IBookingNotificationService _notifications;
 
     private string AccessToken => _config["Square:AccessToken"] ?? throw new InvalidOperationException("Square:AccessToken not configured");
     private string LocationId => _config["Square:LocationId"] ?? throw new InvalidOperationException("Square:LocationId not configured");
@@ -35,12 +37,18 @@ public class SquareService : ISquareService
     private string BaseUrl => IsSandbox ? "https://connect.squareupsandbox.com" : "https://connect.squareup.com";
     private const string SquareVersion = "2026-01-22";
 
-    public SquareService(IConfiguration config, ILogger<SquareService> logger, AppDbContext db, IHttpClientFactory httpClientFactory)
+    public SquareService(
+        IConfiguration config,
+        ILogger<SquareService> logger,
+        AppDbContext db,
+        IHttpClientFactory httpClientFactory,
+        IBookingNotificationService notifications)
     {
         _config = config;
         _logger = logger;
         _db = db;
         _http = httpClientFactory.CreateClient("Square");
+        _notifications = notifications;
     }
 
     public async Task<CheckoutResponse> CreateCheckoutAsync(CreateCheckoutRequest request, BookingDto booking, CancellationToken ct = default)
@@ -246,10 +254,14 @@ public class SquareService : ISquareService
         // Try to find associated booking by ExternalPaymentId or by reference_id
         Booking? booking = null;
         if (squarePaymentId is not null)
-            booking = await _db.Bookings.FirstOrDefaultAsync(b => b.ExternalPaymentId == squarePaymentId, ct);
+            booking = await _db.Bookings
+                .Include(b => b.Brand).Include(b => b.ServiceOffering).Include(b => b.EventOffering)
+                .FirstOrDefaultAsync(b => b.ExternalPaymentId == squarePaymentId, ct);
 
         if (booking is null && referenceId is not null && Guid.TryParse(referenceId, out var bookingId))
-            booking = await _db.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId, ct);
+            booking = await _db.Bookings
+                .Include(b => b.Brand).Include(b => b.ServiceOffering).Include(b => b.EventOffering)
+                .FirstOrDefaultAsync(b => b.Id == bookingId, ct);
 
         if (booking is not null)
         {
@@ -265,6 +277,7 @@ public class SquareService : ISquareService
             {
                 booking.Status = BookingStatus.Paid;
                 booking.ConfirmedAt ??= DateTime.UtcNow;
+                await NotifyPaymentConfirmedAsync(booking, ct);
             }
 
             // Create or update payment record
@@ -286,6 +299,28 @@ public class SquareService : ISquareService
         }
 
         return squarePaymentId;
+    }
+
+    // Best-effort: an email failure must never break webhook processing, since Square
+    // expects a prompt 200 and may retry an unacked webhook.
+    private async Task NotifyPaymentConfirmedAsync(Booking booking, CancellationToken ct)
+    {
+        var serviceName = booking.ServiceOffering?.Name ?? booking.EventOffering?.Name ?? booking.BookingType.ToString();
+        var requestedStartAt = booking.RequestedStartAt ?? booking.EventOffering?.StartAt;
+        var requestedTimeZone = booking.RequestedTimeZone ?? booking.EventOffering?.TimeZone;
+
+        await _notifications.SendBookingPaymentConfirmedAsync(new BookingNotificationData(
+            CustomerName: booking.CustomerName,
+            CustomerEmail: booking.CustomerEmail,
+            ServiceName: serviceName,
+            BookingType: booking.BookingType.ToString(),
+            Amount: booking.Amount,
+            Currency: booking.Currency,
+            BrandName: booking.Brand?.Name ?? string.Empty,
+            BookingId: booking.Id,
+            RequestedStartAt: requestedStartAt,
+            RequestedTimeZone: requestedTimeZone
+        ), ct);
     }
 
     private async Task<string?> HandleOrderEventAsync(JsonElement root, CancellationToken ct)
