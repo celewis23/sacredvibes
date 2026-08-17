@@ -4,9 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SacredVibes.Application.Features.Push;
-using SacredVibes.Domain.Entities;
 using SacredVibes.Infrastructure.Data;
 using WebPush;
+using PushSubscriptionEntity = SacredVibes.Domain.Entities.PushSubscription;
 
 namespace SacredVibes.Infrastructure.Services.Push;
 
@@ -35,7 +35,7 @@ public class PushNotificationService : IPushNotificationService
         }
         else
         {
-            await _db.PushSubscriptions.AddAsync(new PushSubscription
+            await _db.PushSubscriptions.AddAsync(new PushSubscriptionEntity
             {
                 UserId = userId,
                 Endpoint = request.Endpoint,
@@ -77,7 +77,7 @@ public class PushNotificationService : IPushNotificationService
 
         var client = new WebPushClient();
         var payload = JsonSerializer.Serialize(new { title, body, url = url ?? "/admin" });
-        var staleSubscriptions = new List<PushSubscription>();
+        var staleSubscriptions = new List<PushSubscriptionEntity>();
 
         foreach (var sub in subscriptions)
         {
