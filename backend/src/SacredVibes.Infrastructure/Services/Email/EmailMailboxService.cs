@@ -246,6 +246,7 @@ public class EmailMailboxService : IEmailMailboxService
         request.Cc ??= new List<string>();
         request.Bcc ??= new List<string>();
         request.Attachments ??= new List<SendEmailAttachmentRequest>();
+        request.UnsubscribeRecipients ??= new List<UnsubscribeRecipient>();
 
         if (request.To.Count + request.Cc.Count + request.Bcc.Count == 0)
             throw new InvalidOperationException("At least one recipient is required.");
@@ -255,15 +256,83 @@ public class EmailMailboxService : IEmailMailboxService
             ? await GetRequiredSettingsAsync(ct, requireMailboxSettings: false)
             : await GetRequiredSettingsAsync(ct);
 
-        var message = BuildMimeMessage(settings, request);
+        // Bcc entries tied to a subscriber (i.e. added via the recipient-group picker) get
+        // their own individual send with a personalized unsubscribe link, since a shared
+        // Bcc blast can't carry a different link per recipient. Everyone else — To, Cc, and
+        // any plain Bcc entries not tied to a subscriber — goes out via the normal path.
+        var trackedBySubscriber = request.UnsubscribeRecipients
+            .GroupBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().SubscriberId, StringComparer.OrdinalIgnoreCase);
 
-        if (!string.IsNullOrWhiteSpace(resendApiKey))
-            await SendWithResendAsync(settings, request, resendApiKey, ct);
-        else
-            await SendWithSmtpAsync(settings, message, ct);
+        var trackedBcc = request.Bcc.Where(b => trackedBySubscriber.ContainsKey(b.Trim())).ToList();
+        var regularBcc = request.Bcc.Except(trackedBcc, StringComparer.OrdinalIgnoreCase).ToList();
 
-        await ArchiveSentCopyAsync(settings, message, ct);
+        MimeMessage? archiveMessage = null;
+
+        if (request.To.Count > 0 || request.Cc.Count > 0 || regularBcc.Count > 0)
+        {
+            var bulkRequest = CloneRequest(request, regularBcc);
+            var bulkMessage = BuildMimeMessage(settings, bulkRequest);
+            archiveMessage = bulkMessage;
+
+            if (!string.IsNullOrWhiteSpace(resendApiKey))
+                await SendWithResendAsync(settings, bulkRequest, resendApiKey, ct);
+            else
+                await SendWithSmtpAsync(settings, bulkMessage, ct);
+        }
+
+        foreach (var email in trackedBcc)
+        {
+            var subscriberId = trackedBySubscriber[email.Trim()];
+            var singleRequest = CloneRequest(request, new List<string>());
+            singleRequest.To = new List<string> { email };
+            singleRequest.Body = AppendUnsubscribeFooter(request.Body, request.IsHtml, subscriberId);
+
+            var singleMessage = BuildMimeMessage(settings, singleRequest);
+            archiveMessage ??= singleMessage;
+
+            if (!string.IsNullOrWhiteSpace(resendApiKey))
+                await SendSingleResendEmailAsync(settings, singleRequest, resendApiKey, new List<string> { email }, new List<string>(), new List<string>(), ct);
+            else
+                await SendWithSmtpAsync(settings, singleMessage, ct);
+        }
+
+        if (archiveMessage is not null)
+            await ArchiveSentCopyAsync(settings, archiveMessage, ct);
     }
+
+    private static SendEmailRequest CloneRequest(SendEmailRequest source, List<string> bcc) => new()
+    {
+        To = new List<string>(source.To),
+        Cc = new List<string>(source.Cc),
+        Bcc = bcc,
+        Subject = source.Subject,
+        Body = source.Body,
+        IsHtml = source.IsHtml,
+        Attachments = source.Attachments,
+        ReplyToMessageId = source.ReplyToMessageId,
+        ReplyToFolderId = source.ReplyToFolderId
+    };
+
+    private string AppendUnsubscribeFooter(string body, bool isHtml, Guid subscriberId)
+    {
+        var unsubscribeUrl = $"{ResolvePublicFrontendUrl()}/unsubscribe?id={subscriberId}";
+
+        if (isHtml)
+        {
+            return body + $"""
+                <p style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e5e5;font-size:11px;color:#9ca3af;font-family:sans-serif;">
+                    You're receiving this email as a subscriber to Sacred Vibes Yoga.
+                    <a href="{unsubscribeUrl}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe</a>
+                </p>
+                """;
+        }
+
+        return body + $"\n\n---\nYou're receiving this email as a subscriber to Sacred Vibes Yoga. Unsubscribe: {unsubscribeUrl}";
+    }
+
+    private string ResolvePublicFrontendUrl() =>
+        (_config["FRONTEND_URL"] ?? Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "https://sacredvibesyoga.com").TrimEnd('/');
 
     private static MimeMessage BuildMimeMessage(ResolvedEmailSettings settings, SendEmailRequest request)
     {
@@ -509,6 +578,7 @@ public class EmailMailboxService : IEmailMailboxService
             .Take(limit)
             .Select(s => new
             {
+                s.Id,
                 s.Email,
                 s.FirstName,
                 s.LastName,
@@ -517,7 +587,7 @@ public class EmailMailboxService : IEmailMailboxService
             .ToListAsync(ct);
 
         foreach (var s in subscribers)
-            AddContact(contacts, s.Email, JoinName(s.FirstName, s.LastName), s.Source);
+            AddContact(contacts, s.Email, JoinName(s.FirstName, s.LastName), s.Source, s.Id);
 
         if (contacts.Count < limit)
         {
@@ -645,7 +715,8 @@ public class EmailMailboxService : IEmailMailboxService
             {
                 Email = s.Email,
                 Name = ((s.FirstName ?? "") + " " + (s.LastName ?? "")).Trim(),
-                Source = "Subscriber: " + s.Source
+                Source = "Subscriber: " + s.Source,
+                SubscriberId = s.Id
             })
             .ToListAsync(ct);
     }
@@ -1059,7 +1130,7 @@ public class EmailMailboxService : IEmailMailboxService
         }
     }
 
-    private static void AddContact(Dictionary<string, EmailContactDto> contacts, string? email, string name, string source)
+    private static void AddContact(Dictionary<string, EmailContactDto> contacts, string? email, string name, string source, Guid? subscriberId = null)
     {
         var normalizedEmail = Normalize(email).ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(normalizedEmail) || contacts.ContainsKey(normalizedEmail)) return;
@@ -1067,7 +1138,8 @@ public class EmailMailboxService : IEmailMailboxService
         {
             Email = normalizedEmail,
             Name = name,
-            Source = source
+            Source = source,
+            SubscriberId = subscriberId
         };
     }
 

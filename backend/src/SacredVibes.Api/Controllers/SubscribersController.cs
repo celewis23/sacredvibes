@@ -37,6 +37,27 @@ public class SubscribersController : ControllerBase
         _logger = logger;
     }
 
+    // ── Public: Unsubscribe ──────────────────────────────────────────────────
+    // Reached from the unsubscribe link in outgoing emails — no auth, since the
+    // recipient clicking the link isn't logged into the admin panel.
+
+    [AllowAnonymous]
+    [HttpPost("unsubscribe")]
+    public async Task<ActionResult> Unsubscribe([FromBody] UnsubscribeRequest request, CancellationToken ct = default)
+    {
+        var subscriber = await _db.Subscribers.FirstOrDefaultAsync(s => s.Id == request.Id, ct);
+        if (subscriber is not null && subscriber.IsSubscribed)
+        {
+            subscriber.IsSubscribed = false;
+            subscriber.UnsubscribedAt = DateTime.UtcNow;
+            subscriber.UnsubscribeReason = "Unsubscribed via email link";
+            await _db.SaveChangesAsync(ct);
+        }
+
+        // Same response whether or not the id matched — don't reveal subscriber existence.
+        return Ok(new { message = "Unsubscribed" });
+    }
+
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<SubscriberDto>>>> GetSubscribers(
         [FromQuery] SubscriberFilterRequest filter, CancellationToken ct = default)
@@ -356,6 +377,8 @@ public class SubscribersController : ControllerBase
         return ex.Message;
     }
 }
+
+public record UnsubscribeRequest(Guid Id);
 
 public class ImportJobSummaryDto
 {

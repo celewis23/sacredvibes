@@ -186,6 +186,9 @@ export const subscribersApi = {
   getSubscribers: (params: Record<string, unknown>) =>
     apiClient.get<ApiResponse<PagedResult<Subscriber>>>('/subscribers', { params }),
 
+  unsubscribe: (id: string) =>
+    apiClient.post<ApiResponse<{ message: string }>>('/subscribers/unsubscribe', { id }),
+
   getTags: () =>
     apiClient.get<ApiResponse<SubscriberTag[]>>('/subscribers/tags'),
 
@@ -422,6 +425,7 @@ export const emailApi = {
     attachments?: EmailSendAttachment[]
     replyToMessageId?: string
     replyToFolderId?: string
+    unsubscribeRecipients?: { email: string; subscriberId: string }[]
   }) => apiClient.post('/email/send', data, { timeout: 60000 }),
 
   markRead: (id: string, folderId: string | undefined, isRead: boolean) =>

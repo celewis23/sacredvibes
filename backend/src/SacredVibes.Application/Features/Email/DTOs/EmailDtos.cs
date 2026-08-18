@@ -95,6 +95,15 @@ public class SendEmailRequest
     public List<SendEmailAttachmentRequest> Attachments { get; set; } = new();
     public string? ReplyToMessageId { get; set; }
     public string? ReplyToFolderId { get; set; }
+    // Bcc entries tied to a subscriber get sent individually with a personalized
+    // unsubscribe link appended, instead of going out in the shared Bcc batch.
+    public List<UnsubscribeRecipient>? UnsubscribeRecipients { get; set; }
+}
+
+public class UnsubscribeRecipient
+{
+    public string Email { get; set; } = string.Empty;
+    public Guid SubscriberId { get; set; }
 }
 
 public class SendEmailAttachmentRequest
@@ -125,6 +134,7 @@ public class EmailContactDto
     public string Email { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;
+    public Guid? SubscriberId { get; set; }
 }
 
 public class EmailRecipientGroupDto

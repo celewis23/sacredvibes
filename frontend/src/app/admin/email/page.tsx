@@ -9,7 +9,7 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
-  Archive, Bold, ChevronLeft, ChevronRight, Flame, Heading2, Image as ImageIcon, Inbox,
+  Archive, Bold, ChevronLeft, ChevronRight, Flame, Forward, Heading2, Image as ImageIcon, Inbox,
   Italic, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
   PenLine, Plus, Quote, RefreshCw, RotateCcw, RotateCw, Save, Search, Send, Settings, SquarePen,
   Trash2, X
@@ -453,12 +453,22 @@ function SettingsPanel({
   )
 }
 
+function stripSubjectPrefix(subject: string) {
+  return subject.replace(/^(re|fwd):\s*/i, '')
+}
+
+function quoteMessageHtml(message: EmailMessage) {
+  return message.htmlBody || `<p>${(message.textBody ?? '').replace(/\n/g, '<br/>')}</p>`
+}
+
 function ComposePanel({
   replyTo,
+  forwardOf,
   settings,
   onClose,
 }: {
   replyTo?: EmailMessage
+  forwardOf?: EmailMessage
   settings?: EmailMailboxSettings
   onClose: () => void
 }) {
@@ -467,15 +477,21 @@ function ComposePanel({
   const [toInput, setToInput] = useState('')
   const [cc, setCc] = useState('')
   const [bcc, setBcc] = useState('')
-  const [subject, setSubject] = useState(replyTo ? `Re: ${replyTo.subject.replace(/^Re:\s*/i, '')}` : '')
+  const [subject, setSubject] = useState(
+    replyTo ? `Re: ${stripSubjectPrefix(replyTo.subject)}`
+      : forwardOf ? `Fwd: ${stripSubjectPrefix(forwardOf.subject)}`
+        : ''
+  )
   const [contactSearch, setContactSearch] = useState('')
   const [groupName, setGroupName] = useState('')
+  const [groupRecipients, setGroupRecipients] = useState<Record<string, string>>({})
   const [attachments, setAttachments] = useState<EmailSendAttachment[]>([])
   const [signaturePanelOpen, setSignaturePanelOpen] = useState(false)
   const [signatureId, setSignatureId] = useState('')
   const [signatureName, setSignatureName] = useState('')
   const [signatureHtml, setSignatureHtml] = useState('')
   const [signatureIsDefault, setSignatureIsDefault] = useState(true)
+  const [contentInitialized, setContentInitialized] = useState(false)
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -511,7 +527,7 @@ function ComposePanel({
     queryFn: () => emailApi.getRecipientGroups().then(r => r.data.data ?? []),
   })
 
-  const { data: signatures = [] } = useQuery({
+  const { data: signatures = [], isLoading: signaturesLoading } = useQuery({
     queryKey: ['email-signatures'],
     queryFn: () => emailApi.getSignatures().then(r => r.data.data ?? []),
   })
@@ -525,6 +541,33 @@ function ComposePanel({
     setSignatureIsDefault(defaultSignature.isDefault)
   }, [signatureId, signatures])
 
+  // Auto-insert the default (or only) signature into every new email, reply, and forward —
+  // plus the quoted original message for replies/forwards — once on initial load.
+  useEffect(() => {
+    if (!editor || contentInitialized || signaturesLoading) return
+
+    const defaultSignature = signatures.find(signature => signature.isDefault) ?? signatures[0]
+    const signatureBlock = defaultSignature ? normalizeSignatureHtml(defaultSignature.html) : ''
+
+    let quoted = ''
+    if (replyTo) {
+      quoted = `<p>On ${formatDate(replyTo.date)}, ${formatAddress(replyTo.from)} wrote:</p><blockquote>${quoteMessageHtml(replyTo)}</blockquote>`
+    } else if (forwardOf) {
+      quoted = `<p>---------- Forwarded message ----------<br/>From: ${formatAddress(forwardOf.from)}<br/>Date: ${formatDate(forwardOf.date)}<br/>Subject: ${forwardOf.subject || '(no subject)'}<br/>To: ${forwardOf.to.map(formatAddress).join(', ')}</p>${quoteMessageHtml(forwardOf)}`
+    }
+
+    editor.commands.setContent(`<p></p>${signatureBlock}${quoted}`)
+    setContentInitialized(true)
+  }, [editor, signatures, signaturesLoading, contentInitialized, replyTo, forwardOf])
+
+  const unsubscribeRecipients = useMemo(
+    () => splitAddresses(bcc)
+      .map(email => email.toLowerCase())
+      .filter(email => groupRecipients[email])
+      .map(email => ({ email, subscriberId: groupRecipients[email] })),
+    [bcc, groupRecipients],
+  )
+
   const sendMutation = useMutation({
     mutationFn: () => emailApi.send({
       to,
@@ -533,6 +576,7 @@ function ComposePanel({
       subject,
       body: editor?.getHTML() ?? '',
       isHtml: true,
+      unsubscribeRecipients: unsubscribeRecipients.length > 0 ? unsubscribeRecipients : undefined,
       attachments,
       replyToMessageId: replyTo?.id,
       replyToFolderId: replyTo?.folderId,
@@ -563,6 +607,11 @@ function ComposePanel({
     mutationFn: (groupId: string) => emailApi.getRecipientGroupContacts(groupId).then(r => r.data.data ?? []),
     onSuccess: (recipients: EmailContact[]) => {
       setBcc(prev => uniqueEmails([...splitAddresses(prev), ...recipients.map(r => r.email)]).join(', '))
+      setGroupRecipients(prev => {
+        const next = { ...prev }
+        recipients.forEach(r => { if (r.subscriberId) next[r.email.toLowerCase()] = r.subscriberId })
+        return next
+      })
       toast.success(`Added ${recipients.length} recipients to Bcc`)
     },
     onError: () => toast.error('Could not add recipient group'),
@@ -690,7 +739,7 @@ function ComposePanel({
       <div className="border-b border-gray-200 px-5 py-4 flex items-center gap-3">
         <PenLine size={18} className="text-sacred-700" />
         <div>
-          <h2 className="font-semibold text-gray-900">{replyTo ? 'Reply' : 'New Email'}</h2>
+          <h2 className="font-semibold text-gray-900">{replyTo ? 'Reply' : forwardOf ? 'Forward' : 'New Email'}</h2>
           <p className="text-xs text-gray-500">Sending as {settings?.emailAddress ?? 'info@sacredvibesyoga.com'}</p>
         </div>
         <button onClick={onClose} className="ml-auto text-gray-400 hover:text-gray-700"><X size={18} /></button>
@@ -762,7 +811,7 @@ function ComposePanel({
               </option>
             ))}
           </select>
-          <p className="text-xs text-gray-400">Groups are added to Bcc so recipients do not see the full list.</p>
+          <p className="text-xs text-gray-400">Groups are added to Bcc so recipients do not see the full list. Each gets a one-click unsubscribe link automatically.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -967,12 +1016,14 @@ function MessagePanel({
   message,
   folders,
   onReply,
+  onForward,
   onDeleted,
   onBack,
 }: {
   message?: EmailMessage
   folders: EmailFolder[]
   onReply: () => void
+  onForward: () => void
   onDeleted: () => void
   onBack?: () => void
 }) {
@@ -1031,6 +1082,9 @@ function MessagePanel({
           <button onClick={onReply} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sacred-800 text-white text-xs rounded-lg hover:bg-sacred-900">
             <PenLine size={13} /> Reply
           </button>
+          <button onClick={onForward} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-50">
+            <Forward size={13} /> Forward
+          </button>
           <button onClick={() => markMutation.mutate(!message.isRead)} className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 text-gray-700 text-xs rounded-lg hover:bg-gray-50">
             {message.isRead ? <Mail size={13} /> : <MailOpen size={13} />}
             {message.isRead ? 'Unread' : 'Read'}
@@ -1085,6 +1139,7 @@ export default function AdminEmailPage() {
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [mode, setMode] = useState<PanelMode>('message')
   const [replyTo, setReplyTo] = useState<EmailMessage | undefined>()
+  const [forwardOf, setForwardOf] = useState<EmailMessage | undefined>()
   const [folderRailCollapsed, setFolderRailCollapsed] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
 
@@ -1169,7 +1224,7 @@ export default function AdminEmailPage() {
                 <RefreshCw size={16} />
               </button>
               <button
-                onClick={() => { setReplyTo(undefined); setMode('compose'); setMobileView('detail') }}
+                onClick={() => { setReplyTo(undefined); setForwardOf(undefined); setMode('compose'); setMobileView('detail') }}
                 className="inline-flex items-center gap-1.5 px-3 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900"
               >
                 <PenLine size={15} /> Compose
@@ -1258,6 +1313,7 @@ export default function AdminEmailPage() {
               <ComposePanel
                 settings={settings}
                 replyTo={replyTo}
+                forwardOf={forwardOf}
                 onClose={() => { setMode('message'); setMobileView('list') }}
               />
             ) : messageLoading ? (
@@ -1267,7 +1323,8 @@ export default function AdminEmailPage() {
                 message={selectedMessage}
                 folders={folders}
                 onBack={handleMobileBack}
-                onReply={() => { setReplyTo(selectedMessage); setMode('compose') }}
+                onReply={() => { setReplyTo(selectedMessage); setForwardOf(undefined); setMode('compose') }}
+                onForward={() => { setForwardOf(selectedMessage); setReplyTo(undefined); setMode('compose') }}
                 onDeleted={() => { setSelectedMessageId(null); setMobileView('list') }}
               />
             )}
@@ -1292,7 +1349,7 @@ export default function AdminEmailPage() {
               <RefreshCw size={16} />
             </button>
             <button
-              onClick={() => { setReplyTo(undefined); setMode('compose') }}
+              onClick={() => { setReplyTo(undefined); setForwardOf(undefined); setMode('compose') }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900"
             >
               <PenLine size={15} /> Compose
@@ -1387,7 +1444,7 @@ export default function AdminEmailPage() {
             {mode === 'settings' ? (
               <SettingsPanel settings={settings} onClose={() => setMode('message')} />
             ) : mode === 'compose' ? (
-              <ComposePanel settings={settings} replyTo={replyTo} onClose={() => setMode('message')} />
+              <ComposePanel settings={settings} replyTo={replyTo} forwardOf={forwardOf} onClose={() => setMode('message')} />
             ) : messageLoading ? (
               <div className="h-full flex items-center justify-center text-sm text-gray-400">Loading message...</div>
             ) : (
@@ -1396,6 +1453,12 @@ export default function AdminEmailPage() {
                 folders={folders}
                 onReply={() => {
                   setReplyTo(selectedMessage)
+                  setForwardOf(undefined)
+                  setMode('compose')
+                }}
+                onForward={() => {
+                  setForwardOf(selectedMessage)
+                  setReplyTo(undefined)
                   setMode('compose')
                 }}
                 onDeleted={() => setSelectedMessageId(null)}

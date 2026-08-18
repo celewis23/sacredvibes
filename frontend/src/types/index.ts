@@ -637,6 +637,7 @@ export interface EmailContact {
   email: string
   name: string
   source: string
+  subscriberId?: string
 }
 
 export interface EmailRecipientGroup {
