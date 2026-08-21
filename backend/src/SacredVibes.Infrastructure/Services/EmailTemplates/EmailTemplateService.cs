@@ -123,8 +123,9 @@ public class EmailTemplateService : IEmailTemplateService
 
     // ── Template metadata & defaults ──────────────────────────────────────────
 
-    private static readonly HashSet<string> TemplateKeys = new(TemplateMeta.Keys);
-
+    // NOTE: TemplateMeta must be declared before TemplateKeys — C# runs static field
+    // initializers in declaration order, so TemplateKeys reading TemplateMeta.Keys while
+    // TemplateMeta is still null would throw a TypeInitializationException on every use.
     private static readonly Dictionary<string, TemplateMetadata> TemplateMeta = new()
     {
         ["booking_received"] = new(
@@ -191,6 +192,8 @@ public class EmailTemplateService : IEmailTemplateService
             BuildBookingRescheduledTemplate()
         ),
     };
+
+    private static readonly HashSet<string> TemplateKeys = new(TemplateMeta.Keys);
 
     // ── Default HTML templates ─────────────────────────────────────────────────
 
