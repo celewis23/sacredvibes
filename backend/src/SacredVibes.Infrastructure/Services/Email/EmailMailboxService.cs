@@ -859,6 +859,77 @@ public class EmailMailboxService : IEmailMailboxService
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task<List<EmailLayoutDto>> GetLayoutsAsync(CancellationToken ct = default)
+    {
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+        EnsureDefaultLayouts(settings);
+        return settings.Layouts
+            .OrderByDescending(l => l.IsDefault)
+            .ThenBy(l => l.Name)
+            .Select(ToLayoutDto)
+            .ToList();
+    }
+
+    public async Task<EmailLayoutDto> SaveLayoutAsync(SaveEmailLayoutRequest request, CancellationToken ct = default)
+    {
+        var name = Normalize(request.Name);
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Layout name is required.");
+        if (string.IsNullOrWhiteSpace(request.Html))
+            throw new InvalidOperationException("Layout content is required.");
+        if (!request.Html.Contains("{{content}}", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Layout HTML must include a {{content}} placeholder for the message body.");
+
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+
+        var layout = !string.IsNullOrWhiteSpace(request.Id)
+            ? settings.Layouts.FirstOrDefault(l => l.Id.Equals(request.Id, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        if (layout is null)
+        {
+            layout = new StoredEmailLayout { Id = Guid.NewGuid().ToString("N") };
+            settings.Layouts.Add(layout);
+        }
+
+        layout.Name = name;
+        layout.Html = request.Html.Trim();
+        // Unlike signatures, layouts are allowed to have zero defaults — "no template by
+        // default" is a valid, explicit state, not something the system should override.
+        layout.IsDefault = request.IsDefault;
+
+        if (layout.IsDefault)
+        {
+            foreach (var other in settings.Layouts.Where(l => l.Id != layout.Id))
+                other.IsDefault = false;
+        }
+
+        setting.SettingsJson = JsonSerializer.Serialize(settings);
+        await _db.SaveChangesAsync(ct);
+
+        return ToLayoutDto(layout);
+    }
+
+    public async Task DeleteLayoutAsync(string id, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            throw new InvalidOperationException("Layout id is required.");
+
+        var setting = await GetOrCreateSettingAsync(ct);
+        var settings = ReadSettings(setting);
+
+        var removed = settings.Layouts.RemoveAll(l => l.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) > 0;
+        if (!removed)
+            throw new InvalidOperationException("Layout not found.");
+
+        // No re-promotion here (unlike signatures) — deleting the default layout is a
+        // legitimate way to fall back to "no template by default".
+        setting.SettingsJson = JsonSerializer.Serialize(settings);
+        await _db.SaveChangesAsync(ct);
+    }
+
     private async Task<IntegrationSetting> GetOrCreateSettingAsync(CancellationToken ct)
     {
         var setting = await _db.IntegrationSettings.FirstOrDefaultAsync(i => i.Provider == Provider, ct);
@@ -1190,6 +1261,141 @@ public class EmailMailboxService : IEmailMailboxService
         IsDefault = signature.IsDefault
     };
 
+    // Seeded once, not marked default — "no template" is the intended starting state until
+    // an admin explicitly picks one as default. Both use the site's real logo, brand colors,
+    // and copy (tagline, footer description, Richmond VA / hello@sacredvibesyoga.com).
+    private static void EnsureDefaultLayouts(StoredEmailSettings settings)
+    {
+        if (settings.Layouts.Count > 0) return;
+
+        settings.Layouts.Add(new StoredEmailLayout
+        {
+            Id = "default-classic",
+            Name = "Sacred Vibes Classic",
+            IsDefault = false,
+            Html = BuildClassicLayoutHtml()
+        });
+
+        settings.Layouts.Add(new StoredEmailLayout
+        {
+            Id = "default-warm",
+            Name = "Sacred Vibes Warm",
+            IsDefault = false,
+            Html = BuildWarmLayoutHtml()
+        });
+    }
+
+    private static string BuildClassicLayoutHtml() => """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+          <meta name="color-scheme" content="light" />
+          <title>Sacred Vibes</title>
+        </head>
+        <body style="margin:0;padding:0;background-color:#f3f0eb;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f3f0eb;padding:32px 16px;">
+            <tr>
+              <td>
+                <table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation"
+                  style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;box-shadow:0 2px 12px rgba(28,23,20,0.10);">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="background-color:#5f5248;padding:32px 32px 28px;text-align:center;">
+                      <img src="https://sacredvibes.vercel.app/images/lotus-icon.png" alt="" width="36" height="36" style="display:block;margin:0 auto 12px;border:0;" />
+                      <p style="margin:0 0 2px;color:#f3f0eb;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;font-weight:400;">Sacred Vibes</p>
+                      <p style="margin:0;color:#c9a96e;font-size:18px;letter-spacing:0.06em;font-weight:400;">Healing &amp; Wellness</p>
+                    </td>
+                  </tr>
+
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding:40px 36px 32px;color:#1c1714;font-size:15px;line-height:1.75;">
+                      {{content}}
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color:#faf9f7;border-top:1px solid #e8e2d9;padding:24px 36px;text-align:center;">
+                      <p style="margin:0 0 8px;color:#a49280;font-size:12px;line-height:1.6;">Merging ancient sacred wellness practices with modern life.</p>
+                      <p style="margin:0 0 4px;color:#736456;font-size:13px;font-weight:500;">Sacred Vibes Healing &amp; Wellness</p>
+                      <p style="margin:0;color:#bcaf9d;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; hello@sacredvibesyoga.com</p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """;
+
+    private static string BuildWarmLayoutHtml() => """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+          <meta name="color-scheme" content="light" />
+          <title>Sacred Vibes</title>
+        </head>
+        <body style="margin:0;padding:0;background-color:#fdfbf7;font-family:'Helvetica Neue',Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+          <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#fdfbf7;padding:32px 16px;">
+            <tr>
+              <td>
+                <table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation"
+                  style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;border-top:4px solid #c49a58;box-shadow:0 4px 20px rgba(28,23,20,0.08);">
+
+                  <!-- Header -->
+                  <tr>
+                    <td style="padding:40px 36px 24px;text-align:center;">
+                      <img src="https://sacredvibes.vercel.app/images/lotus-icon.png" alt="" width="40" height="40" style="display:block;margin:0 auto 16px;border:0;" />
+                      <p style="margin:0 0 6px;color:#5f5248;font-size:22px;font-weight:400;letter-spacing:0.02em;">Sacred Vibes</p>
+                      <p style="margin:0;color:#b08040;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;">Align &middot; Restore &middot; Elevate</p>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td style="padding:0 36px;">
+                      <div style="border-top:1px solid #f3ead9;line-height:0;font-size:0;">&nbsp;</div>
+                    </td>
+                  </tr>
+
+                  <!-- Content -->
+                  <tr>
+                    <td style="padding:32px 36px 32px;color:#1c1714;font-size:15px;line-height:1.75;">
+                      {{content}}
+                    </td>
+                  </tr>
+
+                  <!-- Footer -->
+                  <tr>
+                    <td style="background-color:#fdfbf7;padding:24px 36px 32px;text-align:center;">
+                      <p style="margin:0 0 6px;color:#8c7a68;font-size:12px;line-height:1.6;">Merging ancient sacred wellness practices with modern life — helping you regulate, reconnect, and elevate.</p>
+                      <p style="margin:0;color:#bca083;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; hello@sacredvibesyoga.com</p>
+                    </td>
+                  </tr>
+
+                </table>
+              </td>
+            </tr>
+          </table>
+        </body>
+        </html>
+        """;
+
+    private static EmailLayoutDto ToLayoutDto(StoredEmailLayout layout) => new()
+    {
+        Id = layout.Id,
+        Name = layout.Name,
+        Html = layout.Html,
+        IsDefault = layout.IsDefault
+    };
+
     private static UniqueId ParseUid(string id) =>
         uint.TryParse(id, out var value) ? new UniqueId(value) : throw new InvalidOperationException("Invalid message id.");
 
@@ -1244,6 +1450,7 @@ public class EmailMailboxService : IEmailMailboxService
         public string Username { get; set; } = string.Empty;
         public string ProtectedPassword { get; set; } = string.Empty;
         public List<StoredEmailSignature> Signatures { get; set; } = new();
+        public List<StoredEmailLayout> Layouts { get; set; } = new();
         public uint LastSeenImapUid { get; set; }
     }
 
@@ -1253,6 +1460,14 @@ public class EmailMailboxService : IEmailMailboxService
     }
 
     private class StoredEmailSignature
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Html { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+    }
+
+    private class StoredEmailLayout
     {
         public string Id { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;

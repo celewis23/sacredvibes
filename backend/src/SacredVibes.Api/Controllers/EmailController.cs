@@ -218,4 +218,41 @@ public class EmailController : ControllerBase
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
         }
     }
+
+    [HttpGet("layouts")]
+    public async Task<ActionResult<ApiResponse<List<EmailLayoutDto>>>> GetLayouts(CancellationToken ct)
+    {
+        var layouts = await _mailbox.GetLayoutsAsync(ct);
+        return Ok(ApiResponse<List<EmailLayoutDto>>.Ok(layouts));
+    }
+
+    [HttpPut("layouts")]
+    public async Task<ActionResult<ApiResponse<EmailLayoutDto>>> SaveLayout(
+        [FromBody] SaveEmailLayoutRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var layout = await _mailbox.SaveLayoutAsync(request, ct);
+            return Ok(ApiResponse<EmailLayoutDto>.Ok(layout));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmailLayoutDto>.Fail(ex.Message));
+        }
+    }
+
+    [HttpDelete("layouts/{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteLayout(string id, CancellationToken ct)
+    {
+        try
+        {
+            await _mailbox.DeleteLayoutAsync(id, ct);
+            return Ok(ApiResponse<object>.Ok(new { message = "Layout deleted" }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
 }

@@ -9,15 +9,15 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
-  Archive, Bold, ChevronLeft, ChevronRight, Flame, Forward, Heading2, Image as ImageIcon, Inbox,
-  Italic, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
+  Archive, Bold, ChevronLeft, ChevronRight, Eye, Flame, Forward, Heading2, Image as ImageIcon, Inbox,
+  Italic, LayoutTemplate, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
   PenLine, Plus, Quote, RefreshCw, RotateCcw, RotateCw, Save, Search, Send, Settings, SquarePen,
   Trash2, X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import { emailApi } from '@/lib/api'
-import type { EmailContact, EmailFolder, EmailMailboxSettings, EmailMessage, EmailMessageSummary, EmailSendAttachment, EmailSignature } from '@/types'
+import type { EmailContact, EmailFolder, EmailLayout, EmailMailboxSettings, EmailMessage, EmailMessageSummary, EmailSendAttachment, EmailSignature } from '@/types'
 
 type PanelMode = 'message' | 'compose' | 'settings'
 
@@ -492,6 +492,13 @@ function ComposePanel({
   const [signatureHtml, setSignatureHtml] = useState('')
   const [signatureIsDefault, setSignatureIsDefault] = useState(true)
   const [contentInitialized, setContentInitialized] = useState(false)
+  const [layoutPanelOpen, setLayoutPanelOpen] = useState(false)
+  const [layoutInitialized, setLayoutInitialized] = useState(false)
+  const [layoutId, setLayoutId] = useState('')
+  const [layoutName, setLayoutName] = useState('')
+  const [layoutHtml, setLayoutHtml] = useState('')
+  const [layoutIsDefault, setLayoutIsDefault] = useState(false)
+  const [layoutPreviewOpen, setLayoutPreviewOpen] = useState(false)
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -532,6 +539,25 @@ function ComposePanel({
     queryFn: () => emailApi.getSignatures().then(r => r.data.data ?? []),
   })
 
+  const { data: layouts = [] } = useQuery({
+    queryKey: ['email-layouts'],
+    queryFn: () => emailApi.getLayouts().then(r => r.data.data ?? []),
+  })
+
+  // Unlike signatures, "no template" is a valid starting state — only auto-select if a
+  // layout has actually been marked default. Runs once so it never overrides a manual pick.
+  useEffect(() => {
+    if (layoutInitialized || layouts.length === 0) return
+    const defaultLayout = layouts.find(layout => layout.isDefault)
+    if (defaultLayout) {
+      setLayoutId(defaultLayout.id)
+      setLayoutName(defaultLayout.name)
+      setLayoutHtml(defaultLayout.html)
+      setLayoutIsDefault(defaultLayout.isDefault)
+    }
+    setLayoutInitialized(true)
+  }, [layoutInitialized, layouts])
+
   useEffect(() => {
     if (signatureId || signatures.length === 0) return
     const defaultSignature = signatures.find(signature => signature.isDefault) ?? signatures[0]
@@ -568,13 +594,20 @@ function ComposePanel({
     [bcc, groupRecipients],
   )
 
+  const selectedLayout = layouts.find(layout => layout.id === layoutId)
+
+  const buildFinalBody = () => {
+    const html = editor?.getHTML() ?? ''
+    return selectedLayout ? selectedLayout.html.replace(/\{\{content\}\}/i, html) : html
+  }
+
   const sendMutation = useMutation({
     mutationFn: () => emailApi.send({
       to,
       cc: splitAddresses(cc),
       bcc: splitAddresses(bcc),
       subject,
-      body: editor?.getHTML() ?? '',
+      body: buildFinalBody(),
       isHtml: true,
       unsubscribeRecipients: unsubscribeRecipients.length > 0 ? unsubscribeRecipients : undefined,
       attachments,
@@ -686,6 +719,54 @@ function ComposePanel({
       queryClient.invalidateQueries({ queryKey: ['email-signatures'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not delete signature')),
+  })
+
+  const selectLayout = (id: string) => {
+    if (!id) {
+      setLayoutId('')
+      setLayoutName('')
+      setLayoutHtml('')
+      setLayoutIsDefault(false)
+      return
+    }
+
+    const layout = layouts.find(item => item.id === id)
+    if (!layout) return
+    setLayoutId(layout.id)
+    setLayoutName(layout.name)
+    setLayoutHtml(layout.html)
+    setLayoutIsDefault(layout.isDefault)
+  }
+
+  const saveLayoutMutation = useMutation({
+    mutationFn: () => emailApi.saveLayout({
+      id: layoutId || undefined,
+      name: layoutName,
+      html: layoutHtml,
+      isDefault: layoutIsDefault,
+    }),
+    onSuccess: (res) => {
+      const saved = res.data.data
+      toast.success('Template saved')
+      queryClient.invalidateQueries({ queryKey: ['email-layouts'] })
+      if (saved) {
+        setLayoutId(saved.id)
+        setLayoutName(saved.name)
+        setLayoutHtml(saved.html)
+        setLayoutIsDefault(saved.isDefault)
+      }
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save template')),
+  })
+
+  const deleteLayoutMutation = useMutation({
+    mutationFn: (id: string) => emailApi.deleteLayout(id),
+    onSuccess: () => {
+      toast.success('Template deleted')
+      selectLayout('')
+      queryClient.invalidateQueries({ queryKey: ['email-layouts'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not delete template')),
   })
 
   const attachFiles = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -916,6 +997,111 @@ function ComposePanel({
                   type="button"
                   onClick={() => deleteSignatureMutation.mutate(signatureId)}
                   disabled={deleteSignatureMutation.isPending}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 disabled:opacity-50"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={layoutId}
+            onChange={e => selectLayout(e.target.value)}
+            className="min-w-48 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+          >
+            <option value="">No template</option>
+            {layouts.map(layout => (
+              <option key={layout.id} value={layout.id}>{layout.name}{layout.isDefault ? ' (default)' : ''}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setLayoutPreviewOpen(v => !v)}
+            disabled={!selectedLayout}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 disabled:opacity-50"
+          >
+            <Eye size={14} /> {layoutPreviewOpen ? 'Hide Preview' : 'Preview'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLayoutPanelOpen(v => !v)}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+          >
+            <LayoutTemplate size={14} /> Manage Templates
+          </button>
+        </div>
+        {layoutPreviewOpen && selectedLayout && (
+          <div className="rounded-lg border border-gray-200 overflow-hidden">
+            <iframe title="Template preview" sandbox="" srcDoc={buildFinalBody()} className="w-full h-96 border-0 bg-white" />
+          </div>
+        )}
+        {layoutPanelOpen && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setLayoutId('')
+                  setLayoutName('New Template')
+                  setLayoutHtml('<!DOCTYPE html>\n<html>\n<body style="margin:0;padding:0;background-color:#f3f0eb;font-family:Arial,sans-serif;">\n  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:#f3f0eb;padding:32px 16px;">\n    <tr><td>\n      <table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:10px;overflow:hidden;">\n        <tr><td style="background-color:#5f5248;padding:28px;text-align:center;color:#f3f0eb;">Your Header</td></tr>\n        <tr><td style="padding:32px;color:#1c1714;font-size:15px;line-height:1.7;">{{content}}</td></tr>\n        <tr><td style="background-color:#faf9f7;padding:20px;text-align:center;color:#a49280;font-size:12px;">Your Footer</td></tr>\n      </table>\n    </td></tr>\n  </table>\n</body>\n</html>')
+                  setLayoutIsDefault(false)
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 bg-white text-gray-700 text-sm rounded-lg hover:bg-gray-50"
+              >
+                <Plus size={14} /> New
+              </button>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={layoutIsDefault}
+                  onChange={e => setLayoutIsDefault(e.target.checked)}
+                  className="rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+                />
+                Use by default when composing
+              </label>
+            </div>
+            <input
+              value={layoutName}
+              onChange={e => setLayoutName(e.target.value)}
+              placeholder="Template name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+            <textarea
+              value={layoutHtml}
+              onChange={e => setLayoutHtml(e.target.value)}
+              rows={12}
+              placeholder="Template HTML"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-xs focus:outline-none focus:ring-2 focus:ring-sacred-500"
+            />
+            <p className="text-xs text-gray-400">
+              Include <code className="px-1 bg-gray-100 rounded">{'{{content}}'}</code> where the composed message should be inserted.
+            </p>
+            {layoutHtml && (
+              <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <iframe
+                  title="Editing template preview"
+                  sandbox=""
+                  srcDoc={layoutHtml.replace(/\{\{content\}\}/i, '<p style="color:#999;font-family:sans-serif;">(your message goes here)</p>')}
+                  className="w-full h-72 border-0 bg-white"
+                />
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => saveLayoutMutation.mutate()}
+                disabled={saveLayoutMutation.isPending || !layoutName.trim() || !layoutHtml.trim()}
+                className="inline-flex items-center gap-2 px-3 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50"
+              >
+                <Save size={14} /> {saveLayoutMutation.isPending ? 'Saving...' : 'Save Template'}
+              </button>
+              {layoutId && (
+                <button
+                  type="button"
+                  onClick={() => deleteLayoutMutation.mutate(layoutId)}
+                  disabled={deleteLayoutMutation.isPending}
                   className="inline-flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 text-sm rounded-lg hover:bg-red-50 disabled:opacity-50"
                 >
                   <Trash2 size={14} /> Delete

@@ -22,6 +22,10 @@ public interface IEmailMailboxService
     Task<EmailSignatureDto> SaveSignatureAsync(SaveEmailSignatureRequest request, CancellationToken ct = default);
     Task DeleteSignatureAsync(string id, CancellationToken ct = default);
 
+    Task<List<EmailLayoutDto>> GetLayoutsAsync(CancellationToken ct = default);
+    Task<EmailLayoutDto> SaveLayoutAsync(SaveEmailLayoutRequest request, CancellationToken ct = default);
+    Task DeleteLayoutAsync(string id, CancellationToken ct = default);
+
     // Checks the INBOX for messages newer than the last poll and returns how many are new.
     // Returns 0 (without notifying) on the very first call, to avoid flagging the entire
     // existing mailbox history as "new". Throws if the mailbox integration isn't configured.

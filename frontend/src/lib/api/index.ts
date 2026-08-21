@@ -6,7 +6,7 @@ import type {
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
-  EmailSendAttachment, EmailSignature, EmailTemplate,
+  EmailSendAttachment, EmailSignature, EmailLayout, EmailTemplate,
   StudioLibrary, StudioContentItem, MemberSubscription,
   ProjectSummary, Project, ProjectImage, ProjectTrack,
   AdminAssistantSettings,
@@ -457,6 +457,15 @@ export const emailApi = {
 
   deleteSignature: (id: string) =>
     apiClient.delete<ApiResponse<object>>(`/email/signatures/${id}`),
+
+  getLayouts: () =>
+    apiClient.get<ApiResponse<EmailLayout[]>>('/email/layouts'),
+
+  saveLayout: (data: { id?: string; name: string; html: string; isDefault: boolean }) =>
+    apiClient.put<ApiResponse<EmailLayout>>('/email/layouts', data),
+
+  deleteLayout: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/email/layouts/${id}`),
 }
 
 // ── Digital Studio ────────────────────────────────────────────────────────────

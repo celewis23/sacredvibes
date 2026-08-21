@@ -660,6 +660,13 @@ export interface EmailSignature {
   isDefault: boolean
 }
 
+export interface EmailLayout {
+  id: string
+  name: string
+  html: string
+  isDefault: boolean
+}
+
 // ── Admin Assistant Settings ─────────────────────────────────────────────────
 
 export type AdminAssistantProvider = 'OpenAI' | 'Anthropic'
