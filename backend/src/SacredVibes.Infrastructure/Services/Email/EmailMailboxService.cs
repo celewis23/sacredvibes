@@ -1263,7 +1263,7 @@ public class EmailMailboxService : IEmailMailboxService
 
     // Seeded once, not marked default — "no template" is the intended starting state until
     // an admin explicitly picks one as default. Both use the site's real logo, brand colors,
-    // and copy (tagline, footer description, Richmond VA / hello@sacredvibesyoga.com).
+    // and copy (tagline, footer description, Richmond VA / info@sacredvibesyoga.com).
     private static void EnsureDefaultLayouts(StoredEmailSettings settings)
     {
         if (settings.Layouts.Count > 0) return;
@@ -1322,7 +1322,7 @@ public class EmailMailboxService : IEmailMailboxService
                     <td style="background-color:#faf9f7;border-top:1px solid #e8e2d9;padding:24px 36px;text-align:center;">
                       <p style="margin:0 0 8px;color:#a49280;font-size:12px;line-height:1.6;">Merging ancient sacred wellness practices with modern life.</p>
                       <p style="margin:0 0 4px;color:#736456;font-size:13px;font-weight:500;">Sacred Vibes Healing &amp; Wellness</p>
-                      <p style="margin:0;color:#bcaf9d;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; hello@sacredvibesyoga.com</p>
+                      <p style="margin:0;color:#bcaf9d;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; info@sacredvibesyoga.com</p>
                     </td>
                   </tr>
 
@@ -1376,7 +1376,7 @@ public class EmailMailboxService : IEmailMailboxService
                   <tr>
                     <td style="background-color:#fdfbf7;padding:24px 36px 32px;text-align:center;">
                       <p style="margin:0 0 6px;color:#8c7a68;font-size:12px;line-height:1.6;">Merging ancient sacred wellness practices with modern life — helping you regulate, reconnect, and elevate.</p>
-                      <p style="margin:0;color:#bca083;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; hello@sacredvibesyoga.com</p>
+                      <p style="margin:0;color:#bca083;font-size:12px;">Richmond, Virginia &nbsp;&middot;&nbsp; info@sacredvibesyoga.com</p>
                     </td>
                   </tr>
 
