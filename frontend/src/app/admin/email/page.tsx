@@ -9,7 +9,7 @@ import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
-  Archive, Bold, ChevronLeft, ChevronRight, Eye, Flame, Forward, Heading2, Image as ImageIcon, Inbox,
+  Archive, Bold, ChevronLeft, ChevronRight, Download, Eye, Flame, Forward, Heading2, Image as ImageIcon, Inbox,
   Italic, LayoutTemplate, Link as LinkIcon, List, ListOrdered, Mail, MailOpen, Menu, Paperclip,
   PenLine, Plus, Quote, RefreshCw, RotateCcw, RotateCw, Save, Search, Send, Settings, SquarePen,
   Trash2, X
@@ -1357,6 +1357,19 @@ function MessagePanel({
     onError: () => toast.error('Could not archive message'),
   })
 
+  const downloadAttachmentMutation = useMutation({
+    mutationFn: async ({ index, fileName }: { index: number; fileName: string }) => {
+      const res = await emailApi.downloadAttachment(message!.id, message!.folderId, index)
+      const url = URL.createObjectURL(res.data as Blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      a.click()
+      URL.revokeObjectURL(url)
+    },
+    onError: () => toast.error('Could not download attachment'),
+  })
+
   if (!message) {
     return (
       <div className="h-full flex items-center justify-center text-center p-10 bg-white">
@@ -1419,11 +1432,20 @@ function MessagePanel({
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Attachments</p>
             <div className="space-y-2">
               {message.attachments.map((attachment, index) => (
-                <div key={`${attachment.fileName}-${index}`} className="text-sm text-gray-700 flex items-center gap-2">
-                  <Archive size={14} className="text-gray-400" />
-                  <span>{attachment.fileName}</span>
-                  <span className="text-xs text-gray-400">{attachment.contentType}</span>
-                </div>
+                <button
+                  key={`${attachment.fileName}-${index}`}
+                  type="button"
+                  onClick={() => downloadAttachmentMutation.mutate({ index: attachment.index, fileName: attachment.fileName })}
+                  disabled={downloadAttachmentMutation.isPending}
+                  className="w-full text-sm text-gray-700 flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 text-left hover:border-sacred-300 hover:bg-sacred-50 transition-colors disabled:opacity-50"
+                >
+                  <Archive size={14} className="text-gray-400 shrink-0" />
+                  <span className="flex-1 truncate">{attachment.fileName}</span>
+                  {typeof attachment.size === 'number' && (
+                    <span className="text-xs text-gray-400 shrink-0">{formatFileSize(attachment.size)}</span>
+                  )}
+                  <Download size={14} className="text-gray-400 shrink-0" />
+                </button>
               ))}
             </div>
           </div>

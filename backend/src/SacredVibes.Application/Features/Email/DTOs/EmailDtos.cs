@@ -48,9 +48,17 @@ public class EmailAddressDto
 
 public class EmailAttachmentDto
 {
+    public int Index { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
     public long? Size { get; set; }
+}
+
+public class EmailAttachmentContentDto
+{
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public byte[] Content { get; set; } = Array.Empty<byte>();
 }
 
 public class EmailMessageSummaryDto

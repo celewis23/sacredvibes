@@ -291,6 +291,48 @@ public class EmailMailboxService : IEmailMailboxService
         return ToMessageDto(message, uid, folder.FullName, flags);
     }
 
+    public async Task<EmailAttachmentContentDto?> GetAttachmentAsync(string id, string? folderId, int index, CancellationToken ct = default)
+    {
+        var uid = ParseUid(id);
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+        var folder = await GetFolderAsync(client, folderId, ct);
+        await folder.OpenAsync(FolderAccess.ReadOnly, ct);
+
+        var message = await folder.GetMessageAsync(uid, ct);
+        await client.DisconnectAsync(true, ct);
+
+        var entity = message.Attachments.ElementAtOrDefault(index);
+        if (entity is null) return null;
+
+        using var stream = new MemoryStream();
+        if (entity is MimePart { Content: not null } part)
+        {
+            await part.Content.DecodeToAsync(stream, ct);
+            return new EmailAttachmentContentDto
+            {
+                FileName = part.ContentDisposition?.FileName ?? part.ContentType.Name ?? "attachment",
+                ContentType = part.ContentType.MimeType,
+                Content = stream.ToArray()
+            };
+        }
+
+        if (entity is MessagePart { Message: not null } messagePart)
+        {
+            await messagePart.Message.WriteToAsync(stream, ct);
+            return new EmailAttachmentContentDto
+            {
+                FileName = (entity.ContentDisposition?.FileName ?? entity.ContentType.Name ?? "attachment") is { Length: > 0 } name && name.Contains('.')
+                    ? name
+                    : "attached-message.eml",
+                ContentType = "message/rfc822",
+                Content = stream.ToArray()
+            };
+        }
+
+        return null;
+    }
+
     public async Task SendAsync(SendEmailRequest request, CancellationToken ct = default)
     {
         request.To ??= new List<string>();
@@ -1272,8 +1314,9 @@ public class EmailMailboxService : IEmailMailboxService
             HtmlBody = message.HtmlBody,
             TextBody = message.TextBody,
             Cc = message.Cc.Mailboxes.Select(ToAddressDto).OfType<EmailAddressDto>().ToList(),
-            Attachments = message.Attachments.Select(a => new EmailAttachmentDto
+            Attachments = message.Attachments.Select((a, index) => new EmailAttachmentDto
             {
+                Index = index,
                 FileName = a.ContentDisposition?.FileName ?? a.ContentType.Name ?? "attachment",
                 ContentType = a.ContentType.MimeType,
                 Size = a.ContentDisposition?.Size

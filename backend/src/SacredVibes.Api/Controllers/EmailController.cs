@@ -125,6 +125,26 @@ public class EmailController : ControllerBase
         }
     }
 
+    [HttpGet("messages/{id}/attachments/{index:int}")]
+    public async Task<IActionResult> GetAttachment(
+        string id,
+        int index,
+        [FromQuery] string? folderId,
+        CancellationToken ct)
+    {
+        try
+        {
+            var attachment = await _mailbox.GetAttachmentAsync(id, folderId, index, ct);
+            return attachment is null
+                ? NotFound()
+                : File(attachment.Content, attachment.ContentType, attachment.FileName);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("send")]
     public async Task<ActionResult> Send([FromBody] SendEmailRequest request, CancellationToken ct)
     {

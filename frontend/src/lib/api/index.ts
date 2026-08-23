@@ -456,6 +456,9 @@ export const emailApi = {
   getMessage: (id: string, folderId?: string) =>
     apiClient.get<ApiResponse<EmailMessage>>(`/email/messages/${id}`, { params: { folderId } }),
 
+  downloadAttachment: (id: string, folderId: string | undefined, index: number) =>
+    apiClient.get(`/email/messages/${id}/attachments/${index}`, { params: { folderId }, responseType: 'blob' }),
+
   send: (data: {
     to: string[]
     cc?: string[]

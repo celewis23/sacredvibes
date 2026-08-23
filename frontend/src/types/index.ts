@@ -600,6 +600,7 @@ export interface EmailAddress {
 }
 
 export interface EmailAttachment {
+  index: number
   fileName: string
   contentType: string
   size?: number

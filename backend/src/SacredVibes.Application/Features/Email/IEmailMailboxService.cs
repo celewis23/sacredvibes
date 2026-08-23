@@ -12,6 +12,7 @@ public interface IEmailMailboxService
     Task DeleteFolderAsync(string folderId, CancellationToken ct = default);
     Task<EmailMessageListDto> GetMessagesAsync(string? folderId, int page, int pageSize, string? search, CancellationToken ct = default);
     Task<EmailMessageDto?> GetMessageAsync(string id, string? folderId, CancellationToken ct = default);
+    Task<EmailAttachmentContentDto?> GetAttachmentAsync(string id, string? folderId, int index, CancellationToken ct = default);
     Task SendAsync(SendEmailRequest request, CancellationToken ct = default);
     Task MarkReadAsync(string id, string? folderId, bool isRead, CancellationToken ct = default);
     Task MoveAsync(string id, string? folderId, string destinationFolderId, CancellationToken ct = default);
