@@ -59,6 +59,36 @@ public class EmailController : ControllerBase
         }
     }
 
+    [HttpPost("folders")]
+    public async Task<ActionResult<ApiResponse<EmailFolderDto>>> CreateFolder(
+        [FromBody] CreateEmailFolderRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var folder = await _mailbox.CreateFolderAsync(request, ct);
+            return Ok(ApiResponse<EmailFolderDto>.Ok(folder));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<EmailFolderDto>.Fail(ex.Message));
+        }
+    }
+
+    [HttpDelete("folders/{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteFolder(string id, CancellationToken ct)
+    {
+        try
+        {
+            await _mailbox.DeleteFolderAsync(Uri.UnescapeDataString(id), ct);
+            return Ok(ApiResponse<object>.Ok(new { message = "Folder deleted" }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpGet("messages")]
     public async Task<ActionResult<ApiResponse<EmailMessageListDto>>> GetMessages(
         [FromQuery] string? folderId,
@@ -145,6 +175,40 @@ public class EmailController : ControllerBase
     {
         await _mailbox.DeleteAsync(id, folderId, ct);
         return Ok(new { message = "Message deleted" });
+    }
+
+    [HttpPost("messages/bulk-read")]
+    public async Task<ActionResult<ApiResponse<BulkActionResultDto>>> BulkMarkRead(
+        [FromBody] BulkMarkReadRequest request,
+        CancellationToken ct)
+    {
+        var result = await _mailbox.MarkReadManyAsync(request.Messages, request.IsRead, ct);
+        return Ok(ApiResponse<BulkActionResultDto>.Ok(result));
+    }
+
+    [HttpPost("messages/bulk-move")]
+    public async Task<ActionResult<ApiResponse<BulkActionResultDto>>> BulkMove(
+        [FromBody] BulkMoveRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await _mailbox.MoveManyAsync(request.Messages, request.DestinationFolderId, ct);
+            return Ok(ApiResponse<BulkActionResultDto>.Ok(result));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<BulkActionResultDto>.Fail(ex.Message));
+        }
+    }
+
+    [HttpPost("messages/bulk-delete")]
+    public async Task<ActionResult<ApiResponse<BulkActionResultDto>>> BulkDelete(
+        [FromBody] BulkDeleteRequest request,
+        CancellationToken ct)
+    {
+        var result = await _mailbox.DeleteManyAsync(request.Messages, ct);
+        return Ok(ApiResponse<BulkActionResultDto>.Ok(result));
     }
 
     [HttpGet("contacts")]

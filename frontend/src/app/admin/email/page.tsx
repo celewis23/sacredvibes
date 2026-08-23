@@ -222,11 +222,13 @@ function FolderButton({
   active,
   collapsed,
   onClick,
+  onDelete,
 }: {
   folder: EmailFolder
   active: boolean
   collapsed: boolean
   onClick: () => void
+  onDelete?: () => void
 }) {
   const name = folder.name.toLowerCase()
   const Icon = name.includes('draft') ? SquarePen
@@ -237,59 +239,81 @@ function FolderButton({
             : Inbox
 
   return (
-    <button
-      onClick={onClick}
-      title={folder.name}
-      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
-        active ? 'bg-sacred-800 text-white' : 'text-gray-700 hover:bg-gray-100'
-      }`}
-    >
-      <Icon size={15} className="shrink-0" />
-      {!collapsed && <span className="truncate">{folder.name}</span>}
-      {typeof folder.unreadCount === 'number' && folder.unreadCount > 0 && (
-        <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full ${
-          active ? 'bg-white/20 text-white' : 'bg-sacred-100 text-sacred-700'
-        }`}>
-          {folder.unreadCount}
-        </span>
+    <div className="group relative">
+      <button
+        onClick={onClick}
+        title={folder.name}
+        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+          active ? 'bg-sacred-800 text-white' : 'text-gray-700 hover:bg-gray-100'
+        }`}
+      >
+        <Icon size={15} className="shrink-0" />
+        {!collapsed && <span className="truncate">{folder.name}</span>}
+        {typeof folder.unreadCount === 'number' && folder.unreadCount > 0 && (
+          <span className={`ml-auto text-xs px-1.5 py-0.5 rounded-full transition-opacity ${
+            active ? 'bg-white/20 text-white' : 'bg-sacred-100 text-sacred-700'
+          } ${onDelete && !collapsed ? 'group-hover:opacity-0' : ''}`}>
+            {folder.unreadCount}
+          </span>
+        )}
+      </button>
+      {onDelete && !collapsed && (
+        <button
+          onClick={e => { e.stopPropagation(); onDelete() }}
+          title="Delete folder"
+          className={`absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 transition-opacity group-hover:opacity-100 ${
+            active ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+          }`}
+        >
+          <Trash2 size={13} />
+        </button>
       )}
-    </button>
+    </div>
   )
 }
 
 function MessageRow({
   message,
   active,
+  selected,
+  onToggleSelect,
   onClick,
 }: {
   message: EmailMessageSummary
   active: boolean
+  selected: boolean
+  onToggleSelect: () => void
   onClick: () => void
 }) {
   return (
-    <button
+    <div
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b border-gray-100 transition-colors ${
+      className={`w-full cursor-pointer text-left px-4 py-3 border-b border-gray-100 transition-colors flex items-start gap-3 ${
         active ? 'bg-sacred-50' : 'hover:bg-gray-50'
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${message.isRead ? 'bg-transparent' : 'bg-sacred-700'}`} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className={`truncate text-sm ${message.isRead ? 'text-gray-700' : 'font-semibold text-gray-950'}`}>
-              {formatAddress(message.from) || '(unknown sender)'}
-            </p>
-            {message.hasAttachments && <Archive size={13} className="text-gray-400 shrink-0" />}
-          </div>
-          <p className={`truncate text-sm mt-0.5 ${message.isRead ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
-            {message.subject || '(no subject)'}
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggleSelect}
+        onClick={e => e.stopPropagation()}
+        className="mt-1.5 shrink-0 rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+      />
+      <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${message.isRead ? 'bg-transparent' : 'bg-sacred-700'}`} />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className={`truncate text-sm ${message.isRead ? 'text-gray-700' : 'font-semibold text-gray-950'}`}>
+            {formatAddress(message.from) || '(unknown sender)'}
           </p>
-          <p className="truncate text-xs text-gray-400 mt-1">{message.preview}</p>
+          {message.hasAttachments && <Archive size={13} className="text-gray-400 shrink-0" />}
         </div>
-        <span className="text-[11px] text-gray-400 shrink-0">{message.date ? new Date(message.date).toLocaleDateString() : ''}</span>
+        <p className={`truncate text-sm mt-0.5 ${message.isRead ? 'text-gray-600' : 'font-medium text-gray-900'}`}>
+          {message.subject || '(no subject)'}
+        </p>
+        <p className="truncate text-xs text-gray-400 mt-1">{message.preview}</p>
       </div>
-    </button>
+      <span className="text-[11px] text-gray-400 shrink-0">{message.date ? new Date(message.date).toLocaleDateString() : ''}</span>
+    </div>
   )
 }
 
@@ -1198,6 +1222,98 @@ function ComposePanel({
   )
 }
 
+function CreateFolderModal({
+  onClose,
+  onCreate,
+  isPending,
+}: {
+  onClose: () => void
+  onCreate: (name: string) => void
+  isPending: boolean
+}) {
+  const [name, setName] = useState('')
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-black/50 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 my-8 sm:my-0">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-gray-900">New Folder</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X size={18} /></button>
+        </div>
+        <input
+          autoFocus
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && name.trim() && !isPending) onCreate(name.trim()) }}
+          placeholder="Folder name"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onClose} className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Cancel</button>
+          <button
+            onClick={() => name.trim() && onCreate(name.trim())}
+            disabled={isPending || !name.trim()}
+            className="px-3 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 disabled:opacity-50"
+          >
+            {isPending ? 'Creating...' : 'Create'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BulkActionBar({
+  count,
+  folders,
+  currentFolderId,
+  onMarkRead,
+  onMarkUnread,
+  onMove,
+  onDelete,
+  onClear,
+  busy,
+}: {
+  count: number
+  folders: EmailFolder[]
+  currentFolderId?: string
+  onMarkRead: () => void
+  onMarkUnread: () => void
+  onMove: (destinationFolderId: string) => void
+  onDelete: () => void
+  onClear: () => void
+  busy: boolean
+}) {
+  return (
+    <div className="flex items-center gap-2 px-4 py-2.5 bg-sacred-50 border-b border-sacred-100 flex-wrap">
+      <span className="text-sm font-medium text-sacred-800 shrink-0">{count} selected</span>
+      <button onClick={onMarkRead} disabled={busy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 bg-white text-gray-700 text-xs rounded-lg hover:bg-gray-50 disabled:opacity-50">
+        <MailOpen size={13} /> Read
+      </button>
+      <button onClick={onMarkUnread} disabled={busy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-gray-300 bg-white text-gray-700 text-xs rounded-lg hover:bg-gray-50 disabled:opacity-50">
+        <Mail size={13} /> Unread
+      </button>
+      <select
+        defaultValue=""
+        disabled={busy}
+        onChange={e => { if (e.target.value) { onMove(e.target.value); e.target.value = '' } }}
+        className="px-2.5 py-1.5 border border-gray-300 bg-white text-gray-700 text-xs rounded-lg disabled:opacity-50"
+      >
+        <option value="">Move to...</option>
+        {folders.filter(f => f.id !== currentFolderId).map(f => (
+          <option key={f.id} value={f.id}>{f.name}</option>
+        ))}
+      </select>
+      <button onClick={onDelete} disabled={busy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 disabled:opacity-50">
+        <Trash2 size={13} /> Delete
+      </button>
+      <button onClick={onClear} className="ml-auto text-gray-400 hover:text-gray-700 shrink-0" title="Clear selection">
+        <X size={15} />
+      </button>
+    </div>
+  )
+}
+
 function MessagePanel({
   message,
   folders,
@@ -1328,6 +1444,8 @@ export default function AdminEmailPage() {
   const [forwardOf, setForwardOf] = useState<EmailMessage | undefined>()
   const [folderRailCollapsed, setFolderRailCollapsed] = useState(false)
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [createFolderOpen, setCreateFolderOpen] = useState(false)
 
   const handleMobileBack = () => {
     setMobileView('list')
@@ -1370,6 +1488,103 @@ export default function AdminEmailPage() {
       setFolderId(folders[0].id)
     }
   }, [folders, folderId])
+
+  // Selection is only ever valid for the currently listed page of messages.
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [folderId, page])
+
+  const selectedRefs = useMemo(
+    () => (messages?.items ?? [])
+      .filter(m => selectedIds.has(m.id))
+      .map(m => ({ id: m.id, folderId: m.folderId })),
+    [messages, selectedIds],
+  )
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const allOnPageSelected = (messages?.items.length ?? 0) > 0 && (messages?.items.every(m => selectedIds.has(m.id)) ?? false)
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allOnPageSelected ? new Set() : new Set(messages?.items.map(m => m.id) ?? []))
+  }
+
+  const createFolderMutation = useMutation({
+    mutationFn: (name: string) => emailApi.createFolder({ name }),
+    onSuccess: () => {
+      toast.success('Folder created')
+      queryClient.invalidateQueries({ queryKey: ['email-folders'] })
+      setCreateFolderOpen(false)
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not create folder')),
+  })
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: (id: string) => emailApi.deleteFolder(id),
+    onSuccess: (_res, id) => {
+      toast.success('Folder deleted')
+      queryClient.invalidateQueries({ queryKey: ['email-folders'] })
+      if (folderId === id) setFolderId('INBOX')
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not delete folder')),
+  })
+
+  const handleDeleteFolder = (id: string, name: string) => {
+    if (!window.confirm(`Delete folder "${name}"? Any messages inside will be permanently deleted too. This can't be undone.`)) return
+    deleteFolderMutation.mutate(id)
+  }
+
+  const bulkMarkReadMutation = useMutation({
+    mutationFn: (isRead: boolean) => emailApi.bulkMarkRead(selectedRefs, isRead),
+    onSuccess: (res, isRead) => {
+      const result = res.data.data
+      toast.success(`Marked ${result?.succeededCount ?? selectedRefs.length} message(s) as ${isRead ? 'read' : 'unread'}`)
+      if (result?.failedCount) toast.error(`${result.failedCount} message(s) could not be updated`)
+      queryClient.invalidateQueries({ queryKey: ['email-messages'] })
+      setSelectedIds(new Set())
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Bulk update failed')),
+  })
+
+  const bulkMoveMutation = useMutation({
+    mutationFn: (destinationFolderId: string) => emailApi.bulkMove(selectedRefs, destinationFolderId),
+    onSuccess: (res) => {
+      const result = res.data.data
+      toast.success(`Moved ${result?.succeededCount ?? selectedRefs.length} message(s)`)
+      if (result?.failedCount) toast.error(`${result.failedCount} message(s) could not be moved`)
+      queryClient.invalidateQueries({ queryKey: ['email-messages'] })
+      queryClient.invalidateQueries({ queryKey: ['email-folders'] })
+      setSelectedIds(new Set())
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Bulk move failed')),
+  })
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => emailApi.bulkDelete(selectedRefs),
+    onSuccess: (res) => {
+      const result = res.data.data
+      toast.success(`Deleted ${result?.succeededCount ?? selectedRefs.length} message(s)`)
+      if (result?.failedCount) toast.error(`${result.failedCount} message(s) could not be deleted`)
+      queryClient.invalidateQueries({ queryKey: ['email-messages'] })
+      queryClient.invalidateQueries({ queryKey: ['email-folders'] })
+      setSelectedIds(new Set())
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Bulk delete failed')),
+  })
+
+  const bulkBusy = bulkMarkReadMutation.isPending || bulkMoveMutation.isPending || bulkDeleteMutation.isPending
+
+  const handleBulkDelete = () => {
+    if (!window.confirm(`Delete ${selectedRefs.length} message(s)? This can't be undone.`)) return
+    bulkDeleteMutation.mutate()
+  }
 
   if (settingsLoading) {
     return <div className="p-8 text-sm text-gray-400">Loading email settings...</div>
@@ -1428,18 +1643,51 @@ export default function AdminEmailPage() {
             {folders.length > 0 && (
               <div className="flex items-center gap-2 overflow-x-auto px-4 py-2.5 border-b border-gray-100 bg-white shrink-0">
                 {folders.map(folder => (
-                  <button
-                    key={folder.id}
-                    onClick={() => { setFolderId(folder.id); setPage(1); setSelectedMessageId(null) }}
-                    className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                      folder.id === folderId ? 'bg-sacred-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {folder.name}
-                    {(folder.unreadCount ?? 0) > 0 && ` · ${folder.unreadCount}`}
-                  </button>
+                  <div key={folder.id} className="shrink-0 flex items-center">
+                    <button
+                      onClick={() => { setFolderId(folder.id); setPage(1); setSelectedMessageId(null) }}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        folder.id === folderId ? 'bg-sacred-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      } ${folder.id === 'INBOX' ? 'rounded-full' : 'rounded-l-full'}`}
+                    >
+                      {folder.name}
+                      {(folder.unreadCount ?? 0) > 0 && ` · ${folder.unreadCount}`}
+                    </button>
+                    {folder.id !== 'INBOX' && (
+                      <button
+                        onClick={() => handleDeleteFolder(folder.id, folder.name)}
+                        title="Delete folder"
+                        className={`rounded-r-full pl-1 pr-2.5 py-1.5 text-xs ${
+                          folder.id === folderId ? 'bg-sacred-800 text-white/70 hover:text-white' : 'bg-gray-100 text-gray-400 hover:text-red-600'
+                        }`}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
                 ))}
+                <button
+                  onClick={() => setCreateFolderOpen(true)}
+                  className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+                >
+                  <Plus size={12} /> New
+                </button>
               </div>
+            )}
+
+            {/* Bulk action bar */}
+            {selectedIds.size > 0 && (
+              <BulkActionBar
+                count={selectedIds.size}
+                folders={folders}
+                currentFolderId={folderId}
+                onMarkRead={() => bulkMarkReadMutation.mutate(true)}
+                onMarkUnread={() => bulkMarkReadMutation.mutate(false)}
+                onMove={(dest) => bulkMoveMutation.mutate(dest)}
+                onDelete={handleBulkDelete}
+                onClear={() => setSelectedIds(new Set())}
+                busy={bulkBusy}
+              />
             )}
 
             {/* Search */}
@@ -1457,6 +1705,17 @@ export default function AdminEmailPage() {
 
             {/* Message list */}
             <div className="flex-1 overflow-y-auto bg-white">
+              {(messages?.items.length ?? 0) > 0 && (
+                <label className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleSelectAll}
+                    className="rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+                  />
+                  Select all
+                </label>
+              )}
               {messagesLoading ? (
                 <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
               ) : mailboxError ? (
@@ -1469,6 +1728,8 @@ export default function AdminEmailPage() {
                     key={message.id}
                     message={message}
                     active={selectedMessageId === message.id}
+                    selected={selectedIds.has(message.id)}
+                    onToggleSelect={() => toggleSelect(message.id)}
                     onClick={() => {
                       setSelectedMessageId(message.id)
                       setMode('message')
@@ -1553,13 +1814,24 @@ export default function AdminEmailPage() {
         {/* Desktop 3-column grid */}
         <div className={`flex-1 min-h-0 grid ${folderRailCollapsed ? 'grid-cols-[64px_minmax(320px,430px)_1fr]' : 'grid-cols-[220px_minmax(320px,430px)_1fr]'}`}>
           <aside className="bg-white border-r border-gray-200 p-3 overflow-y-auto">
-            <button
-              onClick={() => setFolderRailCollapsed(v => !v)}
-              className="mb-3 w-full flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
-              title={folderRailCollapsed ? 'Expand folders' : 'Collapse folders'}
-            >
-              <Menu size={15} />
-            </button>
+            <div className="mb-3 flex items-center gap-1.5">
+              <button
+                onClick={() => setFolderRailCollapsed(v => !v)}
+                className="flex-1 flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+                title={folderRailCollapsed ? 'Expand folders' : 'Collapse folders'}
+              >
+                <Menu size={15} />
+              </button>
+              {!folderRailCollapsed && (
+                <button
+                  onClick={() => setCreateFolderOpen(true)}
+                  className="flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+                  title="New folder"
+                >
+                  <Plus size={15} />
+                </button>
+              )}
+            </div>
             <div className="space-y-1">
               {folders.map(folder => (
                 <FolderButton
@@ -1573,6 +1845,7 @@ export default function AdminEmailPage() {
                     setSelectedMessageId(null)
                     setMode('message')
                   }}
+                  onDelete={folder.id !== 'INBOX' ? () => handleDeleteFolder(folder.id, folder.name) : undefined}
                 />
               ))}
             </div>
@@ -1594,6 +1867,29 @@ export default function AdminEmailPage() {
                 />
               </div>
             </div>
+            {selectedIds.size > 0 ? (
+              <BulkActionBar
+                count={selectedIds.size}
+                folders={folders}
+                currentFolderId={folderId}
+                onMarkRead={() => bulkMarkReadMutation.mutate(true)}
+                onMarkUnread={() => bulkMarkReadMutation.mutate(false)}
+                onMove={(dest) => bulkMoveMutation.mutate(dest)}
+                onDelete={handleBulkDelete}
+                onClear={() => setSelectedIds(new Set())}
+                busy={bulkBusy}
+              />
+            ) : (messages?.items.length ?? 0) > 0 && (
+              <label className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 text-xs text-gray-500">
+                <input
+                  type="checkbox"
+                  checked={allOnPageSelected}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+                />
+                Select all
+              </label>
+            )}
             <div className="flex-1 overflow-y-auto">
               {messagesLoading ? (
                 <div className="p-8 text-center text-sm text-gray-400">Loading messages...</div>
@@ -1607,6 +1903,8 @@ export default function AdminEmailPage() {
                     key={message.id}
                     message={message}
                     active={selectedMessageId === message.id}
+                    selected={selectedIds.has(message.id)}
+                    onToggleSelect={() => toggleSelect(message.id)}
                     onClick={() => {
                       setSelectedMessageId(message.id)
                       setMode('message')
@@ -1653,6 +1951,14 @@ export default function AdminEmailPage() {
           </section>
         </div>
       </div>
+
+      {createFolderOpen && (
+        <CreateFolderModal
+          onClose={() => setCreateFolderOpen(false)}
+          onCreate={(name) => createFolderMutation.mutate(name)}
+          isPending={createFolderMutation.isPending}
+        />
+      )}
 
     </div>
   )

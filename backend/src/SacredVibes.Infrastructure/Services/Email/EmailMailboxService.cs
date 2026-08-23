@@ -177,6 +177,57 @@ public class EmailMailboxService : IEmailMailboxService
         return folders;
     }
 
+    public async Task<EmailFolderDto> CreateFolderAsync(CreateEmailFolderRequest request, CancellationToken ct = default)
+    {
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            throw new InvalidOperationException("Folder name is required.");
+        if (name.IndexOfAny(new[] { '/', '\\' }) >= 0)
+            throw new InvalidOperationException("Folder name can't contain / or \\.");
+
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+
+        var parent = string.IsNullOrWhiteSpace(request.ParentFolderId)
+            ? client.GetFolder(client.PersonalNamespaces[0])
+            : await GetFolderAsync(client, request.ParentFolderId, ct);
+
+        IMailFolder created;
+        try
+        {
+            created = await parent.CreateAsync(name, true, ct);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Could not create folder \"{name}\": {ex.Message}");
+        }
+
+        await client.DisconnectAsync(true, ct);
+        return new EmailFolderDto { Id = created.FullName, Name = name, UnreadCount = 0, TotalCount = 0 };
+    }
+
+    public async Task DeleteFolderAsync(string folderId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(folderId) || folderId.Equals("INBOX", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("The Inbox can't be deleted.");
+
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+
+        var folder = await GetFolderAsync(client, folderId, ct);
+        try
+        {
+            if (folder.IsOpen) await folder.CloseAsync(false, ct);
+            await folder.DeleteAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Could not delete folder: {ex.Message}");
+        }
+
+        await client.DisconnectAsync(true, ct);
+    }
+
     public async Task<EmailMessageListDto> GetMessagesAsync(string? folderId, int page, int pageSize, string? search, CancellationToken ct = default)
     {
         page = Math.Max(1, page);
@@ -555,6 +606,111 @@ public class EmailMailboxService : IEmailMailboxService
         await folder.AddFlagsAsync(uid, MessageFlags.Deleted, true, ct);
         await folder.ExpungeAsync(ct);
         await client.DisconnectAsync(true, ct);
+    }
+
+    // Bulk operations open a single IMAP connection for the whole request and group the
+    // targeted messages by their source folder, so N selected messages cost one connection
+    // plus one IMAP call per distinct folder involved — not N reconnects.
+
+    public async Task<BulkActionResultDto> MarkReadManyAsync(List<EmailMessageRefDto> messages, bool isRead, CancellationToken ct = default)
+    {
+        var result = new BulkActionResultDto();
+        if (messages.Count == 0) return result;
+
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+
+        foreach (var group in messages.GroupBy(m => m.FolderId ?? "INBOX"))
+        {
+            try
+            {
+                var folder = await GetFolderAsync(client, group.Key, ct);
+                await folder.OpenAsync(FolderAccess.ReadWrite, ct);
+                var uids = group.Select(m => ParseUid(m.Id)).ToList();
+                if (isRead) await folder.AddFlagsAsync(uids, MessageFlags.Seen, true, ct);
+                else await folder.RemoveFlagsAsync(uids, MessageFlags.Seen, true, ct);
+                await folder.CloseAsync(false, ct);
+                result.SucceededCount += uids.Count;
+            }
+            catch (Exception ex)
+            {
+                result.FailedCount += group.Count();
+                result.Errors.Add(ex.Message);
+            }
+        }
+
+        await client.DisconnectAsync(true, ct);
+        return result;
+    }
+
+    public async Task<BulkActionResultDto> MoveManyAsync(List<EmailMessageRefDto> messages, string destinationFolderId, CancellationToken ct = default)
+    {
+        var result = new BulkActionResultDto();
+        if (messages.Count == 0) return result;
+        if (string.IsNullOrWhiteSpace(destinationFolderId))
+            throw new InvalidOperationException("Destination folder is required.");
+
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+        var destination = await GetFolderAsync(client, destinationFolderId, ct);
+
+        foreach (var group in messages.GroupBy(m => m.FolderId ?? "INBOX"))
+        {
+            try
+            {
+                if (group.Key.Equals(destinationFolderId, StringComparison.OrdinalIgnoreCase))
+                {
+                    result.SucceededCount += group.Count();
+                    continue;
+                }
+
+                var source = await GetFolderAsync(client, group.Key, ct);
+                await source.OpenAsync(FolderAccess.ReadWrite, ct);
+                var uids = group.Select(m => ParseUid(m.Id)).ToList();
+                await source.MoveToAsync(uids, destination, ct);
+                await source.CloseAsync(false, ct);
+                result.SucceededCount += uids.Count;
+            }
+            catch (Exception ex)
+            {
+                result.FailedCount += group.Count();
+                result.Errors.Add(ex.Message);
+            }
+        }
+
+        await client.DisconnectAsync(true, ct);
+        return result;
+    }
+
+    public async Task<BulkActionResultDto> DeleteManyAsync(List<EmailMessageRefDto> messages, CancellationToken ct = default)
+    {
+        var result = new BulkActionResultDto();
+        if (messages.Count == 0) return result;
+
+        var settings = await GetRequiredSettingsAsync(ct);
+        using var client = await CreateOpenImapClientAsync(settings, settings.ImapHost, settings.ImapPort, settings.ImapUseSsl, ct);
+
+        foreach (var group in messages.GroupBy(m => m.FolderId ?? "INBOX"))
+        {
+            try
+            {
+                var folder = await GetFolderAsync(client, group.Key, ct);
+                await folder.OpenAsync(FolderAccess.ReadWrite, ct);
+                var uids = group.Select(m => ParseUid(m.Id)).ToList();
+                await folder.AddFlagsAsync(uids, MessageFlags.Deleted, true, ct);
+                await folder.ExpungeAsync(uids, ct);
+                await folder.CloseAsync(false, ct);
+                result.SucceededCount += uids.Count;
+            }
+            catch (Exception ex)
+            {
+                result.FailedCount += group.Count();
+                result.Errors.Add(ex.Message);
+            }
+        }
+
+        await client.DisconnectAsync(true, ct);
+        return result;
     }
 
     public async Task<List<EmailContactDto>> SearchContactsAsync(string? search, int limit = 20, CancellationToken ct = default)

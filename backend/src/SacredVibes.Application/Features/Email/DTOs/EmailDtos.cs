@@ -123,6 +123,42 @@ public class EmailMoveRequest
     public string DestinationFolderId { get; set; } = string.Empty;
 }
 
+public class CreateEmailFolderRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string? ParentFolderId { get; set; }
+}
+
+public class EmailMessageRefDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string? FolderId { get; set; }
+}
+
+public class BulkMarkReadRequest
+{
+    public List<EmailMessageRefDto> Messages { get; set; } = new();
+    public bool IsRead { get; set; }
+}
+
+public class BulkMoveRequest
+{
+    public List<EmailMessageRefDto> Messages { get; set; } = new();
+    public string DestinationFolderId { get; set; } = string.Empty;
+}
+
+public class BulkDeleteRequest
+{
+    public List<EmailMessageRefDto> Messages { get; set; } = new();
+}
+
+public class BulkActionResultDto
+{
+    public int SucceededCount { get; set; }
+    public int FailedCount { get; set; }
+    public List<string> Errors { get; set; } = new();
+}
+
 public class EmailTestResultDto
 {
     public bool Success { get; set; }

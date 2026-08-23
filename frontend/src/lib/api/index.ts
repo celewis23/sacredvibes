@@ -6,6 +6,7 @@ import type {
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
+  EmailMessageRef, EmailBulkActionResult,
   EmailSendAttachment, EmailSignature, EmailLayout, EmailTemplate,
   StudioLibrary, StudioContentItem, MemberSubscription,
   ProjectSummary, Project, ProjectImage, ProjectTrack,
@@ -443,6 +444,12 @@ export const emailApi = {
   getFolders: () =>
     apiClient.get<ApiResponse<EmailFolder[]>>('/email/folders'),
 
+  createFolder: (data: { name: string; parentFolderId?: string }) =>
+    apiClient.post<ApiResponse<EmailFolder>>('/email/folders', data),
+
+  deleteFolder: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/email/folders/${encodeURIComponent(id)}`),
+
   getMessages: (params: { folderId?: string; page?: number; pageSize?: number; search?: string }) =>
     apiClient.get<ApiResponse<EmailMessageList>>('/email/messages', { params }),
 
@@ -470,6 +477,15 @@ export const emailApi = {
 
   delete: (id: string, folderId?: string) =>
     apiClient.delete(`/email/messages/${id}`, { params: { folderId } }),
+
+  bulkMarkRead: (messages: EmailMessageRef[], isRead: boolean) =>
+    apiClient.post<ApiResponse<EmailBulkActionResult>>('/email/messages/bulk-read', { messages, isRead }),
+
+  bulkMove: (messages: EmailMessageRef[], destinationFolderId: string) =>
+    apiClient.post<ApiResponse<EmailBulkActionResult>>('/email/messages/bulk-move', { messages, destinationFolderId }),
+
+  bulkDelete: (messages: EmailMessageRef[]) =>
+    apiClient.post<ApiResponse<EmailBulkActionResult>>('/email/messages/bulk-delete', { messages }),
 
   searchContacts: (params?: { search?: string; limit?: number }) =>
     apiClient.get<ApiResponse<EmailContact[]>>('/email/contacts', { params }),

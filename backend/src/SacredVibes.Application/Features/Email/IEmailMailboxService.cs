@@ -8,12 +8,17 @@ public interface IEmailMailboxService
     Task<EmailMailboxSettingsDto> SaveSettingsAsync(SaveEmailMailboxSettingsRequest request, CancellationToken ct = default);
     Task<EmailTestResultDto> TestConnectionAsync(CancellationToken ct = default);
     Task<List<EmailFolderDto>> GetFoldersAsync(CancellationToken ct = default);
+    Task<EmailFolderDto> CreateFolderAsync(CreateEmailFolderRequest request, CancellationToken ct = default);
+    Task DeleteFolderAsync(string folderId, CancellationToken ct = default);
     Task<EmailMessageListDto> GetMessagesAsync(string? folderId, int page, int pageSize, string? search, CancellationToken ct = default);
     Task<EmailMessageDto?> GetMessageAsync(string id, string? folderId, CancellationToken ct = default);
     Task SendAsync(SendEmailRequest request, CancellationToken ct = default);
     Task MarkReadAsync(string id, string? folderId, bool isRead, CancellationToken ct = default);
     Task MoveAsync(string id, string? folderId, string destinationFolderId, CancellationToken ct = default);
     Task DeleteAsync(string id, string? folderId, CancellationToken ct = default);
+    Task<BulkActionResultDto> MarkReadManyAsync(List<EmailMessageRefDto> messages, bool isRead, CancellationToken ct = default);
+    Task<BulkActionResultDto> MoveManyAsync(List<EmailMessageRefDto> messages, string destinationFolderId, CancellationToken ct = default);
+    Task<BulkActionResultDto> DeleteManyAsync(List<EmailMessageRefDto> messages, CancellationToken ct = default);
     Task<List<EmailContactDto>> SearchContactsAsync(string? search, int limit = 20, CancellationToken ct = default);
     Task<List<EmailRecipientGroupDto>> GetRecipientGroupsAsync(CancellationToken ct = default);
     Task<List<EmailContactDto>> GetGroupRecipientsAsync(string groupId, CancellationToken ct = default);

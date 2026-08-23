@@ -667,6 +667,17 @@ export interface EmailLayout {
   isDefault: boolean
 }
 
+export interface EmailMessageRef {
+  id: string
+  folderId?: string
+}
+
+export interface EmailBulkActionResult {
+  succeededCount: number
+  failedCount: number
+  errors: string[]
+}
+
 // ── Admin Assistant Settings ─────────────────────────────────────────────────
 
 export type AdminAssistantProvider = 'OpenAI' | 'Anthropic'
