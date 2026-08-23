@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -27,6 +27,22 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
     resolver: zodResolver(schema),
   })
 
+  // A shared "copy signup link" (admin subscribers page) points at /#newsletter. The browser's
+  // native anchor scroll can land short of this section if content above it (services, blog
+  // previews, etc.) is still loading and shifts the layout after the initial scroll — so retry
+  // once content has had a moment to settle.
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.location.hash !== '#newsletter') return
+
+    const scrollToSection = () => {
+      document.getElementById('newsletter')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
+    scrollToSection()
+    const retry = window.setTimeout(scrollToSection, 500)
+    return () => window.clearTimeout(retry)
+  }, [])
+
   const onSubmit = async (values: FormValues) => {
     if (values.honeypot) return
     try {
@@ -46,7 +62,7 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
   }
 
   return (
-    <section id="newsletter" data-header="dark" className="relative py-28 overflow-hidden"
+    <section id="newsletter" data-header="dark" className="relative py-28 overflow-hidden scroll-mt-20 lg:scroll-mt-24"
              style={{ background: 'linear-gradient(135deg, #1c1714 0%, #2d2420 50%, #1c1714 100%)' }}>
       {/* Ambient glow */}
       <div className="orb w-[600px] h-[600px] bg-yoga-600"
