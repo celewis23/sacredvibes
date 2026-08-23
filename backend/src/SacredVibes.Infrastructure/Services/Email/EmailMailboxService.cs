@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Net.Sockets;
 using System.Net.Http.Headers;
 using System.Security.Authentication;
@@ -1311,7 +1312,7 @@ public class EmailMailboxService : IEmailMailboxService
             IsRead = summary.IsRead,
             HasAttachments = summary.HasAttachments,
             Preview = summary.Preview,
-            HtmlBody = message.HtmlBody,
+            HtmlBody = ResolveInlineImages(message, message.HtmlBody),
             TextBody = message.TextBody,
             Cc = message.Cc.Mailboxes.Select(ToAddressDto).OfType<EmailAddressDto>().ToList(),
             Attachments = message.Attachments.Select((a, index) => new EmailAttachmentDto
@@ -1322,6 +1323,39 @@ public class EmailMailboxService : IEmailMailboxService
                 Size = a.ContentDisposition?.Size
             }).ToList()
         };
+    }
+
+    // Inline images (logos, photos pasted into the body) are referenced as <img src="cid:xxx">
+    // rather than being listed as attachments — the id points at a sibling MIME part carried
+    // alongside the HTML, not a URL a browser can fetch. Inline that part's bytes as a data URI
+    // so the sandboxed message iframe can actually render it.
+    private static string? ResolveInlineImages(MimeMessage message, string? html)
+    {
+        if (string.IsNullOrEmpty(html) || !html.Contains("cid:", StringComparison.OrdinalIgnoreCase))
+            return html;
+
+        var partsById = new Dictionary<string, MimePart>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in message.BodyParts.OfType<MimePart>())
+        {
+            var cid = part.ContentId?.Trim().Trim('<', '>');
+            if (!string.IsNullOrEmpty(cid) && !partsById.ContainsKey(cid))
+                partsById[cid] = part;
+        }
+
+        if (partsById.Count == 0) return html;
+
+        return Regex.Replace(html, "(?<quote>[\"'])cid:(?<id>[^\"']+)\\k<quote>", match =>
+        {
+            var quote = match.Groups["quote"].Value;
+            var id = Uri.UnescapeDataString(match.Groups["id"].Value);
+            if (!partsById.TryGetValue(id, out var part) || part.Content is null)
+                return match.Value;
+
+            using var stream = new MemoryStream();
+            part.Content.DecodeTo(stream);
+            var base64 = Convert.ToBase64String(stream.ToArray());
+            return $"{quote}data:{part.ContentType.MimeType};base64,{base64}{quote}";
+        });
     }
 
     private string ResolvePassword(StoredEmailSettings settings)
