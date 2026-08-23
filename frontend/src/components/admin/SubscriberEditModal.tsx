@@ -62,8 +62,8 @@ export default function SubscriberEditModal({ subscriber, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-card w-full max-w-md p-6 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-black/50 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-card w-full max-w-md p-6 my-8 sm:my-0 max-h-[calc(100vh-4rem)] overflow-y-auto animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading text-xl text-sacred-900">Edit Subscriber</h2>
           <button onClick={onClose} className="text-sacred-400 hover:text-sacred-700 transition-colors">
@@ -148,18 +148,19 @@ export default function SubscriberEditModal({ subscriber, onClose }: Props) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-sacred-100">
+        <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 mt-6 pt-4 border-t border-sacred-100">
           <Button
             variant="danger"
             size="sm"
             onClick={handleDelete}
             isLoading={deleteMutation.isPending}
+            className="w-full sm:w-auto"
           >
             Delete Subscriber
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={() => saveMutation.mutate()} isLoading={saveMutation.isPending}>
+            <Button variant="outline" size="sm" onClick={onClose} className="flex-1 sm:flex-none">Cancel</Button>
+            <Button size="sm" onClick={() => saveMutation.mutate()} isLoading={saveMutation.isPending} className="flex-1 sm:flex-none">
               Save Changes
             </Button>
           </div>

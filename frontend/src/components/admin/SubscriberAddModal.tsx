@@ -46,8 +46,8 @@ export default function SubscriberAddModal({ onClose }: Props) {
   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-card w-full max-w-md p-6 animate-slide-up">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-black/50 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-card w-full max-w-md p-6 my-8 sm:my-0 max-h-[calc(100vh-4rem)] overflow-y-auto animate-slide-up">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading text-xl text-sacred-900">Add Subscriber</h2>
           <button onClick={onClose} className="text-sacred-400 hover:text-sacred-700 transition-colors">
