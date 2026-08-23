@@ -89,13 +89,13 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
                   {...register('firstName')}
                   type="text"
                   placeholder="First name (optional)"
-                  className="flex-1 px-5 py-4 rounded-full bg-white/8 border border-white/15 text-white placeholder:text-sacred-500/60 focus:outline-none focus:ring-1 focus:ring-yoga-500 focus:border-yoga-500 text-sm font-body tracking-wide transition-all duration-200"
+                  className="input-on-dark flex-1 px-5 py-4 rounded-full bg-white/8 border border-white/15 text-white placeholder:text-sacred-500/60 focus:outline-none focus:ring-1 focus:ring-yoga-500 focus:border-yoga-500 text-sm font-body tracking-wide transition-all duration-200"
                 />
                 <input
                   {...register('email')}
                   type="email"
                   placeholder="Your email address"
-                  className="flex-1 px-5 py-4 rounded-full bg-white/8 border border-white/15 text-white placeholder:text-sacred-500/60 focus:outline-none focus:ring-1 focus:ring-yoga-500 focus:border-yoga-500 text-sm font-body tracking-wide transition-all duration-200"
+                  className="input-on-dark flex-1 px-5 py-4 rounded-full bg-white/8 border border-white/15 text-white placeholder:text-sacred-500/60 focus:outline-none focus:ring-1 focus:ring-yoga-500 focus:border-yoga-500 text-sm font-body tracking-wide transition-all duration-200"
                 />
               </div>
 

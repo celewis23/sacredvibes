@@ -681,6 +681,16 @@ export interface AdminAssistantSettings {
   lastSyncResult?: string
 }
 
+// ── Social Links ──────────────────────────────────────────────────────────────
+
+export interface SocialLinks {
+  instagram?: string
+  facebook?: string
+  youTube?: string
+  tikTok?: string
+  bioBox?: string
+}
+
 // ── Projects ──────────────────────────────────────────────────────────────────
 
 export type ProjectImageSource = 'Pinterest' | 'Manual' | 'Embedded'

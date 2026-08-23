@@ -114,6 +114,7 @@ public static class DependencyInjection
         services.AddScoped<IStudioService, StudioService>();
         services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
         services.AddScoped<IAdminAssistantSettingsService, AdminAssistantSettingsService>();
+        services.AddScoped<ISocialLinksService, SocialLinksService>();
         services.AddScoped<IPushNotificationService, PushNotificationService>();
         services.AddHostedService<EmailPollingBackgroundService>();
 

@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Users, Upload, Download, Search, Filter } from 'lucide-react'
+import { Users, Upload, Download, Search, Pencil } from 'lucide-react'
 import { format } from 'date-fns'
 import { subscribersApi } from '@/lib/api'
 import Button from '@/components/ui/button'
 import Badge from '@/components/ui/badge'
 import Card from '@/components/ui/card'
 import ImportModal from '@/components/admin/ImportModal'
+import SubscriberEditModal from '@/components/admin/SubscriberEditModal'
+import type { Subscriber } from '@/types'
 
 export default function SubscribersPage() {
   const qc = useQueryClient()
@@ -18,6 +20,7 @@ export default function SubscribersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showImportModal, setShowImportModal] = useState(false)
   const [importType, setImportType] = useState<'square' | 'stripe' | 'csv'>('csv')
+  const [editingSubscriber, setEditingSubscriber] = useState<Subscriber | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['subscribers', page, debouncedSearch],
@@ -106,12 +109,13 @@ export default function SubscribersPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase tracking-wide hidden lg:table-cell">Tags</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase tracking-wide">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-sacred-500 uppercase tracking-wide hidden md:table-cell">Joined</th>
+                <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody className="divide-y divide-sacred-50">
               {isLoading && [...Array(10)].map((_, i) => (
                 <tr key={i}>
-                  {[...Array(6)].map((_, j) => (
+                  {[...Array(7)].map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <div className="h-4 bg-sacred-100 rounded animate-pulse" />
                     </td>
@@ -119,7 +123,11 @@ export default function SubscribersPage() {
                 </tr>
               ))}
               {!isLoading && (data?.items ?? []).map((sub) => (
-                <tr key={sub.id} className="hover:bg-sacred-50/50 transition-colors">
+                <tr
+                  key={sub.id}
+                  onClick={() => setEditingSubscriber(sub)}
+                  className="hover:bg-sacred-50/50 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-3 font-medium text-sacred-900">{sub.email}</td>
                   <td className="px-4 py-3 text-sacred-600 hidden sm:table-cell">{sub.fullName || '—'}</td>
                   <td className="px-4 py-3 hidden md:table-cell">
@@ -149,11 +157,14 @@ export default function SubscribersPage() {
                   <td className="px-4 py-3 text-sacred-500 hidden md:table-cell">
                     {format(new Date(sub.createdAt), 'MMM d, yyyy')}
                   </td>
+                  <td className="px-4 py-3">
+                    <Pencil size={14} className="text-sacred-300" />
+                  </td>
                 </tr>
               ))}
               {!isLoading && !data?.items?.length && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sacred-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sacred-400">
                     <Users size={32} className="mx-auto mb-3 opacity-40" />
                     <p>No subscribers found</p>
                   </td>
@@ -190,6 +201,13 @@ export default function SubscribersPage() {
             qc.invalidateQueries({ queryKey: ['subscribers'] })
             toast.success('Import completed!')
           }}
+        />
+      )}
+
+      {editingSubscriber && (
+        <SubscriberEditModal
+          subscriber={editingSubscriber}
+          onClose={() => setEditingSubscriber(null)}
         />
       )}
     </div>

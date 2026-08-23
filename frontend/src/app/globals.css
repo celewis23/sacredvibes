@@ -185,6 +185,23 @@
     background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 60%, transparent 70%);
   }
   .group:hover .shimmer-overlay { @apply opacity-100; }
+
+  /* Input on dark section background — browser autofill (and some forced-dark
+     rendering modes) paints its own light background over translucent inputs,
+     leaving white text unreadable. Force the fill back to the intended dark
+     tone and keep the text white. */
+  .input-on-dark {
+    color-scheme: dark;
+  }
+  .input-on-dark:-webkit-autofill,
+  .input-on-dark:-webkit-autofill:hover,
+  .input-on-dark:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff;
+    caret-color: #ffffff;
+    -webkit-box-shadow: 0 0 0px 1000px #2d2420 inset;
+    box-shadow: 0 0 0px 1000px #2d2420 inset;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 @layer utilities {

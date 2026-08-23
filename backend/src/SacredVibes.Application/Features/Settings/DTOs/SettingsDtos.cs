@@ -128,3 +128,21 @@ public class ResolvedAdminAssistantSettingsDto : AdminAssistantSettingsDto
 {
     public string ApiKey { get; set; } = string.Empty;
 }
+
+public class SocialLinksDto
+{
+    public string? Instagram { get; set; }
+    public string? Facebook { get; set; }
+    public string? YouTube { get; set; }
+    public string? TikTok { get; set; }
+    public string? BioBox { get; set; }
+}
+
+public class SaveSocialLinksRequest
+{
+    public string? Instagram { get; set; }
+    public string? Facebook { get; set; }
+    public string? YouTube { get; set; }
+    public string? TikTok { get; set; }
+    public string? BioBox { get; set; }
+}

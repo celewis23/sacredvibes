@@ -6,7 +6,7 @@ import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
 import { dashboardApi, settingsApi } from '@/lib/api'
 import { getBrandBasePath } from '@/lib/brand/resolution'
-import type { Brand } from '@/types'
+import type { Brand, SocialLinks } from '@/types'
 
 function getApiErrorMessage(error: unknown, fallback: string) {
   const axiosError = error as AxiosError<{ errors?: string[]; message?: string }>
@@ -86,6 +86,7 @@ export default function AdminSettingsPage() {
   const [assistantModel, setAssistantModel] = useState('gpt-5.5')
   const [assistantImageModel, setAssistantImageModel] = useState('gpt-image-2')
   const [assistantApiKey, setAssistantApiKey] = useState('')
+  const [socialLinks, setSocialLinks] = useState<SocialLinks>({})
 
   const { data: brands, isLoading } = useQuery({
     queryKey: ['brands'],
@@ -105,6 +106,25 @@ export default function AdminSettingsPage() {
     setAssistantImageModel(assistantSettings.imageModel)
     setAssistantApiKey('')
   }, [assistantSettings])
+
+  const { data: socialLinksData, isLoading: socialLinksLoading } = useQuery({
+    queryKey: ['social-links-settings'],
+    queryFn: () => settingsApi.getSocialLinks().then(r => r.data.data),
+  })
+
+  useEffect(() => {
+    if (!socialLinksData) return
+    setSocialLinks(socialLinksData)
+  }, [socialLinksData])
+
+  const saveSocialLinksMutation = useMutation({
+    mutationFn: () => settingsApi.saveSocialLinks(socialLinks),
+    onSuccess: () => {
+      toast.success('Social links saved')
+      queryClient.invalidateQueries({ queryKey: ['social-links-settings'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save social links')),
+  })
 
   const saveAssistantMutation = useMutation({
     mutationFn: () => settingsApi.saveAdminAssistant({
@@ -282,6 +302,45 @@ export default function AdminSettingsPage() {
               Save Notification Settings
             </button>
           </div>
+        </Section>
+
+        {/* Social links */}
+        <Section
+          title="Social Links"
+          description="Set these once and they'll appear everywhere the site shows social icons (footer, and anywhere else added later)."
+        >
+          {socialLinksLoading ? (
+            <p className="text-sm text-gray-400">Loading social links...</p>
+          ) : (
+            <div className="space-y-4">
+              {([
+                ['instagram', 'Instagram', 'https://instagram.com/yourhandle'],
+                ['facebook', 'Facebook', 'https://facebook.com/yourpage'],
+                ['youTube', 'YouTube', 'https://youtube.com/@yourchannel'],
+                ['tikTok', 'TikTok', 'https://tiktok.com/@yourhandle'],
+                ['bioBox', 'BioBox', 'https://biobox.app/yourpage'],
+              ] as const).map(([key, label, placeholder]) => (
+                <div key={key}>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                  <input
+                    type="url"
+                    value={socialLinks[key] ?? ''}
+                    onChange={e => setSocialLinks(prev => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                  />
+                </div>
+              ))}
+
+              <button
+                onClick={() => saveSocialLinksMutation.mutate()}
+                disabled={saveSocialLinksMutation.isPending}
+                className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 transition-colors disabled:opacity-50"
+              >
+                {saveSocialLinksMutation.isPending ? 'Saving...' : 'Save Social Links'}
+              </button>
+            </div>
+          )}
         </Section>
 
         {/* Environment info */}

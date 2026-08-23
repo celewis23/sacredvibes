@@ -12,11 +12,16 @@ namespace SacredVibes.Api.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly IAdminAssistantSettingsService _adminAssistantSettings;
+    private readonly ISocialLinksService _socialLinks;
     private readonly ILogger<SettingsController> _logger;
 
-    public SettingsController(IAdminAssistantSettingsService adminAssistantSettings, ILogger<SettingsController> logger)
+    public SettingsController(
+        IAdminAssistantSettingsService adminAssistantSettings,
+        ISocialLinksService socialLinks,
+        ILogger<SettingsController> logger)
     {
         _adminAssistantSettings = adminAssistantSettings;
+        _socialLinks = socialLinks;
         _logger = logger;
     }
 
@@ -53,5 +58,24 @@ public class SettingsController : ControllerBase
     {
         var settings = await _adminAssistantSettings.GetResolvedSettingsAsync(ct);
         return Ok(ApiResponse<ResolvedAdminAssistantSettingsDto>.Ok(settings));
+    }
+
+    // Public: read-only, so the public site (footer, contact page, etc.) can
+    // render whichever social icons the studio owner has actually filled in.
+    [HttpGet("social-links")]
+    [AllowAnonymous]
+    public async Task<ActionResult<ApiResponse<SocialLinksDto>>> GetSocialLinks(CancellationToken ct)
+    {
+        var settings = await _socialLinks.GetSettingsAsync(ct);
+        return Ok(ApiResponse<SocialLinksDto>.Ok(settings));
+    }
+
+    [HttpPut("social-links")]
+    public async Task<ActionResult<ApiResponse<SocialLinksDto>>> SaveSocialLinks(
+        [FromBody] SaveSocialLinksRequest request,
+        CancellationToken ct)
+    {
+        var settings = await _socialLinks.SaveSettingsAsync(request, ct);
+        return Ok(ApiResponse<SocialLinksDto>.Ok(settings));
     }
 }

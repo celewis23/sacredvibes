@@ -2,7 +2,7 @@ import { apiClient } from './client'
 import type {
   ApiResponse, PagedResult, BlogPostSummary, BlogPost, BlogCategory, BlogTag,
   Asset, ServiceOffering, EventOffering, Booking, BookingRequest,
-  Subscriber, SubscriberTag, AuthResponse, Brand, Lead, DashboardStats,
+  Subscriber, SubscriberTag, ConsentStatus, AuthResponse, Brand, Lead, DashboardStats,
   SitePage, AdminUser, ImportJob, SquareServiceCatalogSyncResult, SquareServicePushResult,
   EventbriteEventSyncResult, EventbriteEventPushResult, EventbriteDiagnosticsResult,
   EmailMailboxSettings, EmailFolder, EmailMessageList, EmailMessage, EmailContact, EmailRecipientGroup,
@@ -10,6 +10,7 @@ import type {
   StudioLibrary, StudioContentItem, MemberSubscription,
   ProjectSummary, Project, ProjectImage, ProjectTrack,
   AdminAssistantSettings,
+  SocialLinks,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -186,6 +187,33 @@ export const subscribersApi = {
   getSubscribers: (params: Record<string, unknown>) =>
     apiClient.get<ApiResponse<PagedResult<Subscriber>>>('/subscribers', { params }),
 
+  getSubscriber: (id: string) =>
+    apiClient.get<ApiResponse<Subscriber>>(`/subscribers/${id}`),
+
+  createSubscriber: (data: {
+    email: string
+    firstName?: string
+    lastName?: string
+    phone?: string
+    isSubscribed?: boolean
+    consentStatus?: ConsentStatus
+    notes?: string
+    tagIds?: string[]
+  }) => apiClient.post<ApiResponse<Subscriber>>('/subscribers', data),
+
+  updateSubscriber: (id: string, data: {
+    firstName?: string
+    lastName?: string
+    phone?: string
+    isSubscribed: boolean
+    consentStatus: ConsentStatus
+    notes?: string
+    tagIds?: string[]
+  }) => apiClient.put<ApiResponse<Subscriber>>(`/subscribers/${id}`, data),
+
+  deleteSubscriber: (id: string) =>
+    apiClient.delete(`/subscribers/${id}`),
+
   unsubscribe: (id: string) =>
     apiClient.post<ApiResponse<{ message: string }>>('/subscribers/unsubscribe', { id }),
 
@@ -235,6 +263,12 @@ export const settingsApi = {
     imageModel: string
     apiKey?: string
   }) => apiClient.put<ApiResponse<AdminAssistantSettings>>('/settings/admin-assistant', data),
+
+  getSocialLinks: () =>
+    apiClient.get<ApiResponse<SocialLinks>>('/settings/social-links'),
+
+  saveSocialLinks: (data: SocialLinks) =>
+    apiClient.put<ApiResponse<SocialLinks>>('/settings/social-links', data),
 }
 
 // ── Push Notifications ───────────────────────────────────────────────────────
