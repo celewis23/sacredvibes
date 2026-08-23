@@ -345,6 +345,17 @@ public class EmailMailboxService : IEmailMailboxService
         if (request.To.Count + request.Cc.Count + request.Bcc.Count == 0)
             throw new InvalidOperationException("At least one recipient is required.");
 
+        // Images inserted directly into the compose editor (as opposed to attached files) come
+        // through as data: URIs. Most mail clients — Gmail included — strip data: URIs from
+        // received HTML for security reasons, so they never render. Pull them out into proper
+        // inline resources referenced by cid:, which every major client supports, before any
+        // per-recipient body variants are built below.
+        List<InlineImage> inlineImages;
+        if (request.IsHtml)
+            request.Body = ExtractInlineImages(request.Body, out inlineImages);
+        else
+            inlineImages = new List<InlineImage>();
+
         var resendApiKey = GetResendApiKey();
         var settings = !string.IsNullOrWhiteSpace(resendApiKey)
             ? await GetRequiredSettingsAsync(ct, requireMailboxSettings: false)
@@ -366,11 +377,11 @@ public class EmailMailboxService : IEmailMailboxService
         if (request.To.Count > 0 || request.Cc.Count > 0 || regularBcc.Count > 0)
         {
             var bulkRequest = CloneRequest(request, regularBcc);
-            var bulkMessage = BuildMimeMessage(settings, bulkRequest);
+            var bulkMessage = BuildMimeMessage(settings, bulkRequest, inlineImages);
             archiveMessage = bulkMessage;
 
             if (!string.IsNullOrWhiteSpace(resendApiKey))
-                await SendWithResendAsync(settings, bulkRequest, resendApiKey, ct);
+                await SendWithResendAsync(settings, bulkRequest, resendApiKey, inlineImages, ct);
             else
                 await SendWithSmtpAsync(settings, bulkMessage, ct);
         }
@@ -382,11 +393,11 @@ public class EmailMailboxService : IEmailMailboxService
             singleRequest.To = new List<string> { email };
             singleRequest.Body = AppendUnsubscribeFooter(request.Body, request.IsHtml, subscriberId);
 
-            var singleMessage = BuildMimeMessage(settings, singleRequest);
+            var singleMessage = BuildMimeMessage(settings, singleRequest, inlineImages);
             archiveMessage ??= singleMessage;
 
             if (!string.IsNullOrWhiteSpace(resendApiKey))
-                await SendSingleResendEmailAsync(settings, singleRequest, resendApiKey, new List<string> { email }, new List<string>(), new List<string>(), ct);
+                await SendSingleResendEmailAsync(settings, singleRequest, resendApiKey, new List<string> { email }, new List<string>(), new List<string>(), inlineImages, ct);
             else
                 await SendWithSmtpAsync(settings, singleMessage, ct);
         }
@@ -428,7 +439,46 @@ public class EmailMailboxService : IEmailMailboxService
     private string ResolvePublicFrontendUrl() =>
         (_config["FRONTEND_URL"] ?? Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "https://sacredvibesyoga.com").TrimEnd('/');
 
-    private static MimeMessage BuildMimeMessage(ResolvedEmailSettings settings, SendEmailRequest request)
+    // Images inserted via the compose editor's "insert image" button land in the HTML as
+    // data: URIs. Pull each one out into its own inline resource referenced by cid: instead,
+    // since that's the only inline-image mechanism mail clients actually render.
+    private static string ExtractInlineImages(string html, out List<InlineImage> images)
+    {
+        var found = new List<InlineImage>();
+        if (string.IsNullOrEmpty(html) || !html.Contains("data:image/", StringComparison.OrdinalIgnoreCase))
+        {
+            images = found;
+            return html;
+        }
+
+        var index = 0;
+        var result = Regex.Replace(
+            html,
+            "(?<quote>[\"'])data:(?<mime>image/[a-zA-Z0-9.+-]+);base64,(?<data>[A-Za-z0-9+/=]+)\\k<quote>",
+            match =>
+            {
+                try
+                {
+                    var mime = match.Groups["mime"].Value;
+                    var bytes = Convert.FromBase64String(match.Groups["data"].Value);
+                    var extension = mime.Contains('/') ? mime[(mime.IndexOf('/') + 1)..] : "png";
+                    var contentId = $"inline-{Guid.NewGuid():N}";
+                    found.Add(new InlineImage(contentId, $"image-{++index}.{extension}", mime, bytes));
+
+                    var quote = match.Groups["quote"].Value;
+                    return $"{quote}cid:{contentId}{quote}";
+                }
+                catch
+                {
+                    return match.Value; // leave anything malformed untouched rather than break the send
+                }
+            });
+
+        images = found;
+        return result;
+    }
+
+    private static MimeMessage BuildMimeMessage(ResolvedEmailSettings settings, SendEmailRequest request, List<InlineImage> inlineImages)
     {
         var message = new MimeMessage();
         message.From.Add(new MailboxAddress(settings.FromName, settings.EmailAddress));
@@ -439,6 +489,16 @@ public class EmailMailboxService : IEmailMailboxService
         var bodyBuilder = new BodyBuilder();
         if (request.IsHtml) bodyBuilder.HtmlBody = request.Body;
         else bodyBuilder.TextBody = request.Body;
+
+        foreach (var image in inlineImages)
+        {
+            ContentType imageContentType;
+            try { imageContentType = ContentType.Parse(image.ContentType); }
+            catch { imageContentType = new ContentType("image", "png"); }
+
+            var resource = bodyBuilder.LinkedResources.Add(image.FileName, image.Content, imageContentType);
+            resource.ContentId = image.ContentId;
+        }
 
         foreach (var attachment in request.Attachments)
         {
@@ -505,19 +565,19 @@ public class EmailMailboxService : IEmailMailboxService
         }
     }
 
-    private async Task SendWithResendAsync(ResolvedEmailSettings settings, SendEmailRequest request, string apiKey, CancellationToken ct)
+    private async Task SendWithResendAsync(ResolvedEmailSettings settings, SendEmailRequest request, string apiKey, List<InlineImage> inlineImages, CancellationToken ct)
     {
         if (request.To.Count == 0 && request.Bcc.Count > 0 && request.Cc.Count == 0)
         {
             foreach (var recipient in request.Bcc)
             {
-                await SendSingleResendEmailAsync(settings, request, apiKey, new List<string> { recipient }, new List<string>(), new List<string>(), ct);
+                await SendSingleResendEmailAsync(settings, request, apiKey, new List<string> { recipient }, new List<string>(), new List<string>(), inlineImages, ct);
             }
 
             return;
         }
 
-        await SendSingleResendEmailAsync(settings, request, apiKey, request.To.Count > 0 ? request.To : new List<string> { settings.EmailAddress }, request.Cc, request.Bcc, ct);
+        await SendSingleResendEmailAsync(settings, request, apiKey, request.To.Count > 0 ? request.To : new List<string> { settings.EmailAddress }, request.Cc, request.Bcc, inlineImages, ct);
     }
 
     private async Task SendSingleResendEmailAsync(
@@ -527,6 +587,7 @@ public class EmailMailboxService : IEmailMailboxService
         List<string> to,
         List<string> cc,
         List<string> bcc,
+        List<InlineImage> inlineImages,
         CancellationToken ct)
     {
         if (to.Count > 50)
@@ -549,6 +610,12 @@ public class EmailMailboxService : IEmailMailboxService
                     Filename = a.FileName,
                     Content = a.Base64Content
                 })
+                .Concat(inlineImages.Select(image => new ResendAttachment
+                {
+                    Filename = image.FileName,
+                    Content = Convert.ToBase64String(image.Content),
+                    ContentId = image.ContentId
+                }))
                 .ToList()
         };
 
@@ -1750,5 +1817,11 @@ public class EmailMailboxService : IEmailMailboxService
 
         [JsonPropertyName("content")]
         public string Content { get; set; } = string.Empty;
+
+        [JsonPropertyName("content_id")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ContentId { get; set; }
     }
+
+    private sealed record InlineImage(string ContentId, string FileName, string ContentType, byte[] Content);
 }
