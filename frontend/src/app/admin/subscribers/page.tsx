@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Users, Upload, Download, Search, Pencil } from 'lucide-react'
+import { Users, Upload, Download, Search, Pencil, UserPlus, Link2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { subscribersApi } from '@/lib/api'
 import Button from '@/components/ui/button'
@@ -11,7 +11,10 @@ import Badge from '@/components/ui/badge'
 import Card from '@/components/ui/card'
 import ImportModal from '@/components/admin/ImportModal'
 import SubscriberEditModal from '@/components/admin/SubscriberEditModal'
+import SubscriberAddModal from '@/components/admin/SubscriberAddModal'
 import type { Subscriber } from '@/types'
+
+const SIGNUP_LINK = 'https://sacredvibesyoga.com/#newsletter'
 
 export default function SubscribersPage() {
   const qc = useQueryClient()
@@ -21,6 +24,7 @@ export default function SubscribersPage() {
   const [showImportModal, setShowImportModal] = useState(false)
   const [importType, setImportType] = useState<'square' | 'stripe' | 'csv'>('csv')
   const [editingSubscriber, setEditingSubscriber] = useState<Subscriber | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
 
   const { data, isLoading } = useQuery({
     queryKey: ['subscribers', page, debouncedSearch],
@@ -58,6 +62,15 @@ export default function SubscribersPage() {
     setShowImportModal(true)
   }
 
+  const copySignupLink = async () => {
+    try {
+      await navigator.clipboard.writeText(SIGNUP_LINK)
+      toast.success('Signup link copied')
+    } catch {
+      toast.error('Could not copy link')
+    }
+  }
+
   return (
     <div className="p-6 lg:p-8 space-y-6">
       {/* Header */}
@@ -69,6 +82,9 @@ export default function SubscribersPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={copySignupLink}>
+            <Link2 size={14} /> Copy Signup Link
+          </Button>
           <Button variant="outline" size="sm" onClick={() => openImport('csv')}>
             <Upload size={14} /> Import CSV
           </Button>
@@ -80,6 +96,9 @@ export default function SubscribersPage() {
           </Button>
           <Button variant="secondary" size="sm" onClick={() => exportMutation.mutate()} isLoading={exportMutation.isPending}>
             <Download size={14} /> Export
+          </Button>
+          <Button size="sm" onClick={() => setShowAddModal(true)}>
+            <UserPlus size={14} /> Add Subscriber
           </Button>
         </div>
       </div>
@@ -209,6 +228,10 @@ export default function SubscribersPage() {
           subscriber={editingSubscriber}
           onClose={() => setEditingSubscriber(null)}
         />
+      )}
+
+      {showAddModal && (
+        <SubscriberAddModal onClose={() => setShowAddModal(false)} />
       )}
     </div>
   )

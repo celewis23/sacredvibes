@@ -46,7 +46,7 @@ export default function NewsletterSection({ brandId, colorScheme = 'yoga' }: Pro
   }
 
   return (
-    <section data-header="dark" className="relative py-28 overflow-hidden"
+    <section id="newsletter" data-header="dark" className="relative py-28 overflow-hidden"
              style={{ background: 'linear-gradient(135deg, #1c1714 0%, #2d2420 50%, #1c1714 100%)' }}>
       {/* Ambient glow */}
       <div className="orb w-[600px] h-[600px] bg-yoga-600"
