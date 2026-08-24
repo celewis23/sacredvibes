@@ -12,6 +12,8 @@ import type {
   ProjectSummary, Project, ProjectImage, ProjectTrack,
   AdminAssistantSettings,
   SocialLinks,
+  NewsletterTemplate, NewsletterBannerFields, Newsletter, NewsletterListItem,
+  NewsletterStatus, NewsletterRecipientLog,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -166,6 +168,78 @@ export const emailTemplatesApi = {
 
   sendPreview: (key: string, toEmail: string) =>
     apiClient.post<ApiResponse<string>>(`/email-templates/${key}/preview`, { toEmail }),
+}
+
+// ── Newsletter Templates ──────────────────────────────────────────────────────
+
+export interface SaveNewsletterTemplateData {
+  name: string
+  description?: string
+  header: NewsletterBannerFields
+  bodyContentHtml: string
+  footer: NewsletterBannerFields
+}
+
+export const newsletterTemplatesApi = {
+  getAll: () =>
+    apiClient.get<ApiResponse<NewsletterTemplate[]>>('/newsletter-templates'),
+
+  get: (id: string) =>
+    apiClient.get<ApiResponse<NewsletterTemplate>>(`/newsletter-templates/${id}`),
+
+  create: (data: SaveNewsletterTemplateData) =>
+    apiClient.post<ApiResponse<NewsletterTemplate>>('/newsletter-templates', data),
+
+  update: (id: string, data: SaveNewsletterTemplateData) =>
+    apiClient.put<ApiResponse<NewsletterTemplate>>(`/newsletter-templates/${id}`, data),
+
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/newsletter-templates/${id}`),
+}
+
+// ── Newsletters ───────────────────────────────────────────────────────────────
+
+export interface UpdateNewsletterData {
+  name: string
+  subject: string
+  header: NewsletterBannerFields
+  bodyContentHtml: string
+  footer: NewsletterBannerFields
+}
+
+export const newslettersApi = {
+  getAll: (params: { page?: number; pageSize?: number; status?: NewsletterStatus }) =>
+    apiClient.get<ApiResponse<PagedResult<NewsletterListItem>>>('/newsletters', { params }),
+
+  get: (id: string) =>
+    apiClient.get<ApiResponse<Newsletter>>(`/newsletters/${id}`),
+
+  create: (data: { name: string; subject: string; templateId?: string }) =>
+    apiClient.post<ApiResponse<Newsletter>>('/newsletters', data),
+
+  update: (id: string, data: UpdateNewsletterData) =>
+    apiClient.put<ApiResponse<Newsletter>>(`/newsletters/${id}`, data),
+
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/newsletters/${id}`),
+
+  schedule: (id: string, data: { recipientGroupId: string; scheduledAtUtc: string }) =>
+    apiClient.post<ApiResponse<Newsletter>>(`/newsletters/${id}/schedule`, data),
+
+  cancel: (id: string) =>
+    apiClient.post<ApiResponse<Newsletter>>(`/newsletters/${id}/cancel`),
+
+  sendNow: (id: string, data: { recipientGroupId: string }) =>
+    apiClient.post<ApiResponse<Newsletter>>(`/newsletters/${id}/send-now`, data),
+
+  sendTest: (id: string, testEmail: string) =>
+    apiClient.post<ApiResponse<object>>(`/newsletters/${id}/send-test`, { testEmail }),
+
+  preview: (id: string) =>
+    apiClient.get<ApiResponse<{ html: string }>>(`/newsletters/${id}/preview`),
+
+  getRecipientLogs: (id: string, params?: { page?: number; pageSize?: number }) =>
+    apiClient.get<ApiResponse<PagedResult<NewsletterRecipientLog>>>(`/newsletters/${id}/recipient-logs`, { params }),
 }
 
 // ── Leads ─────────────────────────────────────────────────────────────────────

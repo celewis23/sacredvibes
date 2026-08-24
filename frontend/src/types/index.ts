@@ -679,6 +679,61 @@ export interface EmailBulkActionResult {
   errors: string[]
 }
 
+// ── Newsletters ───────────────────────────────────────────────────────────────
+
+export type NewsletterStatus = 'Draft' | 'Scheduled' | 'Sending' | 'Sent' | 'SentWithErrors' | 'Failed' | 'Cancelled'
+
+export interface NewsletterBannerFields {
+  backgroundColor?: string
+  imageAssetId?: string
+  imageUrl?: string
+  text?: string
+  textColor?: string
+}
+
+export interface NewsletterTemplate {
+  id: string
+  name: string
+  description?: string
+  header: NewsletterBannerFields
+  bodyContentHtml: string
+  footer: NewsletterBannerFields
+  createdAt: string
+  updatedAt: string
+}
+
+export interface NewsletterListItem {
+  id: string
+  name: string
+  subject: string
+  status: NewsletterStatus
+  recipientGroupLabel?: string
+  scheduledAt?: string
+  sentAt?: string
+  recipientCount: number
+  sentCount: number
+  failedCount: number
+  updatedAt: string
+}
+
+export interface Newsletter extends NewsletterListItem {
+  templateId?: string
+  header: NewsletterBannerFields
+  bodyContentHtml: string
+  footer: NewsletterBannerFields
+  recipientGroupId?: string
+  failureReason?: string
+  cancelledReason?: string
+}
+
+export interface NewsletterRecipientLog {
+  id: string
+  email: string
+  status: 'Pending' | 'Sent' | 'Failed'
+  sentAt?: string
+  errorMessage?: string
+}
+
 // ── Admin Assistant Settings ─────────────────────────────────────────────────
 
 export type AdminAssistantProvider = 'OpenAI' | 'Anthropic'

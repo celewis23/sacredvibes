@@ -402,7 +402,7 @@ public class EmailMailboxService : IEmailMailboxService
                 await SendWithSmtpAsync(settings, singleMessage, ct);
         }
 
-        if (archiveMessage is not null)
+        if (archiveMessage is not null && !request.SkipArchive)
             await ArchiveSentCopyAsync(settings, archiveMessage, ct);
     }
 

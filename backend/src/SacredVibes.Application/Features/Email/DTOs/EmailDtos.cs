@@ -106,6 +106,10 @@ public class SendEmailRequest
     // Bcc entries tied to a subscriber get sent individually with a personalized
     // unsubscribe link appended, instead of going out in the shared Bcc batch.
     public List<UnsubscribeRecipient>? UnsubscribeRecipients { get; set; }
+    // When a caller sends many near-identical copies in a loop (e.g. one newsletter fanned
+    // out to hundreds of recipients), set this so only the representative first call
+    // archives a Sent-folder copy instead of flooding it with one per recipient.
+    public bool SkipArchive { get; set; }
 }
 
 public class UnsubscribeRecipient
