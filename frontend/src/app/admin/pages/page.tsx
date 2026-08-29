@@ -166,6 +166,7 @@ export default function AdminPagesPage() {
         <div className="p-12 text-center text-gray-400 text-sm">No pages found.</div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -210,6 +211,7 @@ export default function AdminPagesPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

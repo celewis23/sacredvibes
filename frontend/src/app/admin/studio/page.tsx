@@ -104,6 +104,7 @@ export default function AdminStudioPage() {
                 {group.label}
               </h2>
               <div className="bg-white rounded-xl border border-sacred-100 overflow-hidden">
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-sacred-100 text-xs font-medium text-sacred-500 uppercase">
@@ -154,6 +155,7 @@ export default function AdminStudioPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             </div>
           ))}

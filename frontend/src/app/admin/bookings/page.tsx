@@ -508,6 +508,7 @@ export default function AdminBookingsPage() {
               ))}
             </div>
 
+            <div className="overflow-x-auto">
             <table className="hidden w-full text-sm md:table">
               <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -597,6 +598,7 @@ export default function AdminBookingsPage() {
               ))}
             </tbody>
             </table>
+            </div>
           </>
         )}
       </div>

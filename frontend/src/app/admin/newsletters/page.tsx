@@ -88,7 +88,8 @@ export default function NewslettersPage() {
           <p className="text-sm text-sacred-500">No newsletters here yet.</p>
         </div>
       ) : (
-        <div className="bg-white border border-sacred-200 rounded-xl divide-y divide-sacred-100">
+        <div className="bg-white border border-sacred-200 rounded-xl overflow-x-auto">
+          <div className="divide-y divide-sacred-100 min-w-[560px]">
           {items.map(n => (
             <div key={n.id} className="flex items-center gap-4 px-5 py-4">
               <div className="min-w-0 flex-1">
@@ -119,6 +120,7 @@ export default function NewslettersPage() {
               </button>
             </div>
           ))}
+          </div>
         </div>
       )}
     </div>

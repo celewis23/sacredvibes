@@ -390,6 +390,7 @@ export default function MediaLibraryPage() {
             </div>
           ) : (
             <Card padding="none">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-sacred-50 border-b border-sacred-100">
                   <tr>
@@ -461,6 +462,7 @@ export default function MediaLibraryPage() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </Card>
           )}
 
