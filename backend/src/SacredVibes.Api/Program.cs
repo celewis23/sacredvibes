@@ -9,6 +9,8 @@ using SacredVibes.Infrastructure.Data.Seeds;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 var builder = WebApplication.CreateBuilder(args);
 
 const long AdminMediaMaxFileSizeBytes = 25L * 1024 * 1024 * 1024;

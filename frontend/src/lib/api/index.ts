@@ -14,6 +14,7 @@ import type {
   SocialLinks,
   NewsletterTemplate, NewsletterBannerFields, Newsletter, NewsletterListItem,
   NewsletterStatus, NewsletterRecipientLog,
+  Proposal, ProposalListItem, ProposalStatus, ProposalBannerFields, PublicProposal,
 } from '@/types'
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -240,6 +241,60 @@ export const newslettersApi = {
 
   getRecipientLogs: (id: string, params?: { page?: number; pageSize?: number }) =>
     apiClient.get<ApiResponse<PagedResult<NewsletterRecipientLog>>>(`/newsletters/${id}/recipient-logs`, { params }),
+}
+
+// ── Proposals ─────────────────────────────────────────────────────────────────
+
+export interface SaveProposalLineItemData {
+  description: string
+  price: number
+  sortOrder: number
+  serviceOfferingId?: string
+}
+
+export interface UpdateProposalData {
+  title: string
+  subject: string
+  recipientName: string
+  recipientEmail: string
+  header: ProposalBannerFields
+  bodyContentHtml: string
+  footer: ProposalBannerFields
+  lineItems: SaveProposalLineItemData[]
+}
+
+export const proposalsApi = {
+  getAll: (params: { page?: number; pageSize?: number; status?: ProposalStatus }) =>
+    apiClient.get<ApiResponse<PagedResult<ProposalListItem>>>('/proposals', { params }),
+
+  get: (id: string) =>
+    apiClient.get<ApiResponse<Proposal>>(`/proposals/${id}`),
+
+  create: (data: { title: string }) =>
+    apiClient.post<ApiResponse<Proposal>>('/proposals', data),
+
+  update: (id: string, data: UpdateProposalData) =>
+    apiClient.put<ApiResponse<Proposal>>(`/proposals/${id}`, data),
+
+  delete: (id: string) =>
+    apiClient.delete<ApiResponse<object>>(`/proposals/${id}`),
+
+  send: (id: string, data: { coverNote?: string }) =>
+    apiClient.post<ApiResponse<Proposal>>(`/proposals/${id}/send`, data, { timeout: 60000 }),
+
+  sendTest: (id: string, testEmail: string) =>
+    apiClient.post<ApiResponse<object>>(`/proposals/${id}/test-send`, { testEmail }, { timeout: 60000 }),
+
+  preview: (id: string) =>
+    apiClient.get<ApiResponse<{ html: string }>>(`/proposals/${id}/preview`),
+
+  pdfUrl: (id: string) => `${apiClient.defaults.baseURL}/proposals/${id}/pdf`,
+
+  // Public — no auth needed, hit directly by the "View Proposal Online" page.
+  getPublic: (id: string) =>
+    apiClient.get<ApiResponse<PublicProposal>>(`/proposals/${id}/public`),
+
+  publicPdfUrl: (id: string) => `${apiClient.defaults.baseURL}/proposals/${id}/public/pdf`,
 }
 
 // ── Leads ─────────────────────────────────────────────────────────────────────

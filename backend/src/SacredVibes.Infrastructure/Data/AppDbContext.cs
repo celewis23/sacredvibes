@@ -39,6 +39,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Newsletter> Newsletters => Set<Newsletter>();
     public DbSet<NewsletterRecipientLog> NewsletterRecipientLogs => Set<NewsletterRecipientLog>();
 
+    // Proposals
+    public DbSet<Proposal> Proposals => Set<Proposal>();
+    public DbSet<ProposalLineItem> ProposalLineItems => Set<ProposalLineItem>();
+
     // Services & Events
     public DbSet<ServiceOffering> ServiceOfferings => Set<ServiceOffering>();
     public DbSet<EventOffering> EventOfferings => Set<EventOffering>();

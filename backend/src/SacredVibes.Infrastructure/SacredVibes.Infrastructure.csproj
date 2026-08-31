@@ -19,6 +19,13 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="MailKit" Version="4.16.0" />
+    <!-- Pure-.NET PDF generation for Proposals — no external binary (Chromium/wkhtmltopdf)
+         needed, so no Dockerfile changes. Community license: free for individuals/companies
+         under $1M annual revenue; see https://www.questpdf.com/license/ -->
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+    <!-- Pure-.NET HTML parser used to walk a proposal's Tiptap-produced body HTML into the
+         PDF's content elements. -->
+    <PackageReference Include="AngleSharp" Version="1.1.2" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.4.0" />

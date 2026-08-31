@@ -734,6 +734,57 @@ export interface NewsletterRecipientLog {
   errorMessage?: string
 }
 
+// ── Proposals ─────────────────────────────────────────────────────────────────
+
+export type ProposalStatus = 'Draft' | 'Sent'
+
+export interface ProposalBannerFields {
+  backgroundColor?: string
+  imageAssetId?: string
+  imageUrl?: string
+  text?: string
+  textColor?: string
+}
+
+export interface ProposalLineItem {
+  id: string
+  description: string
+  price: number
+  sortOrder: number
+  serviceOfferingId?: string
+}
+
+export interface ProposalListItem {
+  id: string
+  title: string
+  recipientName: string
+  recipientEmail: string
+  status: ProposalStatus
+  total: number
+  sentAt?: string
+  viewCount: number
+  updatedAt: string
+}
+
+export interface Proposal extends ProposalListItem {
+  subject: string
+  header: ProposalBannerFields
+  bodyContentHtml: string
+  footer: ProposalBannerFields
+  lineItems: ProposalLineItem[]
+  firstViewedAt?: string
+  lastViewedAt?: string
+}
+
+export interface PublicProposal {
+  title: string
+  header: ProposalBannerFields
+  bodyContentHtml: string
+  footer: ProposalBannerFields
+  lineItems: ProposalLineItem[]
+  total: number
+}
+
 // ── Admin Assistant Settings ─────────────────────────────────────────────────
 
 export type AdminAssistantProvider = 'OpenAI' | 'Anthropic'

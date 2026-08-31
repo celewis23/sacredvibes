@@ -15,6 +15,7 @@ using SacredVibes.Application.Features.Events;
 using SacredVibes.Application.Features.Imports;
 using SacredVibes.Application.Features.Newsletters;
 using SacredVibes.Application.Features.Payments;
+using SacredVibes.Application.Features.Proposals;
 using SacredVibes.Application.Features.Push;
 using SacredVibes.Application.Features.Security;
 using SacredVibes.Application.Features.Settings;
@@ -31,6 +32,7 @@ using SacredVibes.Infrastructure.Services.EmailTemplates;
 using SacredVibes.Infrastructure.Services.Eventbrite;
 using SacredVibes.Infrastructure.Services.ImageProcessing;
 using SacredVibes.Infrastructure.Services.Newsletters;
+using SacredVibes.Infrastructure.Services.Proposals;
 using SacredVibes.Infrastructure.Services.Push;
 using SacredVibes.Infrastructure.Services.Security;
 using SacredVibes.Infrastructure.Services.Settings;
@@ -121,6 +123,7 @@ public static class DependencyInjection
         services.AddScoped<INewsletterTemplateService, NewsletterTemplateService>();
         services.AddScoped<INewsletterService, NewsletterService>();
         services.AddScoped<INewsletterDispatchService, NewsletterDispatchService>();
+        services.AddScoped<IProposalService, ProposalService>();
         services.AddHostedService<EmailPollingBackgroundService>();
         services.AddHostedService<NewsletterDispatchBackgroundService>();
 
