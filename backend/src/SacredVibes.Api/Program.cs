@@ -142,6 +142,27 @@ static string GetUploadBasePath(IConfiguration config)
         : Path.Combine(Directory.GetCurrentDirectory(), configuredPath);
 }
 
+static void EnsurePersistentRailwayUploads(IHostEnvironment env, string uploadBasePath)
+{
+    if (!env.IsProduction() || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")))
+        return;
+
+    var volumeMountPath = Environment.GetEnvironmentVariable("RAILWAY_VOLUME_MOUNT_PATH");
+    if (string.IsNullOrWhiteSpace(volumeMountPath))
+        throw new InvalidOperationException("Production uploads require a Railway volume. RAILWAY_VOLUME_MOUNT_PATH is not set.");
+
+    var normalizedUploadPath = Path.GetFullPath(uploadBasePath)
+        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    var normalizedVolumePath = Path.GetFullPath(volumeMountPath)
+        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+    var isMountedPath = normalizedUploadPath.Equals(normalizedVolumePath, StringComparison.Ordinal)
+        || normalizedUploadPath.StartsWith($"{normalizedVolumePath}{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+
+    if (!isMountedPath)
+        throw new InvalidOperationException($"Production uploads must be stored under the Railway volume mount path '{normalizedVolumePath}'. Current path: '{normalizedUploadPath}'.");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -158,6 +179,7 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 var uploadBasePath = GetUploadBasePath(app.Configuration);
+EnsurePersistentRailwayUploads(app.Environment, uploadBasePath);
 Directory.CreateDirectory(uploadBasePath);
 app.UseStaticFiles(new StaticFileOptions
 {
