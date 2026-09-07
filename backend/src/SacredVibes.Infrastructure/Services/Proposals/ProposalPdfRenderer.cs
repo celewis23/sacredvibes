@@ -1,5 +1,9 @@
 using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+// QuestPDF.Infrastructure also declares an IElement (its own layout-container interface),
+// which collides with AngleSharp.Dom.IElement (an HTML node) — every bare `IElement` in this
+// file means the AngleSharp one, so alias it explicitly rather than fully-qualifying each use.
+using HtmlElement = AngleSharp.Dom.IElement;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -86,7 +90,7 @@ public static class ProposalPdfRenderer
             RenderBlockNode(col, node, imageBytesBySrc, publicViewUrl);
     }
 
-    private static void RenderBlockNode(ColumnDescriptor col, IElement node, IReadOnlyDictionary<string, byte[]> imageBytesBySrc, string publicViewUrl)
+    private static void RenderBlockNode(ColumnDescriptor col, HtmlElement node, IReadOnlyDictionary<string, byte[]> imageBytesBySrc, string publicViewUrl)
     {
         // The custom video marker is technically a <div> — must be checked before the tag switch.
         if (node.HasAttribute("data-proposal-video"))
@@ -138,7 +142,7 @@ public static class ProposalPdfRenderer
                 continue;
             }
 
-            if (child is not IElement el) continue;
+            if (child is not HtmlElement el) continue;
 
             switch (el.TagName.ToUpperInvariant())
             {
@@ -161,7 +165,7 @@ public static class ProposalPdfRenderer
         }
     }
 
-    private static void RenderList(ColumnDescriptor col, IElement listElement, bool ordered)
+    private static void RenderList(ColumnDescriptor col, HtmlElement listElement, bool ordered)
     {
         col.Item().Column(list =>
         {
@@ -187,7 +191,7 @@ public static class ProposalPdfRenderer
             col.Item().Image(bytes).FitWidth();
     }
 
-    private static void RenderVideoPlaceholder(ColumnDescriptor col, IElement node, IReadOnlyDictionary<string, byte[]> imageBytesBySrc, string publicViewUrl)
+    private static void RenderVideoPlaceholder(ColumnDescriptor col, HtmlElement node, IReadOnlyDictionary<string, byte[]> imageBytesBySrc, string publicViewUrl)
     {
         var poster = node.GetAttribute("data-poster");
 
