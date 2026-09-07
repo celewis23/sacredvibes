@@ -1,5 +1,6 @@
 using System.Net;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Infrastructure.Services.Newsletters;
 
@@ -30,7 +31,7 @@ public static class NewsletterHtmlRenderer
                 <tr>{RenderBanner(header, DefaultHeaderBackground, DefaultHeaderTextColor, isHeader: true)}</tr>
                 <tr>
                   <td style="padding:32px 36px;color:#1c1714;font-size:15px;line-height:1.7;">
-                    {bodyContentHtml}
+                    {PublicUrlResolver.RewriteBareLinks(PublicUrlResolver.RewriteRelativeAssetUrls(bodyContentHtml))}
                   </td>
                 </tr>
                 <tr>{RenderBanner(footer, DefaultFooterBackground, DefaultFooterTextColor, isHeader: false)}</tr>
@@ -47,7 +48,7 @@ public static class NewsletterHtmlRenderer
 
         var image = string.IsNullOrWhiteSpace(banner.ImageUrl)
             ? ""
-            : $"""<img src="{WebUtility.HtmlEncode(banner.ImageUrl)}" alt="" style="width:100%;display:block;border:0;" />""";
+            : $"""<img src="{WebUtility.HtmlEncode(PublicUrlResolver.ToAbsoluteUrl(banner.ImageUrl))}" alt="" style="width:100%;display:block;border:0;" />""";
 
         var text = string.IsNullOrWhiteSpace(banner.Text)
             ? ""

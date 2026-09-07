@@ -16,6 +16,15 @@ interface ProposalBodyEditorProps {
   onChange: (html: string) => void
 }
 
+// A link typed as "sacredvibesyoga.com" (no scheme) resolves fine in a browser, which has a
+// page to resolve it against, but goes nowhere from an email client or PDF viewer — so make
+// sure it always carries a real protocol before it's saved, rather than relying on her to type it.
+function normalizeLinkUrl(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('/') || trimmed.includes(':')) return trimmed
+  return `https://${trimmed}`
+}
+
 function ToolbarButton({
   active, onClick, children, title,
 }: { active?: boolean; onClick: () => void; children: React.ReactNode; title: string }) {
@@ -91,7 +100,7 @@ export default function ProposalBodyEditor({ value, onChange }: ProposalBodyEdit
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    editor.chain().focus().extendMarkRange('link').setLink({ href: normalizeLinkUrl(url) }).run()
   }
 
   if (!editor) return null

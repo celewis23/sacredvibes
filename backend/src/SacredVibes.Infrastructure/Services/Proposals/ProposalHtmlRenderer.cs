@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Infrastructure.Services.Proposals;
 
@@ -47,14 +48,18 @@ public static class ProposalHtmlRenderer
 
     // Upgrades the stored `<div data-proposal-video>` marker into a real, playable <video> —
     // safe here (an HTML page/iframe), unlike the PDF where it becomes a thumbnail + link.
-    private static string RenderBody(string bodyContentHtml) => VideoMarkerRegex.Replace(bodyContentHtml, match =>
+    private static string RenderBody(string bodyContentHtml)
     {
-        var src = WebUtility.HtmlEncode(match.Groups["src"].Value);
-        var poster = match.Groups["poster"].Success && !string.IsNullOrWhiteSpace(match.Groups["poster"].Value)
-            ? $" poster=\"{WebUtility.HtmlEncode(match.Groups["poster"].Value)}\""
-            : "";
-        return $"""<video controls src="{src}"{poster} style="max-width:100%;display:block;margin:12px 0;"></video>""";
-    });
+        var withVideo = VideoMarkerRegex.Replace(bodyContentHtml, match =>
+        {
+            var src = WebUtility.HtmlEncode(PublicUrlResolver.ToAbsoluteUrl(match.Groups["src"].Value));
+            var poster = match.Groups["poster"].Success && !string.IsNullOrWhiteSpace(match.Groups["poster"].Value)
+                ? $" poster=\"{WebUtility.HtmlEncode(PublicUrlResolver.ToAbsoluteUrl(match.Groups["poster"].Value))}\""
+                : "";
+            return $"""<video controls src="{src}"{poster} style="max-width:100%;display:block;margin:12px 0;"></video>""";
+        });
+        return PublicUrlResolver.RewriteBareLinks(PublicUrlResolver.RewriteRelativeAssetUrls(withVideo));
+    }
 
     private static string RenderPricingTable(IEnumerable<ProposalLineItem> lineItems)
     {
@@ -82,7 +87,7 @@ public static class ProposalHtmlRenderer
 
         var image = string.IsNullOrWhiteSpace(banner.ImageUrl)
             ? ""
-            : $"""<img src="{WebUtility.HtmlEncode(banner.ImageUrl)}" alt="" style="width:100%;display:block;border:0;" />""";
+            : $"""<img src="{WebUtility.HtmlEncode(PublicUrlResolver.ToAbsoluteUrl(banner.ImageUrl))}" alt="" style="width:100%;display:block;border:0;" />""";
 
         var text = string.IsNullOrWhiteSpace(banner.Text)
             ? ""

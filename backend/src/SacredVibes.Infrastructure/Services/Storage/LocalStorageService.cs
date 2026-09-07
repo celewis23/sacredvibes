@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SacredVibes.Domain.Interfaces;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Infrastructure.Services.Storage;
 
@@ -86,5 +87,8 @@ public class LocalStorageService : IStorageService
     }
 
     public string GetPublicUrl(string storagePath) =>
-        $"{_baseUrl.TrimEnd('/')}/{storagePath.Replace('\\', '/')}";
+        // Relative by default (proxied by the frontend's Next.js rewrite for browser use), but
+        // anything sent outside the web app — an email, a PDF — needs an absolute URL, so
+        // resolve it here rather than trusting every caller to remember to do so.
+        PublicUrlResolver.ToAbsoluteUrl($"{_baseUrl.TrimEnd('/')}/{storagePath.Replace('\\', '/')}");
 }

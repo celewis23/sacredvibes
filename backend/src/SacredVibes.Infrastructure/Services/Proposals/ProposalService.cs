@@ -9,6 +9,7 @@ using SacredVibes.Application.Features.Proposals;
 using SacredVibes.Application.Features.Proposals.DTOs;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Infrastructure.Data;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Infrastructure.Services.Proposals;
 
@@ -264,7 +265,10 @@ public class ProposalService : IProposalService
         if (string.IsNullOrWhiteSpace(url)) return null;
         try
         {
-            return await client.GetByteArrayAsync(url, ct);
+            // Asset URLs are stored relative ("/uploads/...") — fine for the browser (proxied by
+            // the frontend's Next.js rewrite), but GetByteArrayAsync throws outright on a
+            // relative URI since this client has no BaseAddress. Resolve to absolute first.
+            return await client.GetByteArrayAsync(PublicUrlResolver.ToAbsoluteUrl(url), ct);
         }
         catch (Exception ex)
         {

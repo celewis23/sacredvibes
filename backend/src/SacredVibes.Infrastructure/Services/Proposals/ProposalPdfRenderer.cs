@@ -4,6 +4,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SacredVibes.Domain.Entities;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Infrastructure.Services.Proposals;
 
@@ -150,7 +151,7 @@ public static class ProposalPdfRenderer
                     text.Span(el.TextContent).Italic();
                     break;
                 case "A":
-                    var href = el.GetAttribute("href") ?? "";
+                    var href = PublicUrlResolver.ToAbsoluteLinkUrl(el.GetAttribute("href"));
                     text.Span(el.TextContent).Hyperlink(href).FontColor("#5f5248").Underline();
                     break;
                 default:
