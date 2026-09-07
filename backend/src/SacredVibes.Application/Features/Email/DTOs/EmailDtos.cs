@@ -110,6 +110,9 @@ public class SendEmailRequest
     // out to hundreds of recipients), set this so only the representative first call
     // archives a Sent-folder copy instead of flooding it with one per recipient.
     public bool SkipArchive { get; set; }
+    // Set by the admin email composer when a recipient group is used, so the sent blast
+    // also appears in the Newsletters history list.
+    public bool ArchiveAsNewsletter { get; set; }
 }
 
 public class UnsubscribeRecipient

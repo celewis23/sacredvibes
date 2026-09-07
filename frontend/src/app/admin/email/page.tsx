@@ -637,10 +637,12 @@ function ComposePanel({
       attachments,
       replyToMessageId: replyTo?.id,
       replyToFolderId: replyTo?.folderId,
+      archiveAsNewsletter: unsubscribeRecipients.length > 0,
     }),
     onSuccess: () => {
       toast.success('Email sent')
       queryClient.invalidateQueries({ queryKey: ['email-messages'] })
+      queryClient.invalidateQueries({ queryKey: ['newsletters'] })
       onClose()
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not send email')),

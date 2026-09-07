@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Email.DTOs;
+using SacredVibes.Application.Features.Newsletters;
 
 namespace SacredVibes.Api.Controllers;
 
@@ -12,11 +13,13 @@ namespace SacredVibes.Api.Controllers;
 public class EmailController : ControllerBase
 {
     private readonly IEmailMailboxService _mailbox;
+    private readonly INewsletterService _newsletters;
     private readonly ILogger<EmailController> _logger;
 
-    public EmailController(IEmailMailboxService mailbox, ILogger<EmailController> logger)
+    public EmailController(IEmailMailboxService mailbox, INewsletterService newsletters, ILogger<EmailController> logger)
     {
         _mailbox = mailbox;
+        _newsletters = newsletters;
         _logger = logger;
     }
 
@@ -151,7 +154,24 @@ public class EmailController : ControllerBase
         try
         {
             await _mailbox.SendAsync(request, ct);
-            return Ok(new { message = "Email sent" });
+
+            Guid? newsletterId = null;
+            string? archiveWarning = null;
+            if (request.ArchiveAsNewsletter)
+            {
+                try
+                {
+                    var archived = await _newsletters.ArchiveSentEmailAsync(request, ct);
+                    newsletterId = archived?.Id;
+                }
+                catch (Exception ex)
+                {
+                    archiveWarning = "Email sent, but it could not be added to the newsletter list.";
+                    _logger.LogWarning(ex, "Failed to archive email send as newsletter");
+                }
+            }
+
+            return Ok(new { message = "Email sent", newsletterId, archiveWarning });
         }
         catch (InvalidOperationException ex)
         {

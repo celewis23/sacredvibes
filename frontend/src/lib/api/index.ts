@@ -599,6 +599,7 @@ export const emailApi = {
     replyToMessageId?: string
     replyToFolderId?: string
     unsubscribeRecipients?: { email: string; subscriberId: string }[]
+    archiveAsNewsletter?: boolean
   }) => apiClient.post('/email/send', data, { timeout: 60000 }),
 
   markRead: (id: string, folderId: string | undefined, isRead: boolean) =>

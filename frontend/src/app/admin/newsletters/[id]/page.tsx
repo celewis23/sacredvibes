@@ -11,7 +11,7 @@ import { newslettersApi, newsletterTemplatesApi, emailApi } from '@/lib/api'
 import NewsletterBannerEditor from '@/components/admin/newsletter/NewsletterBannerEditor'
 import NewsletterBodyEditor from '@/components/admin/newsletter/NewsletterBodyEditor'
 import NewsletterAudienceScheduler from '@/components/admin/newsletter/NewsletterAudienceScheduler'
-import type { NewsletterBannerFields } from '@/types'
+import type { Newsletter, NewsletterBannerFields, NewsletterListItem, NewsletterStatus, PagedResult } from '@/types'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -30,6 +30,64 @@ const STATUS_STYLES: Record<string, string> = {
   SentWithErrors: 'bg-amber-100 text-amber-700',
   Failed: 'bg-red-100 text-red-700',
   Cancelled: 'bg-sacred-100 text-sacred-500',
+}
+
+const NEWSLETTER_LIST_TABS: (NewsletterStatus | 'all')[] = [
+  'all',
+  'Draft',
+  'Scheduled',
+  'Sending',
+  'Sent',
+  'SentWithErrors',
+  'Failed',
+  'Cancelled',
+]
+
+function toListItem(newsletter: Newsletter): NewsletterListItem {
+  return {
+    id: newsletter.id,
+    name: newsletter.name,
+    subject: newsletter.subject,
+    status: newsletter.status,
+    recipientGroupLabel: newsletter.recipientGroupLabel,
+    scheduledAt: newsletter.scheduledAt,
+    sentAt: newsletter.sentAt,
+    recipientCount: newsletter.recipientCount,
+    sentCount: newsletter.sentCount,
+    failedCount: newsletter.failedCount,
+    updatedAt: newsletter.updatedAt,
+  }
+}
+
+function updateNewsletterLists(
+  queryClient: ReturnType<typeof useQueryClient>,
+  newsletter: Newsletter
+) {
+  const item = toListItem(newsletter)
+
+  for (const tab of NEWSLETTER_LIST_TABS) {
+    queryClient.setQueryData<PagedResult<NewsletterListItem>>(['newsletters', tab], current => {
+      if (!current) return current
+
+      const belongsInTab = tab === 'all' || item.status === tab
+      const existingItems = current.items.filter(n => n.id !== item.id)
+
+      if (!belongsInTab) {
+        return {
+          ...current,
+          items: existingItems,
+          totalCount: Math.max(0, current.totalCount - (existingItems.length === current.items.length ? 0 : 1)),
+        }
+      }
+
+      const wasAlreadyInList = existingItems.length !== current.items.length
+      return {
+        ...current,
+        items: [item, ...existingItems],
+        totalCount: wasAlreadyInList ? current.totalCount : current.totalCount + 1,
+      }
+    })
+  }
 }
 
 export default function NewsletterEditorPage({ params }: Props) {
@@ -84,16 +142,26 @@ export default function NewsletterEditorPage({ params }: Props) {
   const createMutation = useMutation({
     mutationFn: () => newslettersApi.create({ name, subject, templateId: templateId || undefined }),
     onSuccess: (res) => {
-      if (res.data.data) router.replace(`/admin/newsletters/${res.data.data.id}`)
+      const created = res.data.data
+      if (!created) return
+
+      queryClient.setQueryData(['newsletter', created.id], created)
+      updateNewsletterLists(queryClient, created)
+      queryClient.invalidateQueries({ queryKey: ['newsletters'] })
+      router.replace(`/admin/newsletters/${created.id}`)
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not create newsletter')),
   })
 
   const saveMutation = useMutation({
     mutationFn: () => newslettersApi.update(id, { name, subject, header, bodyContentHtml, footer }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const updated = res.data.data
       toast.success('Saved')
-      queryClient.invalidateQueries({ queryKey: ['newsletter', id] })
+      if (updated) {
+        queryClient.setQueryData(['newsletter', id], updated)
+        updateNewsletterLists(queryClient, updated)
+      }
       queryClient.invalidateQueries({ queryKey: ['newsletter-preview', id] })
       queryClient.invalidateQueries({ queryKey: ['newsletters'] })
     },
@@ -102,9 +170,13 @@ export default function NewsletterEditorPage({ params }: Props) {
 
   const scheduleMutation = useMutation({
     mutationFn: (vars: { recipientGroupId: string; scheduledAtUtc: string }) => newslettersApi.schedule(id, vars),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const updated = res.data.data
       toast.success('Newsletter scheduled')
-      queryClient.invalidateQueries({ queryKey: ['newsletter', id] })
+      if (updated) {
+        queryClient.setQueryData(['newsletter', id], updated)
+        updateNewsletterLists(queryClient, updated)
+      }
       queryClient.invalidateQueries({ queryKey: ['newsletters'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not schedule newsletter')),
@@ -112,9 +184,13 @@ export default function NewsletterEditorPage({ params }: Props) {
 
   const cancelMutation = useMutation({
     mutationFn: () => newslettersApi.cancel(id),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const updated = res.data.data
       toast.success('Schedule cancelled')
-      queryClient.invalidateQueries({ queryKey: ['newsletter', id] })
+      if (updated) {
+        queryClient.setQueryData(['newsletter', id], updated)
+        updateNewsletterLists(queryClient, updated)
+      }
       queryClient.invalidateQueries({ queryKey: ['newsletters'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not cancel')),
@@ -122,9 +198,13 @@ export default function NewsletterEditorPage({ params }: Props) {
 
   const sendNowMutation = useMutation({
     mutationFn: (recipientGroupId: string) => newslettersApi.sendNow(id, { recipientGroupId }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      const updated = res.data.data
       toast.success('Sending now')
-      queryClient.invalidateQueries({ queryKey: ['newsletter', id] })
+      if (updated) {
+        queryClient.setQueryData(['newsletter', id], updated)
+        updateNewsletterLists(queryClient, updated)
+      }
       queryClient.invalidateQueries({ queryKey: ['newsletters'] })
     },
     onError: (err) => toast.error(getApiErrorMessage(err, 'Could not send newsletter')),

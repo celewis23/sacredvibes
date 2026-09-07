@@ -38,6 +38,8 @@ export default function NewslettersPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['newsletters', tab],
     queryFn: () => newslettersApi.getAll({ status: tab === 'all' ? undefined : tab, pageSize: 50 }).then(r => r.data.data),
+    refetchInterval: 15000,
+    staleTime: 0,
   })
 
   const deleteMutation = useMutation({

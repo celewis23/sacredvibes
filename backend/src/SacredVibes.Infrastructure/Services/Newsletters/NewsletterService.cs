@@ -181,6 +181,56 @@ public class NewsletterService : INewsletterService
         return await GetAsync(newsletter.Id, ct) ?? throw new InvalidOperationException("Newsletter could not be sent.");
     }
 
+    public async Task<NewsletterDto?> ArchiveSentEmailAsync(SendEmailRequest request, CancellationToken ct = default)
+    {
+        if (!request.ArchiveAsNewsletter)
+            return null;
+
+        var recipients = UniqueEmailAddresses(request.To, request.Cc, request.Bcc);
+        if (recipients.Count == 0)
+            return null;
+
+        var now = DateTime.UtcNow;
+        var subject = request.Subject?.Trim() ?? string.Empty;
+        var newsletter = new Newsletter
+        {
+            Name = BuildArchivedNewsletterName(subject, now),
+            Subject = subject,
+            BodyContentHtml = request.Body ?? string.Empty,
+            Status = NewsletterStatus.Sent,
+            RecipientGroupLabel = "Email composer recipients",
+            SendStartedAt = now,
+            SentAt = now,
+            RecipientCount = recipients.Count,
+            SentCount = recipients.Count,
+            FailedCount = 0
+        };
+
+        await _db.Newsletters.AddAsync(newsletter, ct);
+
+        var recipientSet = recipients.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var loggedRecipients = (request.UnsubscribeRecipients ?? new List<UnsubscribeRecipient>())
+            .Where(r => !string.IsNullOrWhiteSpace(r.Email) && recipientSet.Contains(r.Email.Trim()))
+            .GroupBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
+        foreach (var recipient in loggedRecipients)
+        {
+            await _db.NewsletterRecipientLogs.AddAsync(new NewsletterRecipientLog
+            {
+                Newsletter = newsletter,
+                SubscriberId = recipient.SubscriberId,
+                Email = recipient.Email.Trim(),
+                Status = NewsletterRecipientStatus.Sent,
+                SentAt = now
+            }, ct);
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return await GetAsync(newsletter.Id, ct);
+    }
+
     public async Task SendTestAsync(Guid id, string testEmail, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(testEmail))
@@ -240,6 +290,24 @@ public class NewsletterService : INewsletterService
     {
         if (!EditableStatuses.Contains(newsletter.Status))
             throw new InvalidOperationException("This newsletter is sending or already sent and can no longer be edited.");
+    }
+
+    private static List<string> UniqueEmailAddresses(params IEnumerable<string>?[] groups) =>
+        groups
+            .Where(g => g is not null)
+            .SelectMany(g => g!)
+            .Select(email => email.Trim())
+            .Where(email => !string.IsNullOrWhiteSpace(email))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+    private static string BuildArchivedNewsletterName(string subject, DateTime sentAtUtc)
+    {
+        var name = string.IsNullOrWhiteSpace(subject)
+            ? $"Sent newsletter - {sentAtUtc:yyyy-MM-dd HH:mm} UTC"
+            : subject;
+
+        return name.Length <= 200 ? name : name[..200];
     }
 
     private async Task<Newsletter?> FindAsync(Guid id, CancellationToken ct) =>
