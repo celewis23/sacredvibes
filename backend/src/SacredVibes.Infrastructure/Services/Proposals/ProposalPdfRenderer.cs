@@ -32,7 +32,7 @@ public static class ProposalPdfRenderer
     {
         var p = input.Proposal;
 
-        var document = Document.Create(container =>
+        var document = QuestPDF.Fluent.Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -155,8 +155,11 @@ public static class ProposalPdfRenderer
                     text.Span(el.TextContent).Italic();
                     break;
                 case "A":
-                    var href = PublicUrlResolver.ToAbsoluteLinkUrl(el.GetAttribute("href"));
-                    text.Span(el.TextContent).Hyperlink(href).FontColor("#5f5248").Underline();
+                    // QuestPDF's Hyperlink() is an IContainer extension, not available on a
+                    // TextSpanDescriptor within a mixed-run paragraph like this one — so an
+                    // inline link renders styled (colored + underlined) but isn't clickable in
+                    // the PDF. It's still a real, clickable link on the "View Online" page.
+                    text.Span(el.TextContent).FontColor("#5f5248").Underline();
                     break;
                 default:
                     if (!string.IsNullOrEmpty(el.TextContent)) text.Span(el.TextContent);
@@ -206,10 +209,10 @@ public static class ProposalPdfRenderer
                 v.Item().Height(120).Background("#e5e0d8").AlignCenter().AlignMiddle().Text("Video").FontColor("#736456");
             }
 
-            v.Item().PaddingTop(6).AlignCenter().Text(text =>
-            {
-                text.Span("▶ Watch this video online").FontColor("#5f5248").Underline().Hyperlink(publicViewUrl);
-            });
+            // Unlike the inline case above, this is its own block-level container, so the real
+            // (clickable) QuestPDF Hyperlink() — an IContainer extension — applies cleanly here.
+            v.Item().PaddingTop(6).AlignCenter().Hyperlink(publicViewUrl)
+                .Text("▶ Watch this video online").FontColor("#5f5248").Underline();
         });
     }
 
