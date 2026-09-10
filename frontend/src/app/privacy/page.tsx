@@ -115,8 +115,8 @@ export default function PrivacyPage() {
                 <p className="font-heading text-2xl text-sacred-900 mb-4">May 6, 2026</p>
                 <p className="text-sm text-sacred-600 leading-relaxed">
                   Questions about privacy or your information can be sent to{' '}
-                  <a href="mailto:hello@sacredvibesyoga.com" className="text-yoga-700 underline underline-offset-2 hover:text-yoga-800">
-                    hello@sacredvibesyoga.com
+                  <a href="mailto:info@sacredvibesyoga.com" className="text-yoga-700 underline underline-offset-2 hover:text-yoga-800">
+                    info@sacredvibesyoga.com
                   </a>
                   .
                 </p>
@@ -142,7 +142,7 @@ export default function PrivacyPage() {
                   <h2 id="contact-us">Contact Us</h2>
                   <p>
                     For privacy questions, requests, or concerns, contact Sacred Vibes Healing &amp; Wellness at{' '}
-                    <a href="mailto:hello@sacredvibesyoga.com">hello@sacredvibesyoga.com</a>.
+                    <a href="mailto:info@sacredvibesyoga.com">info@sacredvibesyoga.com</a>.
                   </p>
                   <p>
                     You can also reach us through the{' '}

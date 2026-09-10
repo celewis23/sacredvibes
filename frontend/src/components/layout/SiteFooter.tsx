@@ -192,8 +192,8 @@ export default function SiteFooter({ brand }: SiteFooterProps) {
               </li>
               <li className="flex items-center gap-2">
                 <span className="text-yoga-500 text-xs">✉️</span>
-                <a href="mailto:hello@sacredvibesyoga.com" className="hover:text-yoga-300 transition-colors">
-                  hello@sacredvibesyoga.com
+                <a href="mailto:info@sacredvibesyoga.com" className="hover:text-yoga-300 transition-colors">
+                  info@sacredvibesyoga.com
                 </a>
               </li>
             </ul>
