@@ -15,7 +15,7 @@ public interface INewsletterService
     Task<NewsletterDto> ScheduleAsync(Guid id, ScheduleNewsletterRequest request, CancellationToken ct = default);
     Task<NewsletterDto> CancelAsync(Guid id, CancellationToken ct = default);
     Task<NewsletterDto> SendNowAsync(Guid id, SendNewsletterNowRequest request, CancellationToken ct = default);
-    Task<NewsletterDto?> ArchiveSentEmailAsync(SendEmailRequest request, CancellationToken ct = default);
+    Task<NewsletterDto?> QueueGroupSendAsync(SendEmailRequest request, CancellationToken ct = default);
     Task SendTestAsync(Guid id, string testEmail, CancellationToken ct = default);
     Task<string> PreviewHtmlAsync(Guid id, CancellationToken ct = default);
     Task<PagedResult<NewsletterRecipientLogDto>> GetRecipientLogsAsync(Guid id, int page, int pageSize, CancellationToken ct = default);

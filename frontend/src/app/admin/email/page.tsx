@@ -637,10 +637,14 @@ function ComposePanel({
       attachments,
       replyToMessageId: replyTo?.id,
       replyToFolderId: replyTo?.folderId,
-      archiveAsNewsletter: unsubscribeRecipients.length > 0,
     }),
-    onSuccess: () => {
-      toast.success('Email sent')
+    onSuccess: (res) => {
+      const queuedCount = res.data?.queuedCount
+      toast.success(
+        queuedCount
+          ? `Queued to send to ${queuedCount} people — check Newsletters for progress`
+          : (res.data?.message ?? 'Email sent')
+      )
       queryClient.invalidateQueries({ queryKey: ['email-messages'] })
       queryClient.invalidateQueries({ queryKey: ['newsletters'] })
       onClose()

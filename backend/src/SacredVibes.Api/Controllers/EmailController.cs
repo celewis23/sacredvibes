@@ -153,25 +153,60 @@ public class EmailController : ControllerBase
     {
         try
         {
-            await _mailbox.SendAsync(request, ct);
+            request.UnsubscribeRecipients ??= new List<UnsubscribeRecipient>();
+            var trackedEmails = request.UnsubscribeRecipients
+                .Where(r => !string.IsNullOrWhiteSpace(r.Email))
+                .Select(r => r.Email.Trim())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             Guid? newsletterId = null;
-            string? archiveWarning = null;
-            if (request.ArchiveAsNewsletter)
+            int? queuedCount = null;
+            var sentImmediately = false;
+
+            if (trackedEmails.Count > 0)
             {
-                try
-                {
-                    var archived = await _newsletters.ArchiveSentEmailAsync(request, ct);
-                    newsletterId = archived?.Id;
-                }
-                catch (Exception ex)
-                {
-                    archiveWarning = "Email sent, but it could not be added to the newsletter list.";
-                    _logger.LogWarning(ex, "Failed to archive email send as newsletter");
-                }
+                // A recipient group was used. Emailing hundreds of people one-by-one inside
+                // this single request reliably times out past ~60 seconds and abandons whoever
+                // is left — instead, queue it through the same background dispatcher that
+                // scheduled Newsletters use, which sends in small batches with no timeout risk.
+                var queued = await _newsletters.QueueGroupSendAsync(request, ct);
+                newsletterId = queued?.Id;
+                queuedCount = queued?.RecipientCount;
             }
 
-            return Ok(new { message = "Email sent", newsletterId, archiveWarning });
+            // Anything NOT part of the tracked group — a direct "To", a Cc, or an untracked
+            // Bcc address typed by hand — still goes out immediately, same as before. This is
+            // always a small, fast list (a normal reply or a quick note to a few people).
+            var untrackedBcc = request.Bcc.Where(email => !trackedEmails.Contains(email.Trim())).ToList();
+            if (request.To.Count + request.Cc.Count + untrackedBcc.Count > 0)
+            {
+                await _mailbox.SendAsync(new SendEmailRequest
+                {
+                    To = request.To,
+                    Cc = request.Cc,
+                    Bcc = untrackedBcc,
+                    Subject = request.Subject,
+                    Body = request.Body,
+                    IsHtml = request.IsHtml,
+                    Attachments = request.Attachments,
+                    ReplyToMessageId = request.ReplyToMessageId,
+                    ReplyToFolderId = request.ReplyToFolderId
+                }, ct);
+                sentImmediately = true;
+            }
+
+            if (!sentImmediately && newsletterId is null)
+                throw new InvalidOperationException("At least one recipient is required.");
+
+            var message = (sentImmediately, queuedCount) switch
+            {
+                (true, > 0) => $"Sent. Also queued to {queuedCount} people — check Newsletters for progress.",
+                (true, _) => "Email sent",
+                (false, > 0) => $"Queued to send to {queuedCount} people — check Newsletters for progress.",
+                _ => "Email sent"
+            };
+
+            return Ok(new { message, newsletterId, queuedCount });
         }
         catch (InvalidOperationException ex)
         {

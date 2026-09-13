@@ -181,12 +181,13 @@ public class NewsletterService : INewsletterService
         return await GetAsync(newsletter.Id, ct) ?? throw new InvalidOperationException("Newsletter could not be sent.");
     }
 
-    public async Task<NewsletterDto?> ArchiveSentEmailAsync(SendEmailRequest request, CancellationToken ct = default)
+    public async Task<NewsletterDto?> QueueGroupSendAsync(SendEmailRequest request, CancellationToken ct = default)
     {
-        if (!request.ArchiveAsNewsletter)
-            return null;
-
-        var recipients = UniqueEmailAddresses(request.To, request.Cc, request.Bcc);
+        var recipients = (request.UnsubscribeRecipients ?? new List<UnsubscribeRecipient>())
+            .Where(r => !string.IsNullOrWhiteSpace(r.Email))
+            .GroupBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
         if (recipients.Count == 0)
             return null;
 
@@ -194,36 +195,29 @@ public class NewsletterService : INewsletterService
         var subject = request.Subject?.Trim() ?? string.Empty;
         var newsletter = new Newsletter
         {
-            Name = BuildArchivedNewsletterName(subject, now),
+            Name = BuildComposedNewsletterName(subject, now),
             Subject = subject,
             BodyContentHtml = request.Body ?? string.Empty,
-            Status = NewsletterStatus.Sent,
+            // Scheduled + due immediately: the same background dispatcher that sends scheduled
+            // Newsletters picks this up on its next tick and sends recipients in small batches,
+            // rather than emailing hundreds of people one-by-one inside this HTTP request —
+            // which reliably times out (and abandons whoever's left) past ~60 seconds.
+            Status = NewsletterStatus.Scheduled,
+            ScheduledAt = now,
             RecipientGroupLabel = "Email composer recipients",
-            SendStartedAt = now,
-            SentAt = now,
-            RecipientCount = recipients.Count,
-            SentCount = recipients.Count,
-            FailedCount = 0
+            RecipientCount = recipients.Count
         };
 
         await _db.Newsletters.AddAsync(newsletter, ct);
 
-        var recipientSet = recipients.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var loggedRecipients = (request.UnsubscribeRecipients ?? new List<UnsubscribeRecipient>())
-            .Where(r => !string.IsNullOrWhiteSpace(r.Email) && recipientSet.Contains(r.Email.Trim()))
-            .GroupBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .ToList();
-
-        foreach (var recipient in loggedRecipients)
+        foreach (var recipient in recipients)
         {
             await _db.NewsletterRecipientLogs.AddAsync(new NewsletterRecipientLog
             {
                 Newsletter = newsletter,
                 SubscriberId = recipient.SubscriberId,
                 Email = recipient.Email.Trim(),
-                Status = NewsletterRecipientStatus.Sent,
-                SentAt = now
+                Status = NewsletterRecipientStatus.Pending
             }, ct);
         }
 
@@ -292,19 +286,10 @@ public class NewsletterService : INewsletterService
             throw new InvalidOperationException("This newsletter is sending or already sent and can no longer be edited.");
     }
 
-    private static List<string> UniqueEmailAddresses(params IEnumerable<string>?[] groups) =>
-        groups
-            .Where(g => g is not null)
-            .SelectMany(g => g!)
-            .Select(email => email.Trim())
-            .Where(email => !string.IsNullOrWhiteSpace(email))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-    private static string BuildArchivedNewsletterName(string subject, DateTime sentAtUtc)
+    private static string BuildComposedNewsletterName(string subject, DateTime queuedAtUtc)
     {
         var name = string.IsNullOrWhiteSpace(subject)
-            ? $"Sent newsletter - {sentAtUtc:yyyy-MM-dd HH:mm} UTC"
+            ? $"Email blast - {queuedAtUtc:yyyy-MM-dd HH:mm} UTC"
             : subject;
 
         return name.Length <= 200 ? name : name[..200];
