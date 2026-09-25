@@ -545,6 +545,47 @@ function ComposePanel({
       attributes: {
         class: 'min-h-[400px] max-h-[600px] overflow-y-auto px-4 py-3 text-sm leading-relaxed text-gray-900 focus:outline-none',
       },
+      // Without this, pasting or dragging an image directly into the editor (rather than using
+      // the toolbar's "Insert Image" button) falls back to the browser's default handling,
+      // which can insert a blob: URL instead of a real data: URI. A blob: URL only resolves
+      // inside the exact tab that created it — it looks completely fine while composing, then
+      // silently disappears from the preview or the sent email, since neither can reach back
+      // into that tab's memory. Handling paste/drop explicitly guarantees a portable data: URI
+      // every time, matching what the toolbar button already does via fileToDataUrl.
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items ?? [])
+        const imageFiles = items
+          .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+          .map(item => item.getAsFile())
+          .filter((f): f is File => f !== null)
+        if (imageFiles.length === 0) return false
+
+        event.preventDefault()
+        imageFiles.forEach(file => {
+          fileToDataUrl(file)
+            .then(src => {
+              const node = view.state.schema.nodes.image.create({ src, alt: file.name })
+              view.dispatch(view.state.tr.replaceSelectionWith(node))
+            })
+            .catch(() => toast.error('Could not insert pasted image'))
+        })
+        return true
+      },
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'))
+        if (files.length === 0) return false
+
+        event.preventDefault()
+        files.forEach(file => {
+          fileToDataUrl(file)
+            .then(src => {
+              const node = view.state.schema.nodes.image.create({ src, alt: file.name })
+              view.dispatch(view.state.tr.replaceSelectionWith(node))
+            })
+            .catch(() => toast.error('Could not insert dropped image'))
+        })
+        return true
+      },
     },
   })
 
@@ -622,7 +663,11 @@ function ComposePanel({
 
   const buildFinalBody = () => {
     const html = editor?.getHTML() ?? ''
-    return selectedLayout ? selectedLayout.html.replace(/\{\{content\}\}/i, html) : html
+    // A function replacer (rather than a string) is required here: String.replace treats a
+    // string replacement specially, interpreting sequences like $&, $$, or $' inside it — if
+    // her message ever contained one of those, the substitution would silently corrupt part
+    // of the message instead of inserting it verbatim.
+    return selectedLayout ? selectedLayout.html.replace(/\{\{content\}\}/i, () => html) : html
   }
 
   const sendMutation = useMutation({

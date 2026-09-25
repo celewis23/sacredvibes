@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import TiptapImage from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { toast } from 'sonner'
 import { Bold, Italic, List, ListOrdered, Link as LinkIcon, Video as VideoIcon } from 'lucide-react'
 import AssetPicker from '@/components/admin/AssetPicker'
 import { assetsApi } from '@/lib/api'
@@ -14,6 +15,26 @@ import { ProposalVideo } from './proposalVideoNode'
 interface ProposalBodyEditorProps {
   value: string
   onChange: (html: string) => void
+}
+
+// Uploads a pasted/dropped image file the same way AssetPicker does, then inserts it by its
+// real hosted URL. Without this, pasting or dragging an image directly into the editor (rather
+// than using the "Insert Image" picker) falls back to the browser's default handling, which can
+// insert a blob: URL — that renders fine while editing (it's valid inside this tab), then
+// disappears from the preview, PDF, or the sent proposal, since a blob: URL can't be resolved
+// anywhere outside the tab that created it.
+async function uploadPastedImage(file: File): Promise<string | null> {
+  try {
+    const fd = new FormData()
+    fd.append('files', file)
+    fd.append('visibility', 'Public')
+    fd.append('usage', 'StudioContent')
+    const res = await assetsApi.upload(fd)
+    return res.data?.data?.[0]?.publicUrl ?? null
+  } catch {
+    toast.error('Could not insert image')
+    return null
+  }
 }
 
 // A link typed as "sacredvibesyoga.com" (no scheme) resolves fine in a browser, which has a
@@ -64,6 +85,38 @@ export default function ProposalBodyEditor({ value, onChange }: ProposalBodyEdit
     editorProps: {
       attributes: {
         class: 'min-h-[300px] px-4 py-3 text-sm leading-relaxed text-sacred-900 focus:outline-none',
+      },
+      handlePaste: (view, event) => {
+        const items = Array.from(event.clipboardData?.items ?? [])
+        const imageFiles = items
+          .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+          .map(item => item.getAsFile())
+          .filter((f): f is File => f !== null)
+        if (imageFiles.length === 0) return false
+
+        event.preventDefault()
+        imageFiles.forEach(file => {
+          uploadPastedImage(file).then(src => {
+            if (!src) return
+            const node = view.state.schema.nodes.image.create({ src })
+            view.dispatch(view.state.tr.replaceSelectionWith(node))
+          })
+        })
+        return true
+      },
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'))
+        if (files.length === 0) return false
+
+        event.preventDefault()
+        files.forEach(file => {
+          uploadPastedImage(file).then(src => {
+            if (!src) return
+            const node = view.state.schema.nodes.image.create({ src })
+            view.dispatch(view.state.tr.replaceSelectionWith(node))
+          })
+        })
+        return true
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
