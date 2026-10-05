@@ -183,11 +183,27 @@ public class NewsletterService : INewsletterService
 
     public async Task<NewsletterDto?> QueueGroupSendAsync(SendEmailRequest request, CancellationToken ct = default)
     {
-        var recipients = (request.UnsubscribeRecipients ?? new List<UnsubscribeRecipient>())
+        var candidates = (request.UnsubscribeRecipients ?? new List<UnsubscribeRecipient>())
             .Where(r => !string.IsNullOrWhiteSpace(r.Email))
             .GroupBy(r => r.Email.Trim(), StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToList();
+        if (candidates.Count == 0)
+            return null;
+
+        // The recipient group the composer sent us may have been fetched before this request
+        // (stale browser tab) or may come from a group — tag, import source, "all subscribers" —
+        // that was never filtered by subscription status to begin with. Re-check against the
+        // source of truth here so a composed email can never reach someone who has unsubscribed,
+        // the same guarantee NewsletterDispatchService enforces for scheduled Newsletters.
+        var candidateIds = candidates.Select(r => r.SubscriberId).ToList();
+        var subscribedIds = await _db.Subscribers
+            .Where(s => candidateIds.Contains(s.Id) && s.IsSubscribed)
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+        var subscribedIdSet = subscribedIds.ToHashSet();
+
+        var recipients = candidates.Where(r => subscribedIdSet.Contains(r.SubscriberId)).ToList();
         if (recipients.Count == 0)
             return null;
 
