@@ -19,6 +19,9 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="MailKit" Version="4.16.0" />
+    <!-- Cloudflare R2 (S3-compatible) client for host-independent upload storage — see
+         Services/Storage/R2StorageService.cs. -->
+    <PackageReference Include="AWSSDK.S3" Version="3.7.511.8" />
     <!-- Pure-.NET PDF generation for Proposals — no external binary (Chromium/wkhtmltopdf)
          needed, so no Dockerfile changes. Community license: free for individuals/companies
          under $1M annual revenue; see https://www.questpdf.com/license/ -->

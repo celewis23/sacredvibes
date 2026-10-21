@@ -106,7 +106,16 @@ public static class DependencyInjection
         // Core services
         services.AddSingleton<ICredentialProtector, CredentialProtectionService>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IStorageService, LocalStorageService>();
+        // R2 is host-independent (uploads survive a failover between API hosts); local disk
+        // is kept only as the zero-setup default for local dev.
+        if (!string.IsNullOrWhiteSpace(config["Storage:R2:BucketName"]))
+        {
+            services.AddScoped<IStorageService, R2StorageService>();
+        }
+        else
+        {
+            services.AddScoped<IStorageService, LocalStorageService>();
+        }
         services.AddScoped<IImageProcessingService, ImageProcessingService>();
         services.AddScoped<ISquareService, SquareService>();
         services.AddScoped<IEventbriteService, EventbriteService>();

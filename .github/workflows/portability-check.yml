@@ -1,0 +1,32 @@
+name: portability-check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fail on host-specific references in app code
+        run: |
+          if grep -rnE 'RAILWAY_[A-Z_]+|\.up\.railway\.app' \
+               --include='*.cs' --include='*.ts' --include='*.tsx' --include='*.js' \
+               --include='appsettings*.json' \
+               --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=bin --exclude-dir=obj \
+               . ; then
+            echo "::error::Host-specific references found. Use env vars and our own domain instead."
+            exit 1
+          fi
+
+      - name: Require .env.example
+        run: test -f .env.example || (echo "::error::.env.example is missing" && exit 1)
+
+      - name: Require render.yaml
+        run: test -f render.yaml || (echo "::error::render.yaml is missing" && exit 1)
+
+      - name: API Docker image builds
+        run: docker build -t portability-check .

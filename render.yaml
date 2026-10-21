@@ -1,0 +1,68 @@
+# Standby deployment of the API on Render (Railway is primary; this is the failover target).
+# Deploys from the root Dockerfile (builds backend/ only); secrets are entered in the
+# Render dashboard (sync: false). See .env.example for what each variable is for.
+#
+# Storage__R2__* below point uploaded media at Cloudflare R2 (same bucket as Railway),
+# so galleries/assets are host-independent and survive a failover. Without those set,
+# the app falls back to local disk, which on Render's free tier has no attached persistent
+# disk and starts empty on every redeploy — don't leave R2 unset for this service.
+services:
+  - type: web
+    name: sacredvibes-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: Storage__R2__AccountId
+        sync: false
+      - key: Storage__R2__AccessKeyId
+        sync: false
+      - key: Storage__R2__SecretAccessKey
+        sync: false
+      - key: Storage__R2__BucketName
+        sync: false
+      - key: Storage__BaseUrl
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: ADMIN_FRONTEND_URL
+        sync: false
+      - key: SQUARE_ENVIRONMENT
+        sync: false
+      - key: SQUARE_APP_ID
+        sync: false
+      - key: SQUARE_ACCESS_TOKEN
+        sync: false
+      - key: SQUARE_LOCATION_ID
+        sync: false
+      - key: SQUARE_WEBHOOK_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: RESEND_FROM_NAME
+        sync: false
+      - key: RESEND_REPLY_TO_EMAIL
+        sync: false
+      - key: EMAIL_CREDENTIAL_KEY
+        sync: false
+      - key: PUSH_VAPID_PUBLIC_KEY
+        sync: false
+      - key: PUSH_VAPID_PRIVATE_KEY
+        sync: false
+      - key: PUSH_VAPID_SUBJECT
+        sync: false

@@ -142,25 +142,32 @@ static string GetUploadBasePath(IConfiguration config)
         : Path.Combine(Directory.GetCurrentDirectory(), configuredPath);
 }
 
-static void EnsurePersistentRailwayUploads(IHostEnvironment env, string uploadBasePath)
+// R2 (see Storage:R2:BucketName / R2StorageService) is the host-independent path for
+// uploads — this check only matters for the legacy local-disk fallback, where a container's
+// filesystem is wiped on every redeploy and isn't shared between hosts at all. Once R2 is
+// configured, local disk is just an unused scratch dir and this is skipped entirely.
+static void EnsurePersistentLocalUploads(IHostEnvironment env, IConfiguration config, string uploadBasePath)
 {
-    if (!env.IsProduction() || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT")))
-        return;
+    if (!env.IsProduction()) return;
+    if (!string.IsNullOrWhiteSpace(config["Storage:R2:BucketName"])) return;
 
-    var volumeMountPath = Environment.GetEnvironmentVariable("RAILWAY_VOLUME_MOUNT_PATH");
-    if (string.IsNullOrWhiteSpace(volumeMountPath))
-        throw new InvalidOperationException("Production uploads require a Railway volume. RAILWAY_VOLUME_MOUNT_PATH is not set.");
+    // UPLOADS_MOUNT_PATH is the host-agnostic name; RAILWAY_VOLUME_MOUNT_PATH is kept as a
+    // fallback so this doesn't break before Railway's dashboard var is renamed.
+    var mountPath = Environment.GetEnvironmentVariable("UPLOADS_MOUNT_PATH")
+        ?? Environment.GetEnvironmentVariable("RAILWAY_VOLUME_MOUNT_PATH");
+    if (string.IsNullOrWhiteSpace(mountPath))
+        throw new InvalidOperationException("Production uploads require either Storage:R2:BucketName (preferred) or a persistent volume at UPLOADS_MOUNT_PATH.");
 
     var normalizedUploadPath = Path.GetFullPath(uploadBasePath)
         .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-    var normalizedVolumePath = Path.GetFullPath(volumeMountPath)
+    var normalizedMountPath = Path.GetFullPath(mountPath)
         .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-    var isMountedPath = normalizedUploadPath.Equals(normalizedVolumePath, StringComparison.Ordinal)
-        || normalizedUploadPath.StartsWith($"{normalizedVolumePath}{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    var isMountedPath = normalizedUploadPath.Equals(normalizedMountPath, StringComparison.Ordinal)
+        || normalizedUploadPath.StartsWith($"{normalizedMountPath}{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
     if (!isMountedPath)
-        throw new InvalidOperationException($"Production uploads must be stored under the Railway volume mount path '{normalizedVolumePath}'. Current path: '{normalizedUploadPath}'.");
+        throw new InvalidOperationException($"Production uploads must be stored under the mounted volume path '{normalizedMountPath}'. Current path: '{normalizedUploadPath}'.");
 }
 
 if (app.Environment.IsDevelopment())
@@ -179,7 +186,7 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 var uploadBasePath = GetUploadBasePath(app.Configuration);
-EnsurePersistentRailwayUploads(app.Environment, uploadBasePath);
+EnsurePersistentLocalUploads(app.Environment, app.Configuration, uploadBasePath);
 Directory.CreateDirectory(uploadBasePath);
 app.UseStaticFiles(new StaticFileOptions
 {
