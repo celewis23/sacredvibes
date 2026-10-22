@@ -128,6 +128,7 @@ public static class DependencyInjection
         services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
         services.AddScoped<IAdminAssistantSettingsService, AdminAssistantSettingsService>();
         services.AddScoped<ISocialLinksService, SocialLinksService>();
+        services.AddHttpClient<IVercelHostingService, VercelHostingService>();
         services.AddScoped<IPushNotificationService, PushNotificationService>();
         services.AddScoped<INewsletterTemplateService, NewsletterTemplateService>();
         services.AddScoped<INewsletterService, NewsletterService>();

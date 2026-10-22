@@ -10,7 +10,7 @@ set -euo pipefail
 RAILWAY_API_URL="https://sacredvibes-production.up.railway.app"
 # TODO: fill in once the Render standby (render.yaml) has actually been deployed —
 # Render assigns this at deploy time based on the service name in render.yaml.
-RENDER_API_URL="https://sacredvibes-api.onrender.com"
+RENDER_API_URL="https://sacredvibes-api-standby.onrender.com"
 
 target="${1:-}"
 case "$target" in

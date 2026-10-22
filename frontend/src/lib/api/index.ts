@@ -401,6 +401,39 @@ export const settingsApi = {
     apiClient.put<ApiResponse<SocialLinks>>('/settings/social-links', data),
 }
 
+// ── Hosting failover (Admin-only; kept off settingsApi deliberately) ────────
+
+export type VercelHostingConfig = {
+  isConfigured: boolean
+  hasApiToken: boolean
+  teamId: string | null
+  projectId: string | null
+  railwayApiUrl: string | null
+  renderApiUrl: string | null
+}
+
+export type ApiHostStatus = {
+  host: 'railway' | 'render' | null
+  switchedAt: string | null
+}
+
+export const hostingApi = {
+  getConfig: () => apiClient.get<ApiResponse<VercelHostingConfig>>('/hosting/config'),
+
+  saveConfig: (data: {
+    apiToken?: string
+    teamId?: string
+    projectId?: string
+    railwayApiUrl?: string
+    renderApiUrl?: string
+  }) => apiClient.put<ApiResponse<VercelHostingConfig>>('/hosting/config', data),
+
+  getApiHost: () => apiClient.get<ApiResponse<ApiHostStatus>>('/hosting/api-host'),
+
+  switchApiHost: (target: 'railway' | 'render') =>
+    apiClient.post<ApiResponse<ApiHostStatus>>('/hosting/api-host/switch', { target }),
+}
+
 // ── Push Notifications ───────────────────────────────────────────────────────
 
 export const pushApi = {

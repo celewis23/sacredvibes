@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { AxiosError } from 'axios'
 import { toast } from 'sonner'
-import { dashboardApi, settingsApi } from '@/lib/api'
+import { dashboardApi, settingsApi, hostingApi } from '@/lib/api'
 import { getBrandBasePath } from '@/lib/brand/resolution'
+import { useAuth } from '@/lib/auth/context'
 import type { Brand, SocialLinks } from '@/types'
 
 function getApiErrorMessage(error: unknown, fallback: string) {
@@ -78,6 +79,8 @@ function BrandCard({ brand }: { brand: Brand }) {
 
 export default function AdminSettingsPage() {
   const queryClient = useQueryClient()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'Admin'
   const [adminEmail, setAdminEmail] = useState('')
   const [notifyOnLead, setNotifyOnLead] = useState(true)
   const [notifyOnBooking, setNotifyOnBooking] = useState(true)
@@ -87,6 +90,11 @@ export default function AdminSettingsPage() {
   const [assistantImageModel, setAssistantImageModel] = useState('gpt-image-2')
   const [assistantApiKey, setAssistantApiKey] = useState('')
   const [socialLinks, setSocialLinks] = useState<SocialLinks>({})
+  const [hostingApiToken, setHostingApiToken] = useState('')
+  const [hostingTeamId, setHostingTeamId] = useState('')
+  const [hostingProjectId, setHostingProjectId] = useState('')
+  const [hostingRailwayUrl, setHostingRailwayUrl] = useState('')
+  const [hostingRenderUrl, setHostingRenderUrl] = useState('')
 
   const { data: brands, isLoading } = useQuery({
     queryKey: ['brands'],
@@ -116,6 +124,58 @@ export default function AdminSettingsPage() {
     if (!socialLinksData) return
     setSocialLinks(socialLinksData)
   }, [socialLinksData])
+
+  const { data: hostingConfig, isLoading: hostingConfigLoading } = useQuery({
+    queryKey: ['hosting-config'],
+    queryFn: () => hostingApi.getConfig().then(r => r.data.data),
+    enabled: isAdmin,
+  })
+
+  const { data: apiHostStatus, isLoading: apiHostLoading } = useQuery({
+    queryKey: ['hosting-api-host'],
+    queryFn: () => hostingApi.getApiHost().then(r => r.data.data),
+    enabled: isAdmin,
+  })
+
+  useEffect(() => {
+    if (!hostingConfig) return
+    setHostingTeamId(hostingConfig.teamId ?? '')
+    setHostingProjectId(hostingConfig.projectId ?? '')
+    setHostingRailwayUrl(hostingConfig.railwayApiUrl ?? '')
+    setHostingRenderUrl(hostingConfig.renderApiUrl ?? '')
+  }, [hostingConfig])
+
+  const saveHostingConfigMutation = useMutation({
+    mutationFn: () => hostingApi.saveConfig({
+      apiToken: hostingApiToken.trim() || undefined,
+      teamId: hostingTeamId.trim() || undefined,
+      projectId: hostingProjectId.trim() || undefined,
+      railwayApiUrl: hostingRailwayUrl.trim() || undefined,
+      renderApiUrl: hostingRenderUrl.trim() || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('Hosting config saved')
+      setHostingApiToken('')
+      queryClient.invalidateQueries({ queryKey: ['hosting-config'] })
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not save hosting config')),
+  })
+
+  const switchApiHostMutation = useMutation({
+    mutationFn: (target: 'railway' | 'render') => hostingApi.switchApiHost(target),
+    onSuccess: (res) => {
+      toast.success(`Switched to ${res.data.data?.host === 'railway' ? 'Railway' : 'Render'}`)
+      queryClient.setQueryData(['hosting-api-host'], res.data.data)
+    },
+    onError: (err) => toast.error(getApiErrorMessage(err, 'Could not switch API host')),
+  })
+
+  const handleSwitchApiHost = (target: 'railway' | 'render') => {
+    if (target === apiHostStatus?.host) return
+    const label = target === 'railway' ? 'Railway (primary)' : 'Render (standby)'
+    if (!confirm(`Switch the live site's API to ${label}? This redirects all traffic immediately.`)) return
+    switchApiHostMutation.mutate(target)
+  }
 
   const saveSocialLinksMutation = useMutation({
     mutationFn: () => settingsApi.saveSocialLinks(socialLinks),
@@ -342,6 +402,105 @@ export default function AdminSettingsPage() {
             </div>
           )}
         </Section>
+
+        {/* API host failover (Admin-only) */}
+        {isAdmin && (
+          <Section
+            title="API Host (Failover)"
+            description="Switch the live site between Railway (primary) and the Render standby. Visible to admins only."
+          >
+            {hostingConfigLoading || apiHostLoading ? (
+              <p className="text-sm text-gray-400">Loading hosting settings...</p>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vercel API Token</label>
+                    <input
+                      type="password"
+                      value={hostingApiToken}
+                      onChange={e => setHostingApiToken(e.target.value)}
+                      placeholder={hostingConfig?.hasApiToken ? 'Saved; leave blank to keep' : 'Paste API token'}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vercel Team ID</label>
+                    <input
+                      value={hostingTeamId}
+                      onChange={e => setHostingTeamId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vercel Project ID</label>
+                    <input
+                      value={hostingProjectId}
+                      onChange={e => setHostingProjectId(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Railway API URL</label>
+                    <input
+                      value={hostingRailwayUrl}
+                      onChange={e => setHostingRailwayUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Render API URL</label>
+                    <input
+                      value={hostingRenderUrl}
+                      onChange={e => setHostingRenderUrl(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-sacred-500"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => saveHostingConfigMutation.mutate()}
+                  disabled={saveHostingConfigMutation.isPending}
+                  className="px-4 py-2 bg-sacred-800 text-white text-sm rounded-lg hover:bg-sacred-900 transition-colors disabled:opacity-50"
+                >
+                  {saveHostingConfigMutation.isPending ? 'Saving...' : 'Save Hosting Config'}
+                </button>
+
+                <div className="border-t border-gray-200 pt-4">
+                  <p className="text-sm text-gray-600">
+                    Currently live: <span className="font-medium text-gray-900">
+                      {apiHostStatus?.host === 'railway' ? 'Railway' : apiHostStatus?.host === 'render' ? 'Render' : 'Unknown'}
+                    </span>
+                    {apiHostStatus?.switchedAt ? ` · switched ${new Date(apiHostStatus.switchedAt).toLocaleString()}` : ''}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    <button
+                      onClick={() => handleSwitchApiHost('railway')}
+                      disabled={switchApiHostMutation.isPending || !hostingConfig?.isConfigured || apiHostStatus?.host === 'railway'}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors disabled:opacity-50 ${
+                        apiHostStatus?.host === 'railway'
+                          ? 'bg-sacred-800 text-white'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {switchApiHostMutation.isPending ? 'Switching...' : 'Use Railway'}
+                    </button>
+                    <button
+                      onClick={() => handleSwitchApiHost('render')}
+                      disabled={switchApiHostMutation.isPending || !hostingConfig?.isConfigured || apiHostStatus?.host === 'render'}
+                      className={`px-4 py-2 text-sm rounded-lg transition-colors disabled:opacity-50 ${
+                        apiHostStatus?.host === 'render'
+                          ? 'bg-sacred-800 text-white'
+                          : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {switchApiHostMutation.isPending ? 'Switching...' : 'Use Render'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Section>
+        )}
 
         {/* Environment info */}
         <Section
