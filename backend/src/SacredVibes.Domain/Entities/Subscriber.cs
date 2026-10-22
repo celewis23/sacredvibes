@@ -22,6 +22,10 @@ public class Subscriber : BaseEntity
     public DateTime? UnsubscribedAt { get; set; }
     public string? UnsubscribeReason { get; set; }
 
+    // Set once the automated welcome email successfully sends — never on queue/attempt — so a
+    // failed send can be told apart from a delivered one, and so a subscriber is never emailed twice.
+    public DateTime? WelcomeEmailSentAt { get; set; }
+
     public string? Notes { get; set; }
     public string MetadataJson { get; set; } = "{}";
 

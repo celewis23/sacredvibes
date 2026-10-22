@@ -5,6 +5,7 @@ using SacredVibes.Application.Features.Email;
 using SacredVibes.Application.Features.Email.DTOs;
 using SacredVibes.Application.Features.EmailTemplates;
 using SacredVibes.Application.Features.EmailTemplates.DTOs;
+using SacredVibes.Infrastructure.Services;
 
 namespace SacredVibes.Api.Controllers;
 
@@ -54,6 +55,21 @@ public class EmailTemplatesController : ControllerBase
         }
     }
 
+    [HttpGet("{key}/automation")]
+    public async Task<ActionResult<ApiResponse<AutomationStatusDto>>> GetAutomation(string key, CancellationToken ct = default)
+    {
+        var enabled = await _templates.IsAutomationEnabledAsync(key, ct);
+        return Ok(ApiResponse<AutomationStatusDto>.Ok(new AutomationStatusDto { Enabled = enabled }));
+    }
+
+    [HttpPut("{key}/automation")]
+    public async Task<ActionResult<ApiResponse<AutomationStatusDto>>> SetAutomation(
+        string key, [FromBody] AutomationStatusDto request, CancellationToken ct = default)
+    {
+        await _templates.SetAutomationEnabledAsync(key, request.Enabled, ct);
+        return Ok(ApiResponse<AutomationStatusDto>.Ok(new AutomationStatusDto { Enabled = request.Enabled }));
+    }
+
     [HttpPost("{key}/reset")]
     public async Task<ActionResult<ApiResponse<EmailTemplateDto>>> ResetToDefault(string key, CancellationToken ct = default)
     {
@@ -93,6 +109,10 @@ public class EmailTemplatesController : ControllerBase
             ["cancellationReason"] = "The session was cancelled due to scheduling conflict.",
             ["oldServiceName"] = "60-Minute Swedish Massage",
             ["newServiceName"] = "60-Minute Sound Healing Session",
+            ["greeting"] = "Hi Jane,",
+            ["bookingUrl"] = $"{PublicUrlResolver.ResolveFrontendBaseUrl()}/booking",
+            ["unsubscribeUrl"] = $"{PublicUrlResolver.ResolveFrontendBaseUrl()}/unsubscribe?id={Guid.NewGuid()}",
+            ["signature"] = (await _email.GetSignaturesAsync(ct)).FirstOrDefault(s => s.IsDefault)?.Html ?? string.Empty,
         };
 
         try
@@ -112,4 +132,9 @@ public class EmailTemplatesController : ControllerBase
             return StatusCode(502, ApiResponse<string>.Fail($"Failed to send preview: {ex.Message}"));
         }
     }
+}
+
+public class AutomationStatusDto
+{
+    public bool Enabled { get; set; }
 }

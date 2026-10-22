@@ -169,6 +169,12 @@ export const emailTemplatesApi = {
 
   sendPreview: (key: string, toEmail: string) =>
     apiClient.post<ApiResponse<string>>(`/email-templates/${key}/preview`, { toEmail }),
+
+  getAutomation: (key: string) =>
+    apiClient.get<ApiResponse<{ enabled: boolean }>>(`/email-templates/${key}/automation`),
+
+  setAutomation: (key: string, enabled: boolean) =>
+    apiClient.put<ApiResponse<{ enabled: boolean }>>(`/email-templates/${key}/automation`, { enabled }),
 }
 
 // ── Newsletter Templates ──────────────────────────────────────────────────────

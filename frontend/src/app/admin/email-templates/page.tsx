@@ -25,6 +25,7 @@ const TEMPLATE_LABELS: Record<string, { icon: string; audience: 'Customer' | 'Ad
   booking_payment_confirmed:        { icon: '🎉', audience: 'Customer' },
   booking_denied:                   { icon: '🙏', audience: 'Customer' },
   booking_rescheduled:              { icon: '🗓️', audience: 'Customer' },
+  subscriber_welcome:               { icon: '🌿', audience: 'Customer' },
 }
 
 const BLANK_LAYOUT_HTML = `<!DOCTYPE html>
@@ -73,6 +74,21 @@ export default function EmailTemplatesPage() {
   })
 
   const activeTemplate = kind === 'system' ? (templates?.find(t => t.key === selected) ?? null) : null
+
+  const { data: automation } = useQuery({
+    queryKey: ['email-template-automation', activeTemplate?.key],
+    queryFn: () => emailTemplatesApi.getAutomation(activeTemplate!.key).then(r => r.data.data ?? { enabled: true }),
+    enabled: activeTemplate?.key === 'subscriber_welcome',
+  })
+
+  const automationMutation = useMutation({
+    mutationFn: (enabled: boolean) => emailTemplatesApi.setAutomation(activeTemplate!.key, enabled),
+    onSuccess: (_, enabled) => {
+      toast.success(enabled ? 'Welcome emails are now sending automatically' : 'Automatic welcome emails paused')
+      queryClient.invalidateQueries({ queryKey: ['email-template-automation', activeTemplate?.key] })
+    },
+    onError: () => toast.error('Could not update automation setting'),
+  })
   const activeLayout = kind === 'custom' ? (layouts.find(l => l.id === selected) ?? null) : null
 
   useEffect(() => {
@@ -257,6 +273,18 @@ export default function EmailTemplatesPage() {
                 <p className="text-xs text-gray-400 mt-0.5">{activeTemplate.description}</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
+                {activeTemplate.key === 'subscriber_welcome' && (
+                  <label className="flex items-center gap-2 text-xs text-gray-600 mr-2">
+                    <input
+                      type="checkbox"
+                      checked={automation?.enabled ?? true}
+                      onChange={e => automationMutation.mutate(e.target.checked)}
+                      disabled={automationMutation.isPending}
+                      className="rounded border-gray-300 text-sacred-700 focus:ring-sacred-500"
+                    />
+                    Send automatically to new subscribers
+                  </label>
+                )}
                 <button
                   onClick={() => { if (confirm('Reset to default template?')) resetMutation.mutate() }}
                   disabled={resetMutation.isPending}
@@ -359,6 +387,10 @@ export default function EmailTemplatesPage() {
                       .replace(/\{\{requestedDate\}\}/g, 'Friday, August 28 at 2:00 PM')
                       .replace(/\{\{previousRequestedDate\}\}/g, 'Wednesday, August 26 at 10:00 AM')
                       .replace(/\{\{checkoutUrl\}\}/g, 'https://sandbox.square.link/example')
+                      .replace(/\{\{greeting\}\}/g, 'Hi Jane,')
+                      .replace(/\{\{bookingUrl\}\}/g, 'https://sacredvibesyoga.com/booking')
+                      .replace(/\{\{unsubscribeUrl\}\}/g, 'https://sacredvibesyoga.com/unsubscribe?id=00000000-0000-0000-0000-000000000000')
+                      .replace(/\{\{signature\}\}/g, '<img src="https://sacredvibes.vercel.app/images/ShannaEmailSignature.png" alt="Shanna - Sacred Vibes Yoga" style="max-width: 360px; width: 100%; height: auto;" />')
                     }
                     className="w-full"
                     style={{ height: '600px', border: 'none' }}

@@ -15,6 +15,7 @@ public class SubscriberDto
     public bool IsSubscribed { get; set; }
     public ConsentStatus ConsentStatus { get; set; }
     public DateTime? ConsentedAt { get; set; }
+    public DateTime? WelcomeEmailSentAt { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

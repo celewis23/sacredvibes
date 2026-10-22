@@ -359,6 +359,7 @@ public class SubscribersController : ControllerBase
         IsSubscribed = s.IsSubscribed,
         ConsentStatus = s.ConsentStatus,
         ConsentedAt = s.ConsentedAt,
+        WelcomeEmailSentAt = s.WelcomeEmailSentAt,
         Notes = s.Notes,
         CreatedAt = s.CreatedAt,
         UpdatedAt = s.UpdatedAt,

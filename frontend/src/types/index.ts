@@ -374,6 +374,7 @@ export interface Subscriber {
   source: ImportSource
   isSubscribed: boolean
   consentStatus: ConsentStatus
+  welcomeEmailSentAt?: string
   createdAt: string
   updatedAt: string
   tags: SubscriberTag[]

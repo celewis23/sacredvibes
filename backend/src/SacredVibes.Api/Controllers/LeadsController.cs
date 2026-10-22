@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SacredVibes.Application.Common.DTOs;
 using SacredVibes.Application.Features.Settings.DTOs;
+using SacredVibes.Application.Features.Subscribers;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Enums;
 using SacredVibes.Infrastructure.Data;
@@ -14,8 +15,13 @@ namespace SacredVibes.Api.Controllers;
 public class LeadsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ISubscriberWelcomeEmailService _welcomeEmail;
 
-    public LeadsController(AppDbContext db) => _db = db;
+    public LeadsController(AppDbContext db, ISubscriberWelcomeEmailService welcomeEmail)
+    {
+        _db = db;
+        _welcomeEmail = welcomeEmail;
+    }
 
     [HttpPost]
     [AllowAnonymous]
@@ -55,7 +61,9 @@ public class LeadsController : ControllerBase
 
         await _db.Leads.AddAsync(lead, ct);
 
-        // Auto-subscribe if opted in
+        // Auto-subscribe if opted in — and, only for a genuinely new subscriber, send the
+        // automated welcome email (never for someone already on the list, and never for an
+        // unrelated profile update elsewhere in the app).
         if (request.NewsletterOptIn && !string.IsNullOrWhiteSpace(lead.Email))
         {
             var existing = await _db.Subscribers.FirstOrDefaultAsync(s => s.Email == lead.Email, ct);
@@ -74,8 +82,22 @@ public class LeadsController : ControllerBase
                     ConsentMethod = "lead-form"
                 };
                 await _db.Subscribers.AddAsync(subscriber, ct);
-                await _db.SaveChangesAsync(ct);
-                lead.ConvertedSubscriberId = subscriber.Id;
+
+                try
+                {
+                    await _db.SaveChangesAsync(ct);
+                    lead.ConvertedSubscriberId = subscriber.Id;
+                    await _welcomeEmail.SendWelcomeEmailAsync(subscriber, ct);
+                }
+                catch (DbUpdateException)
+                {
+                    // Lost a race against a concurrent signup for the same address — the email
+                    // is already a subscriber as of now, so just link the lead to it and skip
+                    // the welcome email (it either already went out, or is about to).
+                    _db.Entry(subscriber).State = EntityState.Detached;
+                    var winner = await _db.Subscribers.FirstOrDefaultAsync(s => s.Email == lead.Email, ct);
+                    if (winner is not null) lead.ConvertedSubscriberId = winner.Id;
+                }
             }
         }
 

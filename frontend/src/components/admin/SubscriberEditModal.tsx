@@ -137,6 +137,13 @@ export default function SubscriberEditModal({ subscriber, onClose }: Props) {
             </div>
           </div>
 
+          <div className="text-xs text-sacred-500">
+            Welcome email:{' '}
+            {subscriber.welcomeEmailSentAt
+              ? `Sent ${new Date(subscriber.welcomeEmailSentAt).toLocaleString()}`
+              : 'Not sent'}
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-sacred-600 mb-1">Notes</label>
             <textarea

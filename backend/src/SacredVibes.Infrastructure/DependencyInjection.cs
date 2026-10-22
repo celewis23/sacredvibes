@@ -20,6 +20,7 @@ using SacredVibes.Application.Features.Push;
 using SacredVibes.Application.Features.Security;
 using SacredVibes.Application.Features.Settings;
 using SacredVibes.Application.Features.Studio;
+using SacredVibes.Application.Features.Subscribers;
 using SacredVibes.Application.Features.Subscriptions;
 using SacredVibes.Domain.Entities;
 using SacredVibes.Domain.Interfaces;
@@ -40,6 +41,7 @@ using SacredVibes.Infrastructure.Services.Square;
 using SacredVibes.Infrastructure.Services.Storage;
 using SacredVibes.Infrastructure.Services.Stripe;
 using SacredVibes.Infrastructure.Services.Studio;
+using SacredVibes.Infrastructure.Services.Subscribers;
 using System.Text;
 
 namespace SacredVibes.Infrastructure;
@@ -124,6 +126,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailMailboxService, EmailMailboxService>();
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
         services.AddScoped<IBookingNotificationService, BookingNotificationService>();
+        services.AddScoped<ISubscriberWelcomeEmailService, SubscriberWelcomeEmailService>();
         services.AddScoped<IStudioService, StudioService>();
         services.AddScoped<IStripeSubscriptionService, StripeSubscriptionService>();
         services.AddScoped<IAdminAssistantSettingsService, AdminAssistantSettingsService>();

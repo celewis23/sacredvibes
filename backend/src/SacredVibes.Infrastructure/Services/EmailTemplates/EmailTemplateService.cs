@@ -75,6 +75,28 @@ public class EmailTemplateService : IEmailTemplateService
         return sb.ToString();
     }
 
+    public async Task<bool> IsAutomationEnabledAsync(string key, CancellationToken ct = default)
+    {
+        var setting = await _db.IntegrationSettings.FirstOrDefaultAsync(i => i.Provider == AutomationProvider(key), ct);
+        return setting?.IsEnabled ?? true;
+    }
+
+    public async Task SetAutomationEnabledAsync(string key, bool enabled, CancellationToken ct = default)
+    {
+        var provider = AutomationProvider(key);
+        var setting = await _db.IntegrationSettings.FirstOrDefaultAsync(i => i.Provider == provider, ct);
+        if (setting is null)
+        {
+            setting = new IntegrationSetting { Provider = provider, SettingsJson = "{}" };
+            await _db.IntegrationSettings.AddAsync(setting, ct);
+        }
+
+        setting.IsEnabled = enabled;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private static string AutomationProvider(string key) => $"EmailAutomation:{key}";
+
     // ── Internals ─────────────────────────────────────────────────────────────
 
     private async Task<Dictionary<string, StoredTemplate>> LoadStoredAsync(CancellationToken ct)
@@ -190,6 +212,13 @@ public class EmailTemplateService : IEmailTemplateService
             "A new time has been proposed for your booking",
             new List<string> { "customerName", "serviceName", "requestedDate", "previousRequestedDate", "brandName" },
             BuildBookingRescheduledTemplate()
+        ),
+        ["subscriber_welcome"] = new(
+            "Welcome Email (New Subscriber)",
+            "Sent automatically the moment someone new joins the mailing list.",
+            "Welcome to Sacred Vibes Yoga! 🌿✨",
+            new List<string> { "greeting", "bookingUrl", "signature", "unsubscribeUrl" },
+            BuildSubscriberWelcomeTemplate()
         ),
     };
 
@@ -438,6 +467,55 @@ public class EmailTemplateService : IEmailTemplateService
         <p style="margin:0 0 12px;color:#736456;font-size:14px;line-height:1.7;">If this new time works for you, no action is needed — we'll follow up to confirm. If not, just reply to this email and we'll find another time together.</p>
         <p style="margin:0;color:#736456;font-size:14px;line-height:1.7;">With love &amp; light,<br /><strong style="color:#5f5248;">The Sacred Vibes Team</strong></p>
         """);
+
+    private static string BuildSubscriberWelcomeTemplate() => WrapInLayout(
+        "Your journey to balance, relaxation, and positive energy begins here.",
+        "Welcome to the Family",
+        $"""
+        <h2 style="margin:0 0 20px;color:#1c1714;font-size:22px;font-weight:400;line-height:1.3;">{Token("greeting")}</h2>
+
+        <p style="margin:0 0 20px;color:#5f5248;font-size:15px;line-height:1.75;">We're so happy you're here! ✨</p>
+
+        <p style="margin:0 0 20px;color:#5f5248;font-size:15px;line-height:1.75;">Welcome to <strong>Sacred Vibes Yoga</strong>, a space where wellness meets intention, movement inspires growth, and every breath brings you closer to your best self.</p>
+
+        <p style="margin:0 0 28px;color:#5f5248;font-size:15px;line-height:1.75;">We believe that taking time for yourself is one of the most beautiful gifts you can give. Whether you're just beginning your wellness journey or have been practicing for years, you belong here.</p>
+
+        <p style="margin:0 0 16px;color:#1c1714;font-size:15px;font-weight:500;">Here's what you can look forward to as part of our community:</p>
+
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+          style="background-color:#faf9f7;border:1px solid #e8e2d9;border-radius:8px;margin:0 0 28px;">
+          <tr>
+            <td style="padding:20px 24px;">
+              <p style="margin:0 0 14px;color:#5f5248;font-size:14px;line-height:1.7;">🌿 <strong>Mindful Moments</strong> — Inspiration to help you find balance, peace, and clarity in your everyday life.</p>
+              <p style="margin:0 0 14px;color:#5f5248;font-size:14px;line-height:1.7;">🧘🏽‍♀️ <strong>Yoga &amp; Wellness Updates</strong> — Stay connected with upcoming classes, experiences, and events designed to nurture your mind, body, and spirit.</p>
+              <p style="margin:0 0 14px;color:#5f5248;font-size:14px;line-height:1.7;">💆🏽‍♀️ <strong>Private Massage Sessions</strong> — Personalized experiences designed to help release tension, encourage relaxation, and restore a sense of balance.</p>
+              <p style="margin:0 0 14px;color:#5f5248;font-size:14px;line-height:1.7;">🎶 <strong>Private Sound Healing Sessions</strong> — Immerse yourself in soothing sounds and vibrations created to encourage deep relaxation, mindfulness, and inner peace.</p>
+              <p style="margin:0 0 14px;color:#5f5248;font-size:14px;line-height:1.7;">💜 <strong>Positive Energy</strong> — Encouragement, self-care tips, and gentle reminders to prioritize YOU.</p>
+              <p style="margin:0;color:#5f5248;font-size:14px;line-height:1.7;">✨ <strong>Community Connections</strong> — Opportunities to grow, connect, and share meaningful experiences.</p>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 8px;color:#1c1714;font-size:15px;line-height:1.75;"><strong>Your journey is yours. We're simply honored to be a part of it.</strong></p>
+
+        <p style="margin:0 0 28px;color:#5f5248;font-size:15px;line-height:1.75;">Whether you're joining us on the mat, treating yourself to a private massage, or finding stillness through a sound healing session, Sacred Vibes Yoga is here to help you create moments of peace and connection.</p>
+
+        <p style="margin:0 0 28px;color:#5f5248;font-size:15px;line-height:1.75;">Thank you for allowing us into your inbox and, more importantly, into your wellness journey. Take a deep breath. Release what no longer serves you. And remember, you deserve every moment of peace you create.</p>
+
+        <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 32px;">
+          <tr>
+            <td style="border-radius:6px;background-color:#5f5248;">
+              <a href="{Token("bookingUrl")}" style="display:inline-block;padding:14px 28px;color:#f3f0eb;font-size:14px;font-weight:500;text-decoration:none;">Book Your Wellness Experience</a>
+            </td>
+          </tr>
+        </table>
+
+        <p style="margin:0 0 4px;color:#736456;font-size:14px;line-height:1.7;">With love, light, and gratitude,</p>
+        <div style="margin:0 0 20px;">{Token("signature")}</div>
+
+        <p style="margin:0;color:#a49280;font-size:13px;font-style:italic;">Breathe deeply. Move intentionally. Live beautifully.</p>
+        """,
+        $"""You're receiving this because you joined the Sacred Vibes Yoga mailing list. <a href="{Token("unsubscribeUrl")}" style="color:#a49280;text-decoration:underline;">Unsubscribe</a>""");
 
     // ── Inner types ────────────────────────────────────────────────────────────
 
